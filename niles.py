@@ -17,6 +17,7 @@ from streamlit_cookies_manager import EncryptedCookieManager
 # CONFIG (set once, top-level)
 # -------------------------------
 st.set_page_config(page_title="Nile Esports ProClubs Hub", page_icon="⚽", layout="wide")
+LOGO_URL = "https://scontent.fcai20-4.fna.fbcdn.net/v/t39.30808-6/460331146_122191529468078659_8549609423668977699_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeEogfareJPi_JT1tAC-LFAXYDCIEt4d8QBgMIgS3h3xADavaqieLvC-GdEW6JvdlEAm3FAmZUj65l-E9vQlcUh5&_nc_ohc=nyGBiXclu9MQ7kNvwFW61kB&_nc_oc=AdltF6iHSSsAOJ7qpypmR3q-yrBfBYrPVH-Jl8wTNohzgvPZ729IqJ-isR5jSjvz9xI&_nc_zt=23&_nc_ht=scontent.fcai20-4.fna&_nc_gid=nkBEgbDELXlG98EOb9q4kg&oh=00_AfVLKzVIBjgpN_dF2gfRTQ1H8fz_yzvzVseM6ny3psxp_g&oe=68A3E976"
 
 # -------------------------------
 # GLOBAL STYLES (including Intro UX)
@@ -418,7 +419,7 @@ def intro_page():
     # Professional Splash Intro
     st.markdown(f"""
     <div style='display:flex;flex-direction:column;align-items:center;justify-content:center;height:85vh;text-align:center;'>
-        <img src='{ "https://scontent.fcai20-4.fna.fbcdn.net/v/t39.30808-6/460331146_122191529468078659_8549609423668977699_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeEogfareJPi_JT1tAC-LFAXYDCIEt4d8QBgMIgS3h3xADavaqieLvC-GdEW6JvdlEAm3FAmZUj65l-E9vQlcUh5&_nc_ohc=nyGBiXclu9MQ7kNvwFW61kB&_nc_oc=AdltF6iHSSsAOJ7qpypmR3q-yrBfBYrPVH-Jl8wTNohzgvPZ729IqJ-isR5jSjvz9xI&_nc_zt=23&_nc_ht=scontent.fcai20-4.fna&_nc_gid=nkBEgbDELXlG98EOb9q4kg&oh=00_AfVLKzVIBjgpN_dF2gfRTQ1H8fz_yzvzVseM6ny3psxp_g&oe=68A3E976" }'
+        <img src='{LOGO_URL}'
              style='width:200px;height:auto;animation:fadeIn 2s ease-in-out;'>
         <h1 class="title" style='margin-top:20px;'>Nile Esports</h1>
         <p class="subtitle">One Club. One Heartbeat. 🖤💚</p>
@@ -435,7 +436,7 @@ def intro_page():
             st.rerun()
     with col2:
         if st.button("👀 View Public Fan Wall", use_container_width=True):
-            st.session_state.auth = {"role": "fan", "name": "Guest"}
+            save_login("fan", "Guest")
             st.session_state.page = "fan_public_only"
             st.balloons()
             st.rerun()
@@ -448,8 +449,7 @@ def login_ui():
     # Branded Login Card
     st.markdown(f"""
     <div class='glass card' style='padding:30px;max-width:420px;margin:auto;text-align:center;'>
-        <img src='{ "https://scontent.fcai20-4.fna.fbcdn.net/v/t39.30808-6/460331146_122191529468078659_8549609423668977699_n.jpg" }'
-             style='width:100px;height:auto;margin-bottom:10px;'>
+        <img src='{LOGO_URL}' style='width:100px;height:auto;margin-bottom:10px;'>
         <h2 style='margin:0;'>Sign In</h2>
         <p class="small" style="margin:.3rem 0 1rem 0;">Choose your role and use your access code</p>
     </div>
@@ -509,6 +509,7 @@ def login_ui():
         if st.button("⬅ Back to Intro", use_container_width=True):
             st.session_state.page = "intro"
             st.rerun()
+
 
 # -------------------------------
 # DASHBOARD
