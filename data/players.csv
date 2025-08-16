@@ -1,0 +1,4 @@
+player_id,name,position,code,active
+1,Player1,ST,PL-001,True
+2,Player2,CM,PL-002,True
+3,Player3,CB,PL-003,True
