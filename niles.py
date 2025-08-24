@@ -13,6 +13,17 @@ import os
 import time
 from datetime import datetime, date, time as dtime
 from streamlit_cookies_manager import EncryptedCookieManager
+import os
+import json
+import pandas as pd
+import numpy as np
+import streamlit as st
+from datetime import datetime
+from supabase import create_client
+import time
+import httpx
+from postgrest.exceptions import APIError
+import google.generativeai as genai
 # -------------------------------
 # CONFIG (set once, top-level)
 # -------------------------------
@@ -204,26 +215,226 @@ a{
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 st.markdown(appINTRO_CSS, unsafe_allow_html=True)
+
+
+
+
+
+
+
+# =======================================
+# NILES APP (with Supabase integration)
+# =======================================
+
+
+
+# -------------------------------
+# CONFIG
+# -------------------------------
+st.set_page_config(
+    page_title="Nile SC Manager",
+    page_icon="⚽",
+    layout="wide"
+)
+
+DATA_DIR = "data"
+UPLOADS_DIR = "uploads"
+
+# File constants
+MATCHES_FILE = os.path.join(DATA_DIR, "matches.csv")
+PLAYER_STATS_FILE = os.path.join(DATA_DIR, "player_stats.csv")
+TACTICS_FILE = os.path.join(DATA_DIR, "tactics.csv")
+TACTICS_POS_FILE = os.path.join(DATA_DIR, "tactics_positions.csv")
+AVAIL_FILE = os.path.join(DATA_DIR, "availability.csv")
+FANWALL_FILE = os.path.join(DATA_DIR, "fan_wall.csv")
+PLAYERS_FILE = os.path.join(DATA_DIR, "players.csv")
+TRAINING_SESSIONS_FILE = os.path.join(DATA_DIR, "training_sessions.csv")
+TRAINING_ATTEND_FILE = os.path.join(DATA_DIR, "training_attendance.csv")
+
+# -------------------------------
+# DATA LAYER HELPERS (CSV + Supabase bridge)
+# -------------------------------
+PATH_TO_TABLE = {
+    MATCHES_FILE: "matches",
+    PLAYER_STATS_FILE: "player_stats",
+    TACTICS_FILE: "tactics",
+    TACTICS_POS_FILE: "tactics_positions",
+    AVAIL_FILE: "availability",
+    FANWALL_FILE: "fan_wall",
+    PLAYERS_FILE: "players",
+    TRAINING_SESSIONS_FILE: "training_sessions",
+    TRAINING_ATTEND_FILE: "training_attendance",
+}
+
+USE_SUPABASE = True
+
+@st.cache_resource
+def _supabase_client():
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_SERVICE_ROLE_KEY"]
+    return create_client(url, key)
+
+@st.cache_resource
+def _gemini_client():
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    return genai.GenerativeModel("gemini-1.5-flash")
+
+def _table_for_path(path: str) -> str:
+    if path not in PATH_TO_TABLE:
+        raise ValueError(f"No Supabase table mapping for {path}")
+    return PATH_TO_TABLE[path]
+
+def _df_to_rows(df: pd.DataFrame):
+    return json.loads(df.where(pd.notnull(df), None).to_json(orient="records"))
+
+def ensure_dirs():
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(UPLOADS_DIR, exist_ok=True)
+
+def ensure_csvs():
+    if USE_SUPABASE:
+        return
+    if not os.path.exists(MATCHES_FILE):
+        pd.DataFrame(columns=["match_id","date","opponent","our_score","their_score","result","notes"]).to_csv(MATCHES_FILE, index=False)
+    if not os.path.exists(PLAYER_STATS_FILE):
+        pd.DataFrame(columns=["match_id","player_name","position","goals","assists","rating","yellow_cards","red_cards"]).to_csv(PLAYER_STATS_FILE, index=False)
+    if not os.path.exists(TACTICS_FILE):
+        pd.DataFrame(columns=["formation","roles","instructions","notes","image_path","updated_by","updated_at"]).to_csv(TACTICS_FILE, index=False)
+    if not os.path.exists(TACTICS_POS_FILE):
+        pd.DataFrame(columns=["formation","position","player_name","x","y","updated_by","updated_at"]).to_csv(TACTICS_POS_FILE, index=False)
+    if not os.path.exists(AVAIL_FILE):
+        pd.DataFrame(columns=["date","player_name","availability"]).to_csv(AVAIL_FILE, index=False)
+    if not os.path.exists(FANWALL_FILE):
+        pd.DataFrame(columns=["timestamp","user","message","approved"]).to_csv(FANWALL_FILE, index=False)
+    if not os.path.exists(PLAYERS_FILE):
+        seed = pd.DataFrame([
+            {"player_id":1, "name":"Player1", "position":"ST", "code":"PL-001", "active":True},
+            {"player_id":2, "name":"Player2", "position":"CM", "code":"PL-002", "active":True},
+            {"player_id":3, "name":"Player3", "position":"CB", "code":"PL-003", "active":True},
+        ])
+        seed.to_csv(PLAYERS_FILE, index=False)
+    if not os.path.exists(TRAINING_SESSIONS_FILE):
+        pd.DataFrame(columns=["session_id","date","time","title","location","notes","created_by","created_at"]).to_csv(TRAINING_SESSIONS_FILE, index=False)
+    if not os.path.exists(TRAINING_ATTEND_FILE):
+        pd.DataFrame(columns=["session_id","date","player_name","status","timestamp"]).to_csv(TRAINING_ATTEND_FILE, index=False)
+
+# Expected columns per table based on your schema
+EXPECTED_COLUMNS = {
+    "players": ["player_id", "name", "position", "code", "active"],
+    "matches": ["match_id", "date", "opponent", "our_score", "their_score", "result", "notes"],
+    "player_stats": [
+        "id", "match_id", "player_name", "position", "goals", "assists",
+        "rating", "yellow_cards", "red_cards"
+    ],
+    "tactics": ["id", "formation", "roles", "instructions", "notes", "image_path", "updated_by", "updated_at"],
+    "tactics_positions": ["id", "formation", "position", "player_name", "x", "y", "updated_by", "updated_at"],
+    "availability": ["id", "date", "player_name", "availability"],
+    "training_sessions": ["session_id", "date", "time", "title", "location", "notes", "created_by", "created_at"],
+    "training_attendance": ["id", "session_id", "date", "player_name", "status", "timestamp"],
+    "fan_wall": ["id", "timestamp", "user", "message", "approved"],
+}
+
+def read_csv_safe(path: str, retries: int = 3, delay: float = 1.0) -> pd.DataFrame:
+    """Read from Supabase with retries and guaranteed schema."""
+    sb = _supabase_client()
+    table = _table_for_path(path)
+
+    attempt = 0
+    while attempt < retries:
+        try:
+            resp = sb.table(table).select("*").execute()
+            if not resp.data:
+                # ✅ Return empty DF with expected schema
+                return pd.DataFrame(columns=EXPECTED_COLUMNS.get(table, []))
+
+            df = pd.DataFrame(resp.data)
+
+            # Normalize dates
+            if "date" in df.columns:
+                df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+
+            return df
+
+        except (httpx.RemoteProtocolError, APIError) as e:
+            attempt += 1
+            if attempt < retries:
+                time.sleep(delay * attempt)  # exponential backoff
+                continue
+            else:
+                st.error(f"❌ Database read failed after {retries} attempts: {e}")
+                return pd.DataFrame(columns=EXPECTED_COLUMNS.get(table, []))
+
+
+
+def write_csv_safe(df: pd.DataFrame, path: str):
+    """Safely write a dataframe to Supabase.
+       - Deletes missing rows based on primary keys
+       - Skips auto-increment IDs where needed
+       - Ensures correct types before upsert
+    """
+    sb = _supabase_client()
+    table = _table_for_path(path)
+
+    auto_ids = {
+        "player_stats": ["id"],
+        "tactics": ["id"],
+        "tactics_positions": ["id"],
+        "availability": ["id"],
+        "training_attendance": ["id"],
+        "fan_wall": ["id"],
+    }
+    cols_to_skip = auto_ids.get(table, [])
+    safe_df = df.drop(columns=[c for c in cols_to_skip if c in df.columns], errors="ignore")
+
+    # 🔧 Ensure proper date type
+    if "date" in safe_df.columns:
+        safe_df["date"] = pd.to_datetime(safe_df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+
+    # 🔧 Force integer columns to real ints
+    int_columns = {
+        "players": ["player_id"],
+        "matches": ["match_id", "our_score", "their_score"],
+        "player_stats": ["match_id", "goals", "assists", "yellow_cards", "red_cards"],
+        "tactics_positions": ["x", "y"],
+        "training_sessions": ["session_id"],
+        "training_attendance": ["session_id"],
+    }
+    if table in int_columns:
+        for col in int_columns[table]:
+            if col in safe_df.columns:
+                safe_df[col] = pd.to_numeric(safe_df[col], errors="coerce").dropna().astype("Int64")
+                safe_df[col] = safe_df[col].astype(object).where(safe_df[col].notnull(), None)
+
+    # Convert to rows
+    rows = _df_to_rows(safe_df)
+    if not rows:
+        return
+
+    # DELETE strategy (same as before, per table type)
+    if table == "players":
+        current_ids = [r["player_id"] for r in rows if r.get("player_id") is not None]
+        sb.table(table).delete().not_.in_("player_id", current_ids).execute()
+
+    elif table == "matches":
+        current_ids = [r["match_id"] for r in rows if r.get("match_id") is not None]
+        sb.table(table).delete().not_.in_("match_id", current_ids).execute()
+
+    elif table == "training_sessions":
+        current_ids = [r["session_id"] for r in rows if r.get("session_id") is not None]
+        sb.table(table).delete().not_.in_("session_id", current_ids).execute()
+
+    elif table == "player_stats":
+        sb.table(table).delete().neq("match_id", -1).execute()
+
+    elif table in ["tactics", "tactics_positions", "availability", "training_attendance", "fan_wall"]:
+        sb.table(table).delete().neq("id", -1).execute()
+
+    # UPSERT in chunks
+    CHUNK = 500
+    for i in range(0, len(rows), CHUNK):
+        sb.table(table).upsert(rows[i:i+CHUNK]).execute()
+
 
 # -------------------------------
 # APP TITLE & PATHS
@@ -255,49 +466,7 @@ ROLE_CODES = {
 if not hasattr(st, "rerun"):
     st.rerun = st.experimental_rerun  # type: ignore
 
-# -------------------------------
-# DATA LAYER HELPERS
-# -------------------------------
-def ensure_dirs():
-    os.makedirs(DATA_DIR, exist_ok=True)
-    os.makedirs(UPLOADS_DIR, exist_ok=True)
 
-def ensure_csvs():
-    if not os.path.exists(MATCHES_FILE):
-        pd.DataFrame(columns=["match_id","date","opponent","our_score","their_score","result","notes"]).to_csv(MATCHES_FILE, index=False)
-    if not os.path.exists(PLAYER_STATS_FILE):
-        pd.DataFrame(columns=["match_id","player_name","position","goals","assists","rating","yellow_cards","red_cards"]).to_csv(PLAYER_STATS_FILE, index=False)
-    if not os.path.exists(TACTICS_FILE):
-        pd.DataFrame(columns=["formation","roles","instructions","notes","image_path","updated_by","updated_at"]).to_csv(TACTICS_FILE, index=False)
-    if not os.path.exists(TACTICS_POS_FILE):
-        pd.DataFrame(columns=["formation","position","player_name","x","y","updated_by","updated_at"]).to_csv(TACTICS_POS_FILE, index=False)
-    if not os.path.exists(AVAIL_FILE):
-        pd.DataFrame(columns=["date","player_name","availability"]).to_csv(AVAIL_FILE, index=False)
-    if not os.path.exists(FANWALL_FILE):
-        pd.DataFrame(columns=["timestamp","user","message","approved"]).to_csv(FANWALL_FILE, index=False)
-    if not os.path.exists(PLAYERS_FILE):
-        seed = pd.DataFrame([
-            {"player_id":1, "name":"Player1", "position":"ST",  "code":"PL-001", "active":True},
-            {"player_id":2, "name":"Player2", "position":"CM",  "code":"PL-002", "active":True},
-            {"player_id":3, "name":"Player3", "position":"CB",  "code":"PL-003", "active":True},
-        ])
-        seed.to_csv(PLAYERS_FILE, index=False)
-    # NEW: training CSVs
-    if not os.path.exists(TRAINING_SESSIONS_FILE):
-        pd.DataFrame(columns=["session_id","date","time","title","location","notes","created_by","created_at"]).to_csv(TRAINING_SESSIONS_FILE, index=False)
-    if not os.path.exists(TRAINING_ATTEND_FILE):
-        pd.DataFrame(columns=["session_id","date","player_name","status","timestamp"]).to_csv(TRAINING_ATTEND_FILE, index=False)
-
-def read_csv_safe(path: str) -> pd.DataFrame:
-    if not os.path.exists(path):
-        ensure_csvs()
-    try:
-        return pd.read_csv(path)
-    except Exception:
-        return pd.DataFrame()
-
-def write_csv_safe(df: pd.DataFrame, path: str):
-    df.to_csv(path, index=False)
 
 # -------------------------------
 # AUTH & SESSION
@@ -701,117 +870,78 @@ def admin_matches_page():
         format_func=lambda x: match_label_from_id(x, show)  # CHANGE: show date vs opponent
     )
     if st.button("🗑️ Delete Selected Match"):
+     if del_mid is not None and not matches.empty:
+        # Always define before inside the valid path
         before = len(matches)
+
+        # Delete the selected match
         matches = matches[matches["match_id"] != int(del_mid)]
         write_csv_safe(matches, MATCHES_FILE)
 
-        # Cascade delete player stats for that match
-        stats = read_csv_safe(PLAYER_STATS_FILE)
-        if not stats.empty:
-            stats = stats[stats["match_id"].astype(int) != int(del_mid)]
-            write_csv_safe(stats, PLAYER_STATS_FILE)
-
-        st.success(f"Deleted {before - len(matches)} match record(s) and related player stats.")
+        deleted_count = before - len(matches)
+        st.success(f"Deleted {deleted_count} match record(s). Linked player stats removed by cascade.")
         st.rerun()
+     else:
+        st.warning("⚠️ No match selected to delete.")
+
+
+
 
 
 
 
 
 def admin_player_stats_page():
-    st.subheader("Add Player Stats per Match")
+    st.header("📊 Player Stats")
 
-    matches = read_csv_safe(MATCHES_FILE)
-    stats = read_csv_safe(PLAYER_STATS_FILE)
-    players = read_csv_safe(PLAYERS_FILE)
+    stats = _supabase_client().table("player_stats").select("*").execute()
+    df = pd.DataFrame(stats.data) if stats.data else pd.DataFrame()
 
-    if matches.empty:
-        st.info("Add a match first.")
+    if df.empty:
+        st.info("No player stats available yet.")
         return
 
-    m = matches.copy()
-    m["date"] = pd.to_datetime(m["date"], errors="coerce").dt.date
-    for c in ["our_score", "their_score"]:
-        m[c] = pd.to_numeric(m[c], errors="coerce")
+    st.dataframe(df)
 
-    finished = m[m["our_score"].notna() & m["their_score"].notna()].sort_values("date")
-    if finished.empty:
-        st.info("No finished matches yet. Add a match result first.")
-        return
+    # Select a row to delete
+    selected = st.selectbox(
+        "Select stat row to delete",
+        df.apply(lambda r: f"ID {r['id']} - {r['player_name']} (Match {r['match_id']})", axis=1)
+    )
 
-    player_options = players[players.get("active", True) == True]["name"].tolist() if not players.empty else []
+    if st.button("🗑️ Delete Selected Stat"):
+        row_id = int(selected.split(" ")[1])  # extract ID
+        try:
+            _supabase_client().table("player_stats").delete().eq("id", row_id).execute()
+            st.success("✅ Stat deleted")
 
-    with st.form("add_stats"):
-        col1, col2 = st.columns(2)
-        with col1:
-            mid = st.selectbox(
-                "Match (finished only)",
-                options=finished["match_id"].astype(int).tolist(),
-                format_func=lambda x: match_label_from_id(x, finished)
-            )
-            player = st.selectbox("Player", options=player_options)
-            position = st.selectbox("Position", ["GK","RB","CB","LB","RWB","LWB","CDM","CM","CAM","RM","LM","RW","LW","ST"])
-        with col2:
-            goals = st.number_input("Goals", 0, 10, 0)
-            assists = st.number_input("Assists", 0, 10, 0)
-            rating = st.number_input("Rating (0–10)", 0.0, 10.0, 7.0, step=0.1)
-            y = st.number_input("Yellow cards", 0, 2, 0)
-            r = st.number_input("Red cards", 0, 1, 0)
-        submitted = st.form_submit_button("Save Stats", type="primary")
+            # ⚡️ Force refresh so UI updates (even if last row was deleted)
+            st.rerun()
+        except Exception as e:
+            st.error(f"❌ Failed to delete stat: {e}")
 
-    if submitted:
-        if not player:
-            st.warning("Player is required.")
-            return
-        if mid not in finished["match_id"].astype(int).tolist():
-            st.error("You can only add stats to finished matches.")
-            return
-
-        new_row = {
-            "match_id": int(mid),
-            "player_name": player,
-            "position": position,
-            "goals": int(goals),
-            "assists": int(assists),
-            "rating": round(float(rating), 1),
-            "yellow_cards": int(y),
-            "red_cards": int(r),
-        }
-
-        if not stats.empty:
-            mask = (stats["match_id"].astype(int) == int(mid)) & (stats["player_name"] == player)
-            stats = stats[~mask]
-
-        stats = pd.concat([stats, pd.DataFrame([new_row])], ignore_index=True)
-        write_csv_safe(stats, PLAYER_STATS_FILE)
-        st.success("Stats saved (upserted).")
-
-    st.divider()
-    if not stats.empty:
-        show = stats.sort_values(["match_id", "player_name"]).reset_index(drop=True)
-        st.dataframe(show, use_container_width=True)
-        with st.expander("Delete a stat row"):
-            idx = st.number_input("Row index to delete (as shown)", 0, len(show) - 1, 0)
-            if st.button("Delete row"):
-                stats2 = show.drop(show.index[idx]).reset_index(drop=True)
-                write_csv_safe(stats2, PLAYER_STATS_FILE)
-                st.success("Deleted.")
 
 
 def admin_players_crud_page():
     st.subheader("👤 Players – Add / Edit / Remove")
     players = read_csv_safe(PLAYERS_FILE)
 
+    # ---------------- Add Player ----------------
     with st.form("add_player"):
         c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
         with c1:
             name = st.text_input("Player Name")
         with c2:
-            position = st.selectbox("Primary Position", ["GK","RB","CB","LB","RWB","LWB","CDM","CM","CAM","RM","LM","RW","LW","ST"])
+            position = st.selectbox(
+                "Primary Position",
+                ["GK","RB","CB","LB","RWB","LWB","CDM","CM","CAM","RM","LM","RW","LW","ST"]
+            )
         with c3:
             code = st.text_input("Login Code", placeholder="e.g. PL-010")
         with c4:
             active = st.checkbox("Active", value=True)
+
+        avatar_file = st.file_uploader("Upload Player Photo (optional)", type=["png","jpg","jpeg"])
         submitted = st.form_submit_button("Add Player", type="primary")
 
     if submitted:
@@ -819,42 +949,93 @@ def admin_players_crud_page():
             st.warning("Name and Code are required.")
         else:
             new_id = int(players.get("player_id", pd.Series([0])).max()) + 1 if not players.empty else 1
-            new_row = {"player_id": new_id, "name": name, "position": position, "code": code, "active": bool(active)}
+
+            avatar_url = None
+            if avatar_file:
+                avatar_url = upload_player_photo(avatar_file.getvalue(), new_id)
+
+            new_row = {
+                "player_id": new_id,
+                "name": name,
+                "position": position,
+                "code": code,
+                "active": bool(active),
+                "avatar_url": avatar_url
+            }
             players = pd.concat([players, pd.DataFrame([new_row])], ignore_index=True)
             write_csv_safe(players, PLAYERS_FILE)
             st.success(f"Added {name}.")
             st.rerun()
 
     st.divider()
+
+    # ---------------- Current Players ----------------
     if players.empty:
         st.info("No players yet.")
         return
 
     st.caption("Current Roster")
-    st.dataframe(players, use_container_width=True)
 
+    # Show photos directly in roster table
+    for _, row in players.iterrows():
+        cols = st.columns([1, 3, 2, 2, 2])
+        with cols[0]:
+            if row.get("avatar_url"):
+                st.image(row["avatar_url"], width=60)
+            else:
+                st.image("https://via.placeholder.com/60")
+        with cols[1]:
+            st.write(f"**{row['name']}**")
+        with cols[2]:
+            st.write(row["position"])
+        with cols[3]:
+            st.write(row["code"])
+        with cols[4]:
+            st.write("✅ Active" if row["active"] else "❌ Inactive")
+
+    st.divider()
+
+    # ---------------- Edit / Delete ----------------
     with st.expander("Quick Edit / Delete"):
         names = players["name"].tolist()
         sel_name = st.selectbox("Select player", options=names)
         row = players[players["name"] == sel_name].iloc[0]
+
         positions_list = ["GK","RB","CB","LB","RWB","LWB","CDM","CM","CAM","RM","LM","RW","LW","ST"]
+        current_pos = str(row["position"]).upper()
+        pos_index = positions_list.index(current_pos) if current_pos in positions_list else 0
+
         new_name = st.text_input("Name", value=row["name"])
-        new_pos = st.selectbox("Position", positions_list, index=positions_list.index(row["position"]))
+        new_pos = st.selectbox("Position", positions_list, index=pos_index)
         new_code = st.text_input("Code", value=str(row["code"]))
         new_active = st.checkbox("Active", value=bool(row.get("active", True)))
+        avatar_file_edit = st.file_uploader("Update Player Photo", type=["png","jpg","jpeg"], key=f"edit_{sel_name}")
+
+        avatar_url = row.get("avatar_url", None)
+        if avatar_file_edit:
+            avatar_url = upload_player_photo(avatar_file_edit.getvalue(), int(row["player_id"]))
+
         colb1, colb2 = st.columns(2)
         with colb1:
             if st.button("Save Changes"):
-                players.loc[players["name"] == sel_name, ["name", "position", "code", "active"]] = [new_name, new_pos, new_code, bool(new_active)]
+                players.loc[players["name"] == sel_name, ["name", "position", "code", "active", "avatar_url"]] = [
+                    new_name, new_pos, new_code, bool(new_active), avatar_url
+                ]
                 write_csv_safe(players, PLAYERS_FILE)
                 st.success("Updated.")
                 st.rerun()
         with colb2:
             if st.button("Delete Player"):
                 players = players[players["name"] != sel_name]
+                if players.empty:
+                    players = pd.DataFrame(columns=["player_id","name","position","code","active","avatar_url"])
                 write_csv_safe(players, PLAYERS_FILE)
-                st.success("Deleted.")
+                st.success(f"Deleted {sel_name}.")
                 st.rerun()
+
+
+
+
 
 # -------------------------------
 # TRAINING: Admin/Manager/Player
@@ -1053,6 +1234,170 @@ def admin_training_attendance_all():
     agg = pd.concat([yes_counts, no_counts], axis=1).fillna(0).astype(int).reset_index()
     agg = agg.merge(sessions[["session_id","date","time","title"]], on="session_id", how="left")
     st.dataframe(agg.sort_values(["date","time"]), use_container_width=True)
+
+
+
+# ---------------- Extract Player Stats ----------------
+import google.generativeai as genai
+import json
+import pandas as pd
+
+# ---------------- Gemini Setup ----------------
+@st.cache_resource
+def _gemini_client():
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    return genai.GenerativeModel("gemini-1.5-flash")
+
+# ---------------- Extract Player Stats ----------------
+import base64
+
+def extract_player_stats(image_file) -> pd.DataFrame:
+    """
+    Use Gemini to extract per-player stats from an uploaded image.
+    Expected columns: player_name, rating, goals, assists
+    Returns a pandas DataFrame.
+    """
+    model = _gemini_client()
+
+    prompt = """
+    You are a data extractor. The image shows football match stats in table format.
+    Extract the data as JSON array of objects with exactly these keys:
+    - player_name (string)
+    - rating (float or int)
+    - goals (int)
+    - assists (int)
+
+    Example output:
+    [
+      {"player_name":"Mo Salah","rating":8.7,"goals":2,"assists":1},
+      {"player_name":"Amr El Solia","rating":7.2,"goals":0,"assists":1}
+    ]
+
+    Return ONLY valid JSON without extra commentary.
+    """
+
+    import base64
+    image_bytes = image_file.read()
+    image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+    image_part = {
+        "mime_type": image_file.type,
+        "data": image_base64
+    }
+
+    response = model.generate_content(
+        [
+            {"text": prompt},
+            {"inline_data": image_part}
+        ],
+        generation_config={"response_mime_type": "application/json"}
+    )
+
+    try:
+        stats_list = json.loads(response.text)
+        df = pd.DataFrame(stats_list)
+
+        # Normalize names in case Gemini returns "name" instead of "player_name"
+        rename_map = {"name": "player_name", "player": "player_name"}
+        df = df.rename(columns=rename_map)
+
+        # Ensure required cols exist
+        for col in ["player_name", "rating", "goals", "assists"]:
+            if col not in df.columns:
+                df[col] = None
+
+        return df[["player_name", "rating", "goals", "assists"]]
+
+    except Exception as e:
+        st.error(f"Parsing error: {e}")
+        return pd.DataFrame(columns=["player_name", "rating", "goals", "assists"])
+
+
+
+    
+def admin_upload_player_stats_page():
+    st.title("📸 Upload Player Stats from Photo")
+
+    # ✅ Fetch matches
+    matches = _supabase_client().table("matches").select("match_id, opponent, date").execute()
+    match_options = [f'{m["match_id"]} - {m["opponent"]} ({m["date"]})' for m in matches.data] if matches.data else []
+
+    if not match_options:
+        st.warning("⚠️ No matches found. Please add a match first in the Matches page.")
+        return
+
+    selected_match = st.selectbox("Select Match", match_options)
+    match_id = int(selected_match.split(" - ")[0])
+
+    # ✅ Fetch players
+    players = _supabase_client().table("players").select("player_id, name").execute()
+    players_df = pd.DataFrame(players.data) if players.data else pd.DataFrame(columns=["player_id", "name"])
+
+    img_file = st.file_uploader("Upload stats photo", type=["jpg", "jpeg", "png"])
+    if img_file:
+        st.image(img_file, caption="Uploaded stats image", use_container_width=True)
+
+        if st.button("Extract Stats with Gemini"):
+            with st.spinner("Extracting stats..."):
+                df = extract_player_stats(img_file)  # Your existing extraction function
+
+            if df.empty:
+                st.error("❌ No stats extracted. Try with a clearer image.")
+                return
+
+            st.success("✅ Stats extracted successfully!")
+            st.dataframe(df)
+
+            # Match extracted names to players list
+            merged = df.merge(players_df, left_on="player_name", right_on="name", how="left")
+
+            # Warn about unknown players
+            unknown = merged[merged["player_id"].isna()]
+            if not unknown.empty:
+                st.warning(f"⚠️ These players are not in the squad list: {unknown['player_name'].tolist()}")
+
+            # Only keep rows with valid player IDs
+            valid_rows = merged.dropna(subset=["player_id"])
+
+            # Insert/update each row in Supabase
+            for _, row in valid_rows.iterrows():
+                try:
+                    # Check if stats for this player and match already exist
+                    existing = _supabase_client().table("player_stats") \
+                        .select("id") \
+                        .eq("match_id", match_id) \
+                        .eq("player_id", int(row["player_id"])) \
+                        .execute()
+
+                    if existing.data:
+                        # Update existing row
+                        _supabase_client().table("player_stats").update({
+                            "rating": row.get("rating"),
+                            "goals": row.get("goals"),
+                            "assists": row.get("assists"),
+                            "position": "N/A"
+                        }).eq("match_id", match_id).eq("player_id", int(row["player_id"])).execute()
+                    else:
+                        # Insert new row
+                        _supabase_client().table("player_stats").insert({
+                            "match_id": match_id,
+                            "player_id": int(row["player_id"]),
+                            "player_name": row.get("player_name"),
+                            "rating": row.get("rating"),
+                            "goals": row.get("goals"),
+                            "assists": row.get("assists"),
+                            "position": "N/A"
+                        }).execute()
+
+                except Exception as e:
+                    st.error(f"❌ Failed to save row for {row.get('player_name')}: {e}")
+
+            st.success("📤 Stats saved/updated in Supabase!")
+
+
+
+
+
+
 
 # -------------------------------
 # MANAGER – Tactics (text) & Interactive Visual Board
@@ -1394,28 +1739,67 @@ def manager_tactics_board_page():
 # -------------------------------
 # PLAYER PAGES
 # -------------------------------
+
+def upload_player_photo(file, player_id: int) -> str:
+    """Upload player photo to Supabase Storage and return public URL"""
+    sb = _supabase_client()
+    bucket = "player-photos"
+    file_name = f"player_{player_id}.png"
+
+    # Upload file (overwrite if exists)
+    sb.storage.from_(bucket).upload(file_name, file, {"upsert": True})
+
+    # Get public URL
+    url = sb.storage.from_(bucket).get_public_url(file_name)
+    return url
+
 def player_my_stats_page(player_name: str):
-    st.subheader("My Stats")
+    st.subheader("📊 My Stats")
+
+    players = read_csv_safe(PLAYERS_FILE)
+    player = players[players["name"].str.lower() == player_name.lower()].iloc[0]
+
+    # --- Show Player Photo ---
+    if player.get("avatar_url"):
+        st.image(player["avatar_url"], width=150)
+    else:
+        st.image("https://via.placeholder.com/150", caption="No photo")
+
     stats = read_csv_safe(PLAYER_STATS_FILE)
     if stats.empty:
         st.info("No stats yet.")
         return
+
     mine = stats[stats["player_name"].str.lower() == player_name.lower()]
     if mine.empty:
         st.info("No stats recorded for you yet.")
         return
 
-    c1, c2 = st.columns(2)
-    with c1:
-        st.metric("Matches", value=len(mine))
-        st.metric("Goals", value=int(mine["goals"].sum()))
-        st.metric("Assists", value=int(mine["assists"].sum()))
-    with c2:
-        st.metric("Avg Rating", value=round(mine["rating"].mean(), 2))
-        st.metric("Yellows", value=int(mine["yellow_cards"].sum()))
-        st.metric("Reds", value=int(mine["red_cards"].sum()))
+    # --- Summary Metrics ---
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Matches", value=len(mine))
+    c2.metric("Goals", value=int(mine["goals"].sum()))
+    c3.metric("Assists", value=int(mine["assists"].sum()))
+    avg_rating = round(mine["rating"].mean(), 2) if not mine["rating"].isna().all() else "N/A"
+    c4.metric("Avg Rating", value=avg_rating)
 
-    st.plotly_chart(px.line(mine.sort_values("match_id"), x="match_id", y="rating", markers=True, title="Ratings over Matches"), use_container_width=True)
+    st.divider()
+
+    # --- Performance Tracker ---
+    st.subheader("📈 Performance Tracker")
+    st.plotly_chart(
+        px.line(
+            mine.sort_values("match_id"),
+            x="match_id",
+            y="rating",
+            markers=True,
+            title="Ratings over Matches",
+        ),
+        use_container_width=True,
+    )
+
+
+
 
 
 
@@ -1546,7 +1930,15 @@ def admin_reports_page():
     finished = matches[matches["our_score"].notna() & matches["their_score"].notna()]
     mid = st.selectbox("Select match", options=finished["match_id"].astype(int),
                    format_func=lambda x: match_label_from_id(x, finished))
-    mrow = matches[matches["match_id"] == int(mid)].iloc[0]
+    if mid is not None and str(mid).strip() != "":
+     try:
+        mid_int = int(mid)
+        mrow = matches[matches["match_id"] == mid_int].iloc[0]
+     except (ValueError, IndexError):
+        st.warning("⚠️ Could not find match with that ID.")
+    else:
+     st.warning("⚠️ No match selected.")
+
 
     if st.button("Generate report"):
         subset = stats[stats["match_id"] == int(mid)]
@@ -1642,18 +2034,18 @@ def run_admin():
     render_header()
     st.sidebar.header("Admin Menu")
     page = st.sidebar.radio("Go to", [
-    "Dashboard",
-    "Matches",
-    "Player Stats",
-    "Players (Add/Edit)",
-    "Training Sessions",
-    "Training Attendance (All)",
-    "Fan Wall Moderation",
-    "Auto Reports",
-    "Auto Best XI",
-    "⚠ Danger Zone (Delete All Data)"
-])
-
+        "Dashboard",
+        "Matches",
+        "Player Stats",
+        "📸 Upload Player Stats",   # 👈 NEW
+        "Players (Add/Edit)",
+        "Training Sessions",
+        "Training Attendance (All)",
+        "Fan Wall Moderation",
+        "Auto Reports",
+        "Auto Best XI",
+        "⚠ Danger Zone (Delete All Data)"
+    ])
 
     if page == "Dashboard":
         page_dashboard()
@@ -1661,6 +2053,8 @@ def run_admin():
         admin_matches_page()
     elif page == "Player Stats":
         admin_player_stats_page()
+    elif page == "📸 Upload Player Stats":   # 👈 NEW
+        admin_upload_player_stats_page()
     elif page == "Players (Add/Edit)":
         admin_players_crud_page()
     elif page == "Training Sessions":
@@ -1674,7 +2068,9 @@ def run_admin():
     elif page == "Auto Best XI":
         page_best_xi()
     elif page == "⚠ Danger Zone (Delete All Data)":
-     admin_delete_all_data()
+        admin_delete_all_data()
+
+
 
 
 def run_manager():
@@ -1737,8 +2133,7 @@ def run_fan():
 # MAIN
 # -------------------------------
 def main():
-    ensure_dirs()
-    ensure_csvs()
+
     init_session()
 
     # Intro / Login routing
