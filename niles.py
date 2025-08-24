@@ -19,7 +19,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 from datetime import datetime
-from supabase import create_client
+from supabase import create_client, Client
 import time
 import httpx
 from postgrest.exceptions import APIError
@@ -270,9 +270,14 @@ PATH_TO_TABLE = {
 USE_SUPABASE = True
 
 @st.cache_resource
-def _supabase_client():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_SERVICE_ROLE_KEY"]
+def _supabase_client() -> Client:
+    url = st.secrets.get("SUPABASE_URL") or os.getenv("SUPABASE_URL")
+    key = st.secrets.get("SUPABASE_KEY") or os.getenv("SUPABASE_KEY")
+
+    if not url or not key:
+        st.error("❌ Supabase credentials not found. Please set SUPABASE_URL and SUPABASE_KEY.")
+        raise KeyError("Missing Supabase credentials")
+
     return create_client(url, key)
 
 @st.cache_resource
