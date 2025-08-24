@@ -28,35 +28,33 @@ import io
 # -------------------------------
 # CONFIG (set once, top-level)
 # -------------------------------
-st.set_page_config(page_title="Nile Esports ProClubs Hub", page_icon="⚽", layout="wide")
-LOGO_URL = "https://scontent.fcai20-4.fna.fbcdn.net/v/t39.30808-6/460331146_122191529468078659_8549609423668977699_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeEogfareJPi_JT1tAC-LFAXYDCIEt4d8QBgMIgS3h3xADavaqieLvC-GdEW6JvdlEAm3FAmZUj65l-E9vQlcUh5&_nc_ohc=nyGBiXclu9MQ7kNvwFW61kB&_nc_oc=AdltF6iHSSsAOJ7qpypmR3q-yrBfBYrPVH-Jl8wTNohzgvPZ729IqJ-isR5jSjvz9xI&_nc_zt=23&_nc_ht=scontent.fcai20-4.fna&_nc_gid=nkBEgbDELXlG98EOb9q4kg&oh=00_AfVLKzVIBjgpN_dF2gfRTQ1H8fz_yzvzVseM6ny3psxp_g&oe=68A3E976"
+# -------------------------------
+# PAGE CONFIG (mobile-first)
+# -------------------------------
+st.set_page_config(page_title="Nile SC Manager", page_icon="assets/images/icon.png", layout="centered")
+
+LOGO_URL = "assets/images/icon.png"
 
 # -------------------------------
-# GLOBAL STYLES (including Intro UX)
+# GLOBAL STYLES (Desktop + Mobile)
 # -------------------------------
 appINTRO_CSS = """
 <style>
-:root{
+:root {
   --glass-bg: rgba(255,255,255,0.08);
   --glass-brd: rgba(255,255,255,0.18);
-  --accent: #1e3a8a;      /* navy for selectbox/date text */
-  --accent-2: #0ea5e9;    /* bright blue */
-  --button-accent: #22c55e; /* bright green for buttons */
+  --accent: #1e3a8a;
+  --accent-2: #0ea5e9;
+  --button-accent: #22c55e;
 }
 
-/* Restore your radial gradient background */
+/* Background */
 html, body, [data-testid="stAppViewContainer"] {
-  background: radial-gradient(
-    1200px 800px at 10% 10%,
-    #0b1220 0%,
-    #0b1220 30%,
-    #0d1b2a 60%,
-    #0a0f1a 100%
-  ) !important;
+  background: linear-gradient(180deg, #0b1220, #0d1b2a) !important;
   color: white !important;
 }
 
-/* Sidebar keeps solid background */
+/* Sidebar */
 [data-testid="stSidebar"] {
   background-color: #0b1220 !important;
 }
@@ -65,157 +63,57 @@ html, body, [data-testid="stAppViewContainer"] {
   font-weight: 500;
 }
 
-/* Header transparent gradient */
-[data-testid="stHeader"]{
-  background: linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0)) !important;
-}
-
-/* Links */
-a{
-  color: var(--accent-2) !important;
-  text-decoration: none;
-}
-
-/* === SELECTBOX === */
-.stSelectbox > div, .stMultiSelect > div {
-  background-color: transparent !important;
-  border: 1px solid var(--accent-2) !important;
-  border-radius: 8px !important;
-  backdrop-filter: blur(6px) !important;
-}
-.stSelectbox div[data-baseweb="select"] > div[role="button"] span {
-  color: var(--accent) !important;
-  font-weight: 600 !important;
-}
-.stSelectbox [data-baseweb="select"] span[data-testid="stMarkdownContainer"] p {
-  color: var(--accent) !important;
-}
-/* Dropdown popover */
-[data-baseweb="popover"] {
-  background-color: #0b1220 !important;
-  border: 1px solid var(--accent-2) !important;
-  border-radius: 8px !important;
-}
-[data-baseweb="popover"] [role="option"],
-[data-baseweb="popover"] [role="option"] * {
-  color: var(--accent) !important;
-}
-[data-baseweb="popover"] [role="option"]:hover,
-[data-baseweb="popover"] [role="option"]:hover * {
-  background-color: var(--accent) !important;
-  color: #ffffff !important;
-}
-[data-baseweb="popover"] [aria-selected="true"],
-[data-baseweb="popover"] [aria-selected="true"] * {
-  background-color: var(--accent-2) !important;
-  color: #ffffff !important;
-}
-
-/* === DATE INPUT === */
-.stDateInput > div > div input {
-  color: var(--accent) !important;
-  font-weight: 600 !important;
-}
-[data-baseweb="calendar"] {
-  background-color: #0b1220 !important;
-  color: var(--accent) !important;
-  border: 1px solid var(--accent-2) !important;
-  border-radius: 8px !important;
-}
-[data-baseweb="calendar"] div[role="row"] div[role="gridcell"] {
-  color: var(--accent) !important;
-}
-[data-baseweb="calendar"] div[role="row"] div[role="gridcell"][aria-selected="true"] {
-  background-color: var(--accent-2) !important;
-  color: #ffffff !important;
-}
-[data-baseweb="calendar"] div[role="row"] div[role="gridcell"]:hover {
-  background-color: var(--accent) !important;
-  color: #ffffff !important;
-}
-
-/* === INPUT FIELDS === */
-.stTextInput>div>div>input,
-.stPasswordInput>div>div>input,
-.stTextArea>div>textarea {
-  background-color: rgba(15, 23, 42, 0.85) !important;
-  color: #ffffff !important;
-  border: 1px solid var(--accent-2) !important;
-  border-radius: 8px !important;
-  backdrop-filter: blur(6px) !important;
-}
-.stTextInput>div>div>input::placeholder,
-.stPasswordInput>div>div>input::placeholder,
-.stTextArea>div>textarea::placeholder {
-  color: rgba(255, 255, 255, 0.6) !important;
-}
-
-/* === BUTTONS === */
-.stButton>button {
+/* Buttons */
+.stButton > button {
   background: linear-gradient(90deg, var(--button-accent), var(--accent-2)) !important;
   color: white !important;
-  border-radius: 8px !important;
+  border-radius: 12px !important;
   border: none !important;
   font-weight: bold !important;
+  padding: 10px 14px !important;
 }
-.stButton>button:hover {
+.stButton > button:hover {
   opacity: 0.9 !important;
 }
-[data-testid="stSidebar"] .stButton>button {
+[data-testid="stSidebar"] .stButton > button {
   background-color: #dc2626 !important;
 }
-[data-testid="stSidebar"] .stButton>button:hover {
+[data-testid="stSidebar"] .stButton > button:hover {
   background-color: #b91c1c !important;
 }
 
-/* === GLASS EFFECT === */
-.glass{
+/* Glass Cards */
+.glass {
   background: var(--glass-bg);
   border: 1px solid var(--glass-brd);
   box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
   backdrop-filter: blur(10px);
   border-radius: 18px;
+  padding: 16px;
 }
 
-/* === HERO BLOCK === */
-.hero{
-  position: relative;
-  overflow: hidden;
-  padding: 28px 26px;
+/* Typography */
+.title {
+  font-weight: 800;
+  font-size: 32px;
+  line-height: 1.2;
+  text-shadow: 0 6px 20px rgba(34,197,94,.25);
 }
-.glow{
-  position:absolute; inset:-2px;
-  background: conic-gradient(from 0deg, #1e3a8a33, #0ea5e933, transparent 30%, transparent 100%);
-  filter: blur(18px); animation: spin 7s linear infinite;
-  z-index:0; opacity:.7;
+.subtitle {
+  font-size: 15px;
+  opacity: 0.9;
 }
-@keyframes spin{ to{ transform: rotate(360deg); } }
-.hero-content{ position:relative; z-index:2; }
-.title{
-  font-weight: 900; letter-spacing: .6px; font-size: 40px; line-height:1.1;
-  text-shadow: 0 6px 30px rgba(34,197,94,.25);
-}
-.subtitle{
-  font-size: 17px; opacity: .92;
-}
-.card{
-  transition: transform .25s ease, box-shadow .25s ease, background .25s ease;
-  padding: 18px;
-}
-.card:hover{
-  transform: translateY(-4px) scale(1.01);
-  box-shadow: 0 12px 30px rgba(0,0,0,.35);
-}
-.badge{
-  display:inline-block; padding:6px 12px; border-radius:14px;
-  background: linear-gradient(90deg, var(--button-accent), var(--accent-2));
-  color:white; font-size:12px; font-weight:700;
+
+/* ---------------- MOBILE ---------------- */
+@media (max-width: 600px) {
+  .title { font-size: 22px !important; }
+  .subtitle { font-size: 13px !important; }
+  img { max-width: 120px !important; height: auto !important; }
+  .stButton > button { font-size: 14px !important; padding: 8px 10px !important; }
+  .glass { padding: 12px !important; border-radius: 14px !important; }
 }
 </style>
 """
-
-
-
 st.markdown(appINTRO_CSS, unsafe_allow_html=True)
 
 
@@ -604,28 +502,32 @@ def render_header():
 def intro_page():
     # Professional Splash Intro
     st.markdown(f"""
-    <div style='display:flex;flex-direction:column;align-items:center;justify-content:center;height:85vh;text-align:center;'>
+    <div style='display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;text-align:center;'>
         <img src='{LOGO_URL}'
-             style='width:200px;height:auto;animation:fadeIn 2s ease-in-out;'>
-        <h1 class="title" style='margin-top:20px;'>Nile Esports</h1>
+             style='width:160px;height:auto;animation:fadeIn 2s ease-in-out;'>
+        <h1 class="title" style='margin-top:15px;'>Nile Esports</h1>
         <p class="subtitle">One Club. One Heartbeat. 🖤💚</p>
     </div>
     <style>
         @keyframes fadeIn {{ from {{opacity:0;}} to {{opacity:1;}} }}
+        @media (max-width:600px){{
+            img {{ max-width:120px !important; }}
+            .title {{ font-size:22px !important; }}
+            .subtitle {{ font-size:14px !important; }}
+        }}
     </style>
     """, unsafe_allow_html=True)
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🚀 Enter the Hub", use_container_width=True):
-            st.session_state.page = "login"
-            st.rerun()
-    with col2:
-        if st.button("👀 View Public Fan Wall", use_container_width=True):
-            save_login("fan", "Guest")
-            st.session_state.page = "fan_public_only"
-            st.balloons()
-            st.rerun()
+    # ✅ On mobile → stack buttons vertically (no columns)
+    if st.button("🚀 Enter the Hub", use_container_width=True):
+        st.session_state.page = "login"
+        st.rerun()
+
+    if st.button("👀 View Public Fan Wall", use_container_width=True):
+        save_login("fan", "Guest")
+        st.session_state.page = "fan_public_only"
+        st.balloons()
+        st.rerun()
 
 
 # -------------------------------
@@ -634,8 +536,8 @@ def intro_page():
 def login_ui():
     # Branded Login Card
     st.markdown(f"""
-    <div class='glass card' style='padding:30px;max-width:420px;margin:auto;text-align:center;'>
-        <img src='{LOGO_URL}' style='width:100px;height:auto;margin-bottom:10px;'>
+    <div class='glass card' style='padding:24px;max-width:380px;margin:auto;text-align:center;'>
+        <img src='{LOGO_URL}' style='width:90px;height:auto;margin-bottom:10px;'>
         <h2 style='margin:0;'>Sign In</h2>
         <p class="small" style="margin:.3rem 0 1rem 0;">Choose your role and use your access code</p>
     </div>
@@ -649,57 +551,63 @@ def login_ui():
         type="password", disabled=not code_required
     )
 
-    colL, colR = st.columns(2)
-    with colL:
-        if st.button("Enter", type="primary", use_container_width=True):
-            if not name:
-                st.warning("Please enter your name.")
-                return
+    # ✅ Stack buttons full-width (better for thumbs on mobile)
+    if st.button("Enter", type="primary", use_container_width=True):
+        if not name:
+            st.warning("Please enter your name.")
+            return
 
-            if role == "Fan":
-                save_login("fan", name)
-                st.success(f"Welcome, {name}! You're logged in as Fan.")
+        if role == "Fan":
+            save_login("fan", name)
+            st.success(f"Welcome, {name}! You're logged in as Fan.")
+            st.balloons()
+            st.rerun()
+
+        elif role == "Admin":
+            valid = ROLE_CODES.get("admin", {}).get(name)
+            if valid and code == valid:
+                save_login("admin", name)
+                st.success("Welcome, Admin!")
                 st.balloons()
                 st.rerun()
+            else:
+                st.error("Invalid admin name or code.")
 
-            elif role == "Admin":
-                valid = ROLE_CODES.get("admin", {}).get(name)
-                if valid and code == valid:
-                    save_login("admin", name)
-                    st.success("Welcome, Admin!")
-                    st.balloons()
-                    st.rerun()
-                else:
-                    st.error("Invalid admin name or code.")
+        elif role == "Manager":
+            valid = ROLE_CODES.get("manager", {}).get(name)
+            if valid and code == valid:
+                save_login("manager", name)
+                st.success("Welcome, Manager!")
+                st.balloons()
+                st.rerun()
+            else:
+                st.error("Invalid manager name or code.")
 
-            elif role == "Manager":
-                valid = ROLE_CODES.get("manager", {}).get(name)
-                if valid and code == valid:
-                    save_login("manager", name)
-                    st.success("Welcome, Manager!")
-                    st.balloons()
-                    st.rerun()
-                else:
-                    st.error("Invalid manager name or code.")
+        elif role == "Player":
+            if validate_player_login(name, code):
+                save_login("player", name)
+                st.success(f"Welcome, {name}! Let's ball.")
+                st.balloons()
+                st.rerun()
+            else:
+                st.error("Invalid player name or code.")
 
-            elif role == "Player":
-                if validate_player_login(name, code):
-                    save_login("player", name)
-                    st.success(f"Welcome, {name}! Let's ball.")
-                    st.balloons()
-                    st.rerun()
-                else:
-                    st.error("Invalid player name or code.")
-
-    with colR:
-        if st.button("⬅ Back to Intro", use_container_width=True):
-            st.session_state.page = "intro"
-            st.rerun()
+    if st.button("⬅ Back to Intro", use_container_width=True):
+        st.session_state.page = "intro"
+        st.rerun()
 
 
 # -------------------------------
 # DASHBOARD
 # -------------------------------
+
+def safe_int(val, default=0):
+    try:
+        if val is None or str(val).strip() == "" or str(val).lower() == "nan":
+            return default
+        return int(val)
+    except Exception:
+        return default
 def page_dashboard():
     matches = read_csv_safe(MATCHES_FILE)
     stats = read_csv_safe(PLAYER_STATS_FILE)
@@ -719,7 +627,7 @@ def page_dashboard():
         if not past_matches.empty:
             lm = past_matches.iloc[0]
             st.metric(label=f"vs {lm['opponent']} on {lm['date']}",
-                      value=f"{int(lm['our_score'])}-{int(lm['their_score'])}",
+                      value=f"{safe_int(lm.get('our_score'))}-{safe_int(lm.get('their_score'))}",
                       delta=lm['result'])
             st.write(lm.get("notes", ""))
         else:
