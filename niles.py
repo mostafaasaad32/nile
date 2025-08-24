@@ -898,7 +898,7 @@ def admin_matches_page():
 
         st.success(f"Deleted match {match_label_from_id(int(del_mid), show)} and its linked stats.")
         st.rerun()
-    else:
+     else:
         st.warning("⚠️ No match selected to delete.")
 
 
