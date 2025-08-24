@@ -1,5 +1,10 @@
 streamlit
 pandas
+numpy
 plotly
 pillow
 streamlit-cookies-manager
+supabase
+httpx
+postgrest
+google-generativeai
