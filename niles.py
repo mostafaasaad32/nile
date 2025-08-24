@@ -1022,8 +1022,9 @@ def admin_players_crud_page():
         avatar_file_edit = st.file_uploader("Update Player Photo", type=["png","jpg","jpeg"], key=f"edit_{sel_name}")
 
         avatar_url = row.get("avatar_url", None)
-        if avatar_file_edit:
-            avatar_url = upload_player_photo(avatar_file_edit.read(), int(row["player_id"]))
+        if avatar_file_edit is not None:
+           avatar_url = upload_player_photo(avatar_file_edit.read(), int(row["player_id"]))
+           players.loc[players["player_id"] == row["player_id"], "avatar_url"] = avatar_url
 
         colb1, colb2 = st.columns(2)
         with colb1:
@@ -1755,17 +1756,17 @@ def upload_player_photo(file_bytes: bytes, player_id: int) -> str:
     bucket = "player-photos"
     file_name = f"player_{player_id}.png"
 
-    # Wrap raw bytes in a file-like object
+    # Wrap raw bytes in file-like object
     file_obj = io.BytesIO(file_bytes)
 
-    # Upload with correct mimetype and upsert option
+    # Upload with correct mimetype and overwrite allowed
     sb.storage.from_(bucket).upload(
         path=file_name,
         file=file_obj,
         file_options={"content-type": "image/png", "upsert": "true"}
     )
 
-    # Return public URL
+    # Return the public URL
     return sb.storage.from_(bucket).get_public_url(file_name)
 def player_my_stats_page(player_name: str):
     st.subheader("📊 My Stats")
