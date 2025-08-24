@@ -990,10 +990,10 @@ def admin_players_crud_page():
     for _, row in players.iterrows():
         cols = st.columns([1, 3, 2, 2, 2])
         with cols[0]:
-            if row.get("avatar_url"):
-                st.image(row["avatar_url"], width=60)
+            if row.get("avatar_url") and str(row["avatar_url"]).startswith("http"):
+             st.image(row["avatar_url"], width=60)
             else:
-                st.image("https://via.placeholder.com/60")
+               st.image("https://via.placeholder.com/60", width=60)
         with cols[1]:
             st.write(f"**{row['name']}**")
         with cols[2]:
@@ -1751,17 +1751,15 @@ def manager_tactics_board_page():
 # -------------------------------
 
 def upload_player_photo(file, player_id: int) -> str:
-    """Upload player photo to Supabase Storage and return public URL"""
     sb = _supabase_client()
     bucket = "player-photos"
     file_name = f"player_{player_id}.png"
 
-    # Upload file (overwrite if exists)
+    # Upload and overwrite if exists
     sb.storage.from_(bucket).upload(file_name, file, {"upsert": True})
 
-    # Get public URL
-    url = sb.storage.from_(bucket).get_public_url(file_name)
-    return url
+    # ✅ Must return a public URL, not a path
+    return sb.storage.from_(bucket).get_public_url(file_name)
 
 def player_my_stats_page(player_name: str):
     st.subheader("📊 My Stats")
