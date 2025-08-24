@@ -888,22 +888,18 @@ def admin_matches_page():
         format_func=lambda x: match_label_from_id(x, show)
     )
     if st.button("🗑️ Delete Selected Match"):
-        if del_mid is not None and not matches.empty:
-            before = len(matches)
+     if del_mid is not None and not matches.empty:
+        # ✅ Delete linked stats first
+        sb = _supabase_client()
+        sb.table("player_stats").delete().eq("match_id", int(del_mid)).execute()
 
-            # ✅ Delete linked stats first (manual cascade)
-            sb = _supabase_client()
-            sb.table("player_stats").delete().eq("match_id", int(del_mid)).execute()
+        # ✅ Delete the match directly from Supabase
+        sb.table("matches").delete().eq("match_id", int(del_mid)).execute()
 
-            # Then delete the match
-            matches = matches[matches["match_id"] != int(del_mid)]
-            write_csv_safe(matches, MATCHES_FILE)
-
-            deleted_count = before - len(matches)
-            st.success(f"Deleted {deleted_count} match record(s). Linked player stats also removed.")
-            st.rerun()
-        else:
-            st.warning("⚠️ No match selected to delete.")
+        st.success(f"Deleted match {match_label_from_id(int(del_mid), show)} and its linked stats.")
+        st.rerun()
+    else:
+        st.warning("⚠️ No match selected to delete.")
 
 
 
