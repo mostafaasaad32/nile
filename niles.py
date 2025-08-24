@@ -831,7 +831,6 @@ def admin_matches_page():
     for c in ["our_score", "their_score"]:
         m2[c] = pd.to_numeric(m2[c], errors="coerce")
 
-    # Unfinished = matches without scores
     unfinished = m2[m2["our_score"].isna() | m2["their_score"].isna()].sort_values("date")
     if unfinished.empty:
         st.info("No upcoming matches waiting for a result.")
@@ -841,7 +840,7 @@ def admin_matches_page():
             mid = st.selectbox(
                 "Match to finalize",
                 options=unfinished["match_id"].astype(int).tolist(),
-                format_func=lambda x: match_label_from_id(x, unfinished)  # CHANGE: show date vs opponent
+                format_func=lambda x: match_label_from_id(x, unfinished)
             )
             match_date = unfinished.loc[unfinished["match_id"] == int(mid), "date"].values[0]
             c1, c2, c3 = st.columns(3)
@@ -852,8 +851,10 @@ def admin_matches_page():
             with c3:
                 notes2 = st.text_area(
                     "Notes (optional)",
-                    value=str(unfinished.loc[unfinished["match_id"] == int(mid), "notes"].values[0]
-                              if not unfinished.empty else "")
+                    value=str(
+                        unfinished.loc[unfinished["match_id"] == int(mid), "notes"].values[0]
+                        if not unfinished.empty else ""
+                    )
                 )
             submit_res = st.form_submit_button("Save Result", type="primary")
 
@@ -884,22 +885,26 @@ def admin_matches_page():
     del_mid = st.selectbox(
         "Delete match",
         options=show["match_id"].astype(int).tolist(),
-        format_func=lambda x: match_label_from_id(x, show)  # CHANGE: show date vs opponent
+        format_func=lambda x: match_label_from_id(x, show)
     )
     if st.button("🗑️ Delete Selected Match"):
-     if del_mid is not None and not matches.empty:
-        # Always define before inside the valid path
-        before = len(matches)
+        if del_mid is not None and not matches.empty:
+            before = len(matches)
 
-        # Delete the selected match
-        matches = matches[matches["match_id"] != int(del_mid)]
-        write_csv_safe(matches, MATCHES_FILE)
+            # ✅ Delete linked stats first (manual cascade)
+            sb = _supabase_client()
+            sb.table("player_stats").delete().eq("match_id", int(del_mid)).execute()
 
-        deleted_count = before - len(matches)
-        st.success(f"Deleted {deleted_count} match record(s). Linked player stats removed by cascade.")
-        st.rerun()
-     else:
-        st.warning("⚠️ No match selected to delete.")
+            # Then delete the match
+            matches = matches[matches["match_id"] != int(del_mid)]
+            write_csv_safe(matches, MATCHES_FILE)
+
+            deleted_count = before - len(matches)
+            st.success(f"Deleted {deleted_count} match record(s). Linked player stats also removed.")
+            st.rerun()
+        else:
+            st.warning("⚠️ No match selected to delete.")
+
 
 
 
