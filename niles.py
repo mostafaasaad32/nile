@@ -952,7 +952,6 @@ def admin_players_crud_page():
         with c4:
             active = st.checkbox("Active", value=True)
 
-        avatar_file = st.file_uploader("Upload Player Photo (optional)", type=["png","jpg","jpeg"])
         submitted = st.form_submit_button("Add Player", type="primary")
 
     if submitted:
@@ -960,18 +959,12 @@ def admin_players_crud_page():
             st.warning("Name and Code are required.")
         else:
             new_id = int(players.get("player_id", pd.Series([0])).max()) + 1 if not players.empty else 1
-
-            avatar_url = None
-            if avatar_file:
-                avatar_url = upload_player_photo(avatar_file.getvalue(), new_id)
-
             new_row = {
                 "player_id": new_id,
                 "name": name,
                 "position": position,
                 "code": code,
                 "active": bool(active),
-                "avatar_url": avatar_url
             }
             players = pd.concat([players, pd.DataFrame([new_row])], ignore_index=True)
             write_csv_safe(players, PLAYERS_FILE)
@@ -987,21 +980,15 @@ def admin_players_crud_page():
 
     st.caption("Current Roster")
 
-    # Show photos directly in roster table
     for _, row in players.iterrows():
-        cols = st.columns([1, 3, 2, 2, 2])
+        cols = st.columns([3, 2, 2, 2])
         with cols[0]:
-            if row.get("avatar_url") and str(row["avatar_url"]).startswith("http"):
-             st.image(row["avatar_url"], width=60)
-            else:
-               st.image("https://via.placeholder.com/60", width=60)
-        with cols[1]:
             st.write(f"**{row['name']}**")
-        with cols[2]:
+        with cols[1]:
             st.write(row["position"])
-        with cols[3]:
+        with cols[2]:
             st.write(row["code"])
-        with cols[4]:
+        with cols[3]:
             st.write("✅ Active" if row["active"] else "❌ Inactive")
 
     st.divider()
@@ -1020,18 +1007,12 @@ def admin_players_crud_page():
         new_pos = st.selectbox("Position", positions_list, index=pos_index)
         new_code = st.text_input("Code", value=str(row["code"]))
         new_active = st.checkbox("Active", value=bool(row.get("active", True)))
-        avatar_file_edit = st.file_uploader("Update Player Photo", type=["png","jpg","jpeg"], key=f"edit_{sel_name}")
-
-        avatar_url = row.get("avatar_url", None)
-        if avatar_file_edit is not None:
-           avatar_url = upload_player_photo(avatar_file_edit.read(), int(row["player_id"]))
-           players.loc[players["player_id"] == row["player_id"], "avatar_url"] = avatar_url
 
         colb1, colb2 = st.columns(2)
         with colb1:
             if st.button("Save Changes"):
-                players.loc[players["name"] == sel_name, ["name", "position", "code", "active", "avatar_url"]] = [
-                    new_name, new_pos, new_code, bool(new_active), avatar_url
+                players.loc[players["name"] == sel_name, ["name", "position", "code", "active"]] = [
+                    new_name, new_pos, new_code, bool(new_active)
                 ]
                 write_csv_safe(players, PLAYERS_FILE)
                 st.success("Updated.")
@@ -1040,7 +1021,7 @@ def admin_players_crud_page():
             if st.button("Delete Player"):
                 players = players[players["name"] != sel_name]
                 if players.empty:
-                    players = pd.DataFrame(columns=["player_id","name","position","code","active","avatar_url"])
+                    players = pd.DataFrame(columns=["player_id","name","position","code","active"])
                 write_csv_safe(players, PLAYERS_FILE)
                 st.success(f"Deleted {sel_name}.")
                 st.rerun()
