@@ -24,6 +24,7 @@ import time
 import httpx
 from postgrest.exceptions import APIError
 import google.generativeai as genai
+import io 
 # -------------------------------
 # CONFIG (set once, top-level)
 # -------------------------------
