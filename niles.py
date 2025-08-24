@@ -347,34 +347,40 @@ EXPECTED_COLUMNS = {
 }
 
 def read_csv_safe(path: str, retries: int = 3, delay: float = 1.0) -> pd.DataFrame:
-    """Read from Supabase with retries and guaranteed schema."""
-    sb = _supabase_client()
+    """Read from Supabase with retries, fallback to local CSV if Supabase fails."""
     table = _table_for_path(path)
+    sb = _supabase_client()
 
     attempt = 0
     while attempt < retries:
         try:
             resp = sb.table(table).select("*").execute()
-            if not resp.data:
-                # ✅ Return empty DF with expected schema
+            if resp.data:
+                df = pd.DataFrame(resp.data)
+
+                # Normalize dates
+                if "date" in df.columns:
+                    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+
+                return df
+            else:
                 return pd.DataFrame(columns=EXPECTED_COLUMNS.get(table, []))
 
-            df = pd.DataFrame(resp.data)
-
-            # Normalize dates
-            if "date" in df.columns:
-                df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
-
-            return df
-
-        except (httpx.RemoteProtocolError, APIError) as e:
+        except (httpx.ReadError, httpx.RemoteProtocolError, APIError) as e:
             attempt += 1
             if attempt < retries:
                 time.sleep(delay * attempt)  # exponential backoff
                 continue
             else:
-                st.error(f"❌ Database read failed after {retries} attempts: {e}")
+                st.warning(f"⚠️ Supabase read failed after {retries} attempts: {e}")
+                # fallback to local CSV
+                if os.path.exists(path):
+                    try:
+                        return pd.read_csv(path)
+                    except Exception:
+                        return pd.DataFrame(columns=EXPECTED_COLUMNS.get(table, []))
                 return pd.DataFrame(columns=EXPECTED_COLUMNS.get(table, []))
+
 
 
 
@@ -931,6 +937,21 @@ def admin_player_stats_page():
         except Exception as e:
             st.error(f"❌ Failed to delete stat: {e}")
 
+def delete_player_and_stats(player_id: int, player_name: str):
+    """Delete a player and all their stats from Supabase + local CSV fallback."""
+    sb = _supabase_client()
+
+    # 1. Delete stats first
+    try:
+        sb.table("player_stats").delete().eq("player_id", player_id).execute()
+    except Exception as e:
+        st.warning(f"⚠️ Could not delete stats for {player_name}: {e}")
+
+    # 2. Delete the player
+    try:
+        sb.table("players").delete().eq("player_id", player_id).execute()
+    except Exception as e:
+        st.error(f"❌ Could not delete player {player_name}: {e}")
 
 
 def admin_players_crud_page():
@@ -959,12 +980,13 @@ def admin_players_crud_page():
             st.warning("Name and Code are required.")
         else:
             new_id = int(players.get("player_id", pd.Series([0])).max()) + 1 if not players.empty else 1
+
             new_row = {
                 "player_id": new_id,
                 "name": name,
                 "position": position,
                 "code": code,
-                "active": bool(active),
+                "active": bool(active)
             }
             players = pd.concat([players, pd.DataFrame([new_row])], ignore_index=True)
             write_csv_safe(players, PLAYERS_FILE)
@@ -1017,15 +1039,16 @@ def admin_players_crud_page():
                 write_csv_safe(players, PLAYERS_FILE)
                 st.success("Updated.")
                 st.rerun()
+
         with colb2:
             if st.button("Delete Player"):
+                delete_player_and_stats(int(row["player_id"]), sel_name)  # deletes stats first
                 players = players[players["name"] != sel_name]
                 if players.empty:
                     players = pd.DataFrame(columns=["player_id","name","position","code","active"])
                 write_csv_safe(players, PLAYERS_FILE)
-                st.success(f"Deleted {sel_name}.")
+                st.success(f"Deleted {sel_name} and all their stats.")
                 st.rerun()
-
 
 
 
