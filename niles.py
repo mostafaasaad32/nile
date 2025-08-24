@@ -1768,10 +1768,10 @@ def player_my_stats_page(player_name: str):
     player = players[players["name"].str.lower() == player_name.lower()].iloc[0]
 
     # --- Show Player Photo ---
-    if player.get("avatar_url"):
-        st.image(player["avatar_url"], width=150)
+    if player.get("avatar_url") and str(player["avatar_url"]).startswith("http"):
+       st.image(player["avatar_url"], width=150)
     else:
-        st.image("https://via.placeholder.com/150", caption="No photo")
+       st.image("https://via.placeholder.com/150", width=150)
 
     stats = read_csv_safe(PLAYER_STATS_FILE)
     if stats.empty:
