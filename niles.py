@@ -1967,130 +1967,112 @@ def admin_delete_all_data():
                 st.error(f"Error while deleting: {e}")
 
 
-import streamlit as st
-
-import streamlit as st
-
-import streamlit as st
-
 # -------------------------------
-# MOBILE-FRIENDLY TABS WITH ICONS
-# -------------------------------
-def render_icon_tabs(tabs_icons: dict):
-    """
-    tabs_icons: dict of {"Tab Name": "Emoji/Icon"} 
-    returns: selected tab name
-    """
-    n = len(tabs_icons)
-    cols = st.columns(n)
-    selected = st.session_state.get("selected_tab", list(tabs_icons.keys())[0])
-
-    for i, (tab_name, icon) in enumerate(tabs_icons.items()):
-        button_label = f"{icon} {tab_name}"
-        if cols[i].button(button_label):
-            st.session_state.selected_tab = tab_name
-            selected = tab_name
-
-    return selected
-
-
-# -------------------------------
-# ROUTER PER ROLE (Mobile Tabs + Icons)
+# ROUTER PER ROLE (Tabs Layout with Icons)
 # -------------------------------
 def run_admin():
     render_header()
-    tabs_icons = {
-        "Dashboard": "🏠",
-        "Matches": "⚽",
-        "Player Stats": "📊",
-        "Upload Player Stats": "📸",
-        "Players": "👤",
-        "Training Sessions": "📝",
-        "Attendance": "📋",
-        "Fan Wall": "💬",
-        "Reports": "📄",
-        "Best XI": "⭐",
-        "Danger Zone": "⚠️"
-    }
+    tabs = [
+        "🏠 Dashboard",
+        "⚽ Matches",
+        "📊 Player Stats",
+        "📸 Upload Player Stats",
+        "👤 Players",
+        "📝 Training Sessions",
+        "📋 Attendance",
+        "💬 Fan Wall",
+        "📄 Reports",
+        "⭐ Best XI",
+        "⚠️ Danger Zone"
+    ]
 
     pages = {
-        "Dashboard": page_dashboard,
-        "Matches": admin_matches_page,
-        "Player Stats": admin_player_stats_page,
-        "Upload Player Stats": admin_upload_player_stats_page,
-        "Players": admin_players_crud_page,
-        "Training Sessions": admin_training_sessions_page,
-        "Attendance": admin_training_attendance_all,
-        "Fan Wall": admin_fanwall_moderation,
-        "Reports": admin_reports_page,
-        "Best XI": page_best_xi,
-        "Danger Zone": admin_delete_all_data
+        "🏠 Dashboard": page_dashboard,
+        "⚽ Matches": admin_matches_page,
+        "📊 Player Stats": admin_player_stats_page,
+        "📸 Upload Player Stats": admin_upload_player_stats_page,
+        "👤 Players": admin_players_crud_page,
+        "📝 Training Sessions": admin_training_sessions_page,
+        "📋 Attendance": admin_training_attendance_all,
+        "💬 Fan Wall": admin_fanwall_moderation,
+        "📄 Reports": admin_reports_page,
+        "⭐ Best XI": page_best_xi,
+        "⚠️ Danger Zone": admin_delete_all_data
     }
 
-    selected_tab = render_icon_tabs(tabs_icons)
-    pages[selected_tab]()
+    selected_tab = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tab[i]:
+            pages[tab_name]()
 
 
 def run_manager():
     render_header()
-    tabs_icons = {
-        "Dashboard": "🏠",
-        "Tactics Text": "📄",
-        "Tactics Board": "📊",
-        "Attendance": "📋",
-        "Best XI": "⭐"
-    }
+    tabs = [
+        "🏠 Dashboard",
+        "📄 Tactics Text",
+        "📊 Tactics Board",
+        "📋 Attendance",
+        "⭐ Best XI"
+    ]
 
     pages = {
-        "Dashboard": page_dashboard,
-        "Tactics Text": manager_tactics_text_page,
-        "Tactics Board": manager_tactics_board_page,
-        "Attendance": manager_training_attendance_overview,
-        "Best XI": page_best_xi
+        "🏠 Dashboard": page_dashboard,
+        "📄 Tactics Text": manager_tactics_text_page,
+        "📊 Tactics Board": manager_tactics_board_page,
+        "📋 Attendance": manager_training_attendance_overview,
+        "⭐ Best XI": page_best_xi
     }
 
-    selected_tab = render_icon_tabs(tabs_icons)
-    pages[selected_tab]()
+    selected_tab = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tab[i]:
+            pages[tab_name]()
 
 
 def run_player():
     render_header()
-    tabs_icons = {
-        "Dashboard": "🏠",
-        "My Stats": "📊",
-        "Attendance": "📋",
-        "Tactics Text": "📄",
-        "Tactics Board": "📊",
-        "Best XI": "⭐"
-    }
+    tabs = [
+        "🏠 Dashboard",
+        "📊 My Stats",
+        "📋 Attendance",
+        "📄 Tactics Text",
+        "📊 Tactics Board",
+        "⭐ Best XI"
+    ]
 
     pages = {
-        "Dashboard": page_dashboard,
-        "My Stats": lambda: player_my_stats_page(st.session_state.auth.get("name", "Player")),
-        "Attendance": lambda: player_training_attendance_page(st.session_state.auth.get("name", "Player")),
-        "Tactics Text": player_tactics_text_page,
-        "Tactics Board": player_tactics_board_page,
-        "Best XI": page_best_xi
+        "🏠 Dashboard": page_dashboard,
+        "📊 My Stats": lambda: player_my_stats_page(st.session_state.auth.get("name", "Player")),
+        "📋 Attendance": lambda: player_training_attendance_page(st.session_state.auth.get("name", "Player")),
+        "📄 Tactics Text": player_tactics_text_page,
+        "📊 Tactics Board": player_tactics_board_page,
+        "⭐ Best XI": page_best_xi
     }
 
-    selected_tab = render_icon_tabs(tabs_icons)
-    pages[selected_tab]()
+    selected_tab = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tab[i]:
+            pages[tab_name]()
 
 
 def run_fan():
     render_header()
-    tabs_icons = {
-        "Dashboard": "🏠",
-        "Public Results & Fan Wall": "💬"
-    }
+    tabs = [
+        "🏠 Dashboard",
+        "💬 Public Results & Fan Wall"
+    ]
 
     pages = {
-        "Dashboard": page_dashboard,
-        "Public Results & Fan Wall": fan_public_page
+        "🏠 Dashboard": page_dashboard,
+        "💬 Public Results & Fan Wall": fan_public_page
     }
 
-    selected_tab = render_icon_tabs(tabs_icons)
-    pages[selected_tab]()
+    selected_tab = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tab[i]:
+            pages[tab_name]()
+
 
 
 # -------------------------------
@@ -2125,5 +2107,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
