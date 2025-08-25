@@ -85,6 +85,24 @@ st.set_page_config(
     layout="centered"
 )
 
+st.markdown(
+    """
+    <style>
+    /* Hide Streamlit default elements */
+    #MainMenu {visibility: hidden;}              /* hamburger menu */
+    footer {visibility: hidden;}                 /* footer "Built with Streamlit" */
+    .viewerBadge_container__1QSob {display: none !important;}  /* top-right deploy/share buttons */
+    .stDeployButton {display: none !important;}
+    .stAppDeployButton {display: none !important;}
+    [data-testid="stToolbar"] {visibility: hidden !important;} /* top toolbar */
+
+    /* Hide bottom navigation bar (Home / Explore on mobile) */
+    [data-testid="stBottomBlockContainer"] {display: none !important;}
+    [data-testid="stAppViewBlockContainer"] {padding-bottom: 0px !important;}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 
 # -------------------------------
