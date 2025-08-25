@@ -1971,35 +1971,47 @@ import streamlit as st
 
 import streamlit as st
 
-# -------------------------------
-# UTILITY: Tab Navigation
-# -------------------------------
-def render_tabs(tabs: list, role_pages: dict):
-    selected_tab = st.tabs(tabs)[0]  # first tab selected by default
-
-    for i, tab_name in enumerate(tabs):
-        with selected_tab if i == 0 else st.tabs([tab_name])[0]:
-            role_pages[tab_name]()
-
+import streamlit as st
 
 # -------------------------------
-# ROUTER PER ROLE (Tabs Layout)
+# MOBILE-FRIENDLY TABS WITH ICONS
+# -------------------------------
+def render_icon_tabs(tabs_icons: dict):
+    """
+    tabs_icons: dict of {"Tab Name": "Emoji/Icon"} 
+    returns: selected tab name
+    """
+    n = len(tabs_icons)
+    cols = st.columns(n)
+    selected = st.session_state.get("selected_tab", list(tabs_icons.keys())[0])
+
+    for i, (tab_name, icon) in enumerate(tabs_icons.items()):
+        button_label = f"{icon} {tab_name}"
+        if cols[i].button(button_label):
+            st.session_state.selected_tab = tab_name
+            selected = tab_name
+
+    return selected
+
+
+# -------------------------------
+# ROUTER PER ROLE (Mobile Tabs + Icons)
 # -------------------------------
 def run_admin():
     render_header()
-    tabs = [
-        "Dashboard",
-        "Matches",
-        "Player Stats",
-        "Upload Player Stats",
-        "Players",
-        "Training Sessions",
-        "Attendance",
-        "Fan Wall",
-        "Reports",
-        "Best XI",
-        "Danger Zone"
-    ]
+    tabs_icons = {
+        "Dashboard": "🏠",
+        "Matches": "⚽",
+        "Player Stats": "📊",
+        "Upload Player Stats": "📸",
+        "Players": "👤",
+        "Training Sessions": "📝",
+        "Attendance": "📋",
+        "Fan Wall": "💬",
+        "Reports": "📄",
+        "Best XI": "⭐",
+        "Danger Zone": "⚠️"
+    }
 
     pages = {
         "Dashboard": page_dashboard,
@@ -2015,16 +2027,19 @@ def run_admin():
         "Danger Zone": admin_delete_all_data
     }
 
-    # Render tabs
-    selected_tab = st.tabs(tabs)
-    for i, tab_name in enumerate(tabs):
-        with selected_tab[i]:
-            pages[tab_name]()
+    selected_tab = render_icon_tabs(tabs_icons)
+    pages[selected_tab]()
 
 
 def run_manager():
     render_header()
-    tabs = ["Dashboard", "Tactics Text", "Tactics Board", "Attendance", "Best XI"]
+    tabs_icons = {
+        "Dashboard": "🏠",
+        "Tactics Text": "📄",
+        "Tactics Board": "📊",
+        "Attendance": "📋",
+        "Best XI": "⭐"
+    }
 
     pages = {
         "Dashboard": page_dashboard,
@@ -2034,15 +2049,20 @@ def run_manager():
         "Best XI": page_best_xi
     }
 
-    selected_tab = st.tabs(tabs)
-    for i, tab_name in enumerate(tabs):
-        with selected_tab[i]:
-            pages[tab_name]()
+    selected_tab = render_icon_tabs(tabs_icons)
+    pages[selected_tab]()
 
 
 def run_player():
     render_header()
-    tabs = ["Dashboard", "My Stats", "Attendance", "Tactics Text", "Tactics Board", "Best XI"]
+    tabs_icons = {
+        "Dashboard": "🏠",
+        "My Stats": "📊",
+        "Attendance": "📋",
+        "Tactics Text": "📄",
+        "Tactics Board": "📊",
+        "Best XI": "⭐"
+    }
 
     pages = {
         "Dashboard": page_dashboard,
@@ -2053,25 +2073,24 @@ def run_player():
         "Best XI": page_best_xi
     }
 
-    selected_tab = st.tabs(tabs)
-    for i, tab_name in enumerate(tabs):
-        with selected_tab[i]:
-            pages[tab_name]()
+    selected_tab = render_icon_tabs(tabs_icons)
+    pages[selected_tab]()
 
 
 def run_fan():
     render_header()
-    tabs = ["Dashboard", "Public Results & Fan Wall"]
+    tabs_icons = {
+        "Dashboard": "🏠",
+        "Public Results & Fan Wall": "💬"
+    }
 
     pages = {
         "Dashboard": page_dashboard,
         "Public Results & Fan Wall": fan_public_page
     }
 
-    selected_tab = st.tabs(tabs)
-    for i, tab_name in enumerate(tabs):
-        with selected_tab[i]:
-            pages[tab_name]()
+    selected_tab = render_icon_tabs(tabs_icons)
+    pages[selected_tab]()
 
 
 # -------------------------------
@@ -2106,4 +2125,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
