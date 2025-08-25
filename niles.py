@@ -31,6 +31,20 @@ import io
 # -------------------------------
 # PAGE CONFIG (mobile-first)
 # -------------------------------
+
+st.markdown(
+    """
+    <style>
+    #MainMenu {visibility: hidden;}      /* hamburger menu */
+    header {visibility: hidden;}         /* top header */
+    footer {visibility: hidden;}         /* "Made with Streamlit" */
+    .viewerBadge_container__1QSob {display: none;}  /* GitHub/Fork badge */
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
 st.set_page_config(page_title="Nile SC Manager", page_icon="assets/images/icon.png", layout="centered")
 
 LOGO_URL = "assets/images/icon.png"
