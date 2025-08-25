@@ -64,27 +64,29 @@ st.markdown(
 
 
 
-# 🔹 Use a path relative to your app file
-LOGO_PATH = os.path.join(".streamlit", "static", "icon.png")
+
+
+# 🔹 Get absolute path based on where niles.py is running
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOGO_PATH = os.path.join(BASE_DIR, "images", "icon.png")
 
 def get_base64_image(image_path: str) -> str:
-    """Convert image file to Base64 for embedding in HTML (works in Streamlit Cloud)."""
-    try:
-        with open(image_path, "rb") as f:
-            return base64.b64encode(f.read()).decode()
-    except FileNotFoundError:
+    """Convert image file to Base64 for embedding in HTML (Cloud-safe)."""
+    if not os.path.exists(image_path):
         st.error(f"❌ Logo not found: {image_path}")
         return ""
+    with open(image_path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
 
 LOGO_B64 = get_base64_image(LOGO_PATH)
 LOGO_URL = f"data:image/png;base64,{LOGO_B64}"
 
-# ✅ Page setup
 st.set_page_config(
     page_title="Nile SC Manager",
-    page_icon=LOGO_PATH,  # Tab icon will work locally, fallback to default if missing
+    page_icon=LOGO_PATH,
     layout="centered"
 )
+
 
 
 # -------------------------------
