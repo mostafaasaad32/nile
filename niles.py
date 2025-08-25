@@ -747,18 +747,31 @@ def page_dashboard():
         c1, c2 = st.columns(2)
         with c1:
             st.caption("Top Scorers")
-            st.plotly_chart(px.bar(agg.sort_values("goals", ascending=False).head(10),
-                                   x="player_name", y="goals"), use_container_width=True)
+            st.plotly_chart(
+                px.bar(
+                    agg.sort_values("goals", ascending=False).head(10),
+                    x="player_name", y="goals"
+                ),
+                use_container_width=True,
+                config={"staticPlot": True}  # disable interactivity
+            )
         with c2:
             st.caption("Top Assists")
-            st.plotly_chart(px.bar(agg.sort_values("assists", ascending=False).head(10),
-                                   x="player_name", y="assists"), use_container_width=True)
+            st.plotly_chart(
+                px.bar(
+                    agg.sort_values("assists", ascending=False).head(10),
+                    x="player_name", y="assists"
+                ),
+                use_container_width=True,
+                config={"staticPlot": True}  # disable interactivity
+            )
 
-        # Best Average Rating with Rank ### CHANGE ###
+        # Best Average Rating with Rank
         st.caption("Best Average Rating (min 3 matches)")
         best = agg[agg["matches"] >= 3].sort_values("avg_rating", ascending=False)
         best.insert(0, "Rank", best["avg_rating"].rank(method="min", ascending=False).astype(int))
         st.dataframe(best, use_container_width=True)
+
 
 
 # -------------------------------
@@ -1739,62 +1752,56 @@ def player_my_stats_page(player_name: str):
     c4.metric("Avg Rating", value=avg_rating)
 
     st.divider()
-
-    # --- Performance Tracker ---
     st.subheader("📈 Performance Tracker")
 
-    # Eye-comfortable colors
-    line_color = "#6CA0DC"       # soft blue
-    marker_color = "#88B04B"     # soft green
-    background_color = "#F7F7F7" # light gray
-    axis_color = "#333333"       # dark for labels/grid lines
+    # Sort by match for timeline plots
+    mine = mine.sort_values("match_id")
 
-    fig = px.line(
-        mine.sort_values("match_id"),
+    # --- Plot 1: Goals & Assists per Match ---
+    fig1 = px.bar(
+        mine,
+        x="match_id",
+        y=["goals", "assists"],
+        title="Goals & Assists per Match",
+        labels={"value": "Count", "match_id": "Match ID", "variable": "Stat"}
+    )
+    st.plotly_chart(fig1, use_container_width=True, config={"staticPlot": True})
+
+    # --- Plot 2: Cumulative Goals & Assists ---
+    mine["cum_goals"] = mine["goals"].cumsum()
+    mine["cum_assists"] = mine["assists"].cumsum()
+    fig2 = px.line(
+        mine,
+        x="match_id",
+        y=["cum_goals", "cum_assists"],
+        markers=True,
+        title="Cumulative Goals & Assists",
+        labels={"value": "Total", "match_id": "Match ID", "variable": "Stat"}
+    )
+    st.plotly_chart(fig2, use_container_width=True, config={"staticPlot": True})
+
+    # --- Plot 3: Cards per Match ---
+    fig3 = px.bar(
+        mine,
+        x="match_id",
+        y=["yellow_cards", "red_cards"],
+        title="Cards per Match",
+        labels={"value": "Cards", "match_id": "Match ID", "variable": "Card Type"}
+    )
+    st.plotly_chart(fig3, use_container_width=True, config={"staticPlot": True})
+
+    # --- Plot 4: Ratings over Matches ---
+    fig4 = px.line(
+        mine,
         x="match_id",
         y="rating",
         markers=True,
         title="Ratings over Matches",
         labels={"match_id": "Match ID", "rating": "Rating"}
     )
+    fig4.update_yaxes(range=[0, 10])  # keep rating scale fixed
+    st.plotly_chart(fig4, use_container_width=True, config={"staticPlot": True})
 
-    # Customize line and marker
-    fig.update_traces(
-        line=dict(color=line_color, width=3),
-        marker=dict(color=marker_color, size=10, line=dict(width=1, color="white"))
-    )
-
-    # Update layout for readability
-    fig.update_layout(
-        height=400,
-        margin=dict(l=20, r=20, t=40, b=20),
-        plot_bgcolor=background_color,
-        paper_bgcolor=background_color,
-        title=dict(font=dict(size=20, color=axis_color)),
-        xaxis=dict(
-            showgrid=True,
-            gridcolor="#AAAAAA",  # darker gray
-            linecolor=axis_color,
-            tickfont=dict(size=14, color=axis_color),
-            title=dict(text="Match ID", font=dict(size=16, color=axis_color))
-        ),
-        yaxis=dict(
-            showgrid=True,
-            gridcolor="#AAAAAA",  # darker gray
-            linecolor=axis_color,
-            tickfont=dict(size=14, color=axis_color),
-            title=dict(text="Rating", font=dict(size=16, color=axis_color)),
-            range=[0, 10]
-        )
-    )
-
-    # Disable interactions
-    config = {
-        "staticPlot": True,
-        "displayModeBar": False
-    }
-
-    st.plotly_chart(fig, use_container_width=True, config=config)
 
 
 
