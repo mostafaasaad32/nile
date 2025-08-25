@@ -63,7 +63,7 @@ st.markdown(
 
 
 
-LOGO_URL = "https://i.ibb.co/PZGcDFTD/icon.png"
+LOGO_URL = "https://i.postimg.cc/FsD9Nx5X/icon.png"
 
 # Setup page config (favicon will now use the external link)
 st.set_page_config(
