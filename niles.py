@@ -694,121 +694,95 @@ def page_dashboard():
 # ADMIN PAGES (Matches, Stats, Fan Wall, Reports, PLAYERS CRUD)
 # -------------------------------
 def admin_matches_page():
-    st.subheader("Matches – Upcoming vs Results")
+    st.subheader("⚽ Matches")
+
+    tab1, tab2, tab3 = st.tabs(["➕ Add Upcoming", "✅ Add Result", "📋 All Matches"])
 
     matches = read_csv_safe(MATCHES_FILE)
 
-    # ---------- Add upcoming fixture (no scores) ----------
-    with st.form("add_upcoming"):
-        st.markdown("### ➕ Add Upcoming Match")
-        c1, c2 = st.columns(2)
-        with c1:
-            m_date = st.date_input("Match date", value=date.today())
-            opponent = st.text_input("Opponent")
-        with c2:
-            notes = st.text_area("Notes", "")
-        submitted_upcoming = st.form_submit_button("Add Upcoming", type="primary")
-
-    if submitted_upcoming:
-        if not opponent.strip():
-            st.warning("Opponent name is required.")
-        elif m_date < date.today():
-            st.warning("Upcoming match must be today or later. Use 'Add Match Result' for past dates.")
-        else:
-            match_id = int(time.time() * 1000)
-            new_row = {
-                "match_id": match_id,
-                "date": m_date.strftime("%Y-%m-%d"),
-                "opponent": opponent.strip(),
-                "our_score": None,
-                "their_score": None,
-                "result": None,
-                "notes": notes.strip()
-            }
-            matches = pd.concat([matches, pd.DataFrame([new_row])], ignore_index=True)
-            write_csv_safe(matches, MATCHES_FILE)
-            st.success("Upcoming match added.")
-            st.rerun()
-
-    st.divider()
-
-    # ---------- Add result for existing match ----------
-    matches = read_csv_safe(MATCHES_FILE)
-    m2 = matches.copy()
-    m2["date"] = pd.to_datetime(m2["date"], errors="coerce").dt.date
-    for c in ["our_score", "their_score"]:
-        m2[c] = pd.to_numeric(m2[c], errors="coerce")
-
-    unfinished = m2[m2["our_score"].isna() | m2["their_score"].isna()].sort_values("date")
-    if unfinished.empty:
-        st.info("No upcoming matches waiting for a result.")
-    else:
-        with st.form("add_result"):
-            st.markdown("### ✅ Add Match Result")
-            mid = st.selectbox(
-                "Match to finalize",
-                options=unfinished["match_id"].astype(int).tolist(),
-                format_func=lambda x: match_label_from_id(x, unfinished)
-            )
-            match_date = unfinished.loc[unfinished["match_id"] == int(mid), "date"].values[0]
-            c1, c2, c3 = st.columns(3)
+    # ---------------- TAB 1: Add Upcoming Match ----------------
+    with tab1:
+        with st.form("add_upcoming"):
+            c1, c2 = st.columns(2)
             with c1:
-                our = st.number_input("Our score", 0, 99, 0)
+                m_date = st.date_input("Match date", value=date.today())
+                opponent = st.text_input("Opponent")
             with c2:
-                their = st.number_input("Their score", 0, 99, 0)
-            with c3:
-                notes2 = st.text_area(
-                    "Notes (optional)",
-                    value=str(
-                        unfinished.loc[unfinished["match_id"] == int(mid), "notes"].values[0]
-                        if not unfinished.empty else ""
-                    )
-                )
-            submit_res = st.form_submit_button("Save Result", type="primary")
+                notes = st.text_area("Notes", "")
+            submitted_upcoming = st.form_submit_button("Add Upcoming", type="primary")
 
-        if submit_res:
-            if match_date > date.today():
-                st.error(f"Cannot add result yet — match date {match_date} is in the future.")
+        if submitted_upcoming:
+            if not opponent.strip():
+                st.warning("Opponent name is required.")
+            elif m_date < date.today():
+                st.warning("Match must be today or later.")
             else:
+                match_id = int(time.time() * 1000)
+                new_row = {
+                    "match_id": match_id,
+                    "date": m_date.strftime("%Y-%m-%d"),
+                    "opponent": opponent.strip(),
+                    "our_score": None,
+                    "their_score": None,
+                    "result": None,
+                    "notes": notes.strip()
+                }
+                matches = pd.concat([matches, pd.DataFrame([new_row])], ignore_index=True)
+                write_csv_safe(matches, MATCHES_FILE)
+                st.success("Upcoming match added ✅")
+                st.rerun()
+
+    # ---------------- TAB 2: Add Result ----------------
+    with tab2:
+        m2 = matches.copy()
+        m2["date"] = pd.to_datetime(m2["date"], errors="coerce").dt.date
+        unfinished = m2[m2["our_score"].isna() | m2["their_score"].isna()].sort_values("date")
+
+        if unfinished.empty:
+            st.info("No upcoming matches waiting for a result.")
+        else:
+            with st.form("add_result"):
+                mid = st.selectbox(
+                    "Match to finalize",
+                    options=unfinished["match_id"].astype(int).tolist(),
+                    format_func=lambda x: match_label_from_id(x, unfinished)
+                )
+                c1, c2, c3 = st.columns(3)
+                with c1: our = st.number_input("Our score", 0, 99, 0)
+                with c2: their = st.number_input("Their score", 0, 99, 0)
+                with c3:
+                    notes2 = st.text_area("Notes", value=str(
+                        unfinished.loc[unfinished["match_id"] == int(mid), "notes"].values[0]
+                    ))
+                submit_res = st.form_submit_button("Save Result", type="primary")
+
+            if submit_res:
                 res = calc_result(int(our), int(their))
                 matches.loc[matches["match_id"] == int(mid),
                             ["our_score", "their_score", "result", "notes"]] = [
                     int(our), int(their), res, notes2
                 ]
                 write_csv_safe(matches, MATCHES_FILE)
-                st.success("Result saved.")
+                st.success("Result saved ✅")
                 st.rerun()
 
-    st.divider()
-
-    # ---------- Table & Delete ----------
-    matches = read_csv_safe(MATCHES_FILE)
-    if matches.empty:
-        st.info("No matches yet.")
-        return
-
-    show = matches.copy()
-    st.dataframe(show.sort_values("date", ascending=False), use_container_width=True)
-
-    del_mid = st.selectbox(
-        "Delete match",
-        options=show["match_id"].astype(int).tolist(),
-        format_func=lambda x: match_label_from_id(x, show)
-    )
-    if st.button("🗑️ Delete Selected Match"):
-     if del_mid is not None and not matches.empty:
-        # ✅ Delete linked stats first
-        sb = _supabase_client()
-        sb.table("player_stats").delete().eq("match_id", int(del_mid)).execute()
-
-        # ✅ Delete the match directly from Supabase
-        sb.table("matches").delete().eq("match_id", int(del_mid)).execute()
-
-        st.success(f"Deleted match {match_label_from_id(int(del_mid), show)} and its linked stats.")
-        st.rerun()
-     else:
-        st.warning("⚠️ No match selected to delete.")
-
+    # ---------------- TAB 3: View All Matches ----------------
+    with tab3:
+        if matches.empty:
+            st.info("No matches yet.")
+        else:
+            st.dataframe(matches.sort_values("date", ascending=False), use_container_width=True)
+            del_mid = st.selectbox(
+                "Delete match",
+                options=matches["match_id"].astype(int).tolist(),
+                format_func=lambda x: match_label_from_id(x, matches)
+            )
+            if st.button("🗑️ Delete Selected Match"):
+                sb = _supabase_client()
+                sb.table("player_stats").delete().eq("match_id", int(del_mid)).execute()
+                sb.table("matches").delete().eq("match_id", int(del_mid)).execute()
+                st.success("Match and stats deleted ✅")
+                st.rerun()
 
 
 
@@ -1665,30 +1639,15 @@ def manager_tactics_board_page():
 # PLAYER PAGES
 # -------------------------------
 
-def upload_player_photo(file_bytes: bytes, player_id: int) -> str:
-    sb = _supabase_client()
-    bucket = "player-photos"
-    file_name = f"player_{player_id}.png"
 
-    # Wrap raw bytes in file-like object
-    file_obj = io.BytesIO(file_bytes)
+import plotly.express as px
+import streamlit as st
 
-    # Upload with correct mimetype and overwrite allowed
-    sb.storage.from_(bucket).upload(
-        path=file_name,
-        file=file_obj,
-        file_options={"content-type": "image/png", "upsert": "true"}
-    )
-
-    # Return the public URL
-    return sb.storage.from_(bucket).get_public_url(file_name)
 def player_my_stats_page(player_name: str):
     st.subheader("📊 My Stats")
 
     players = read_csv_safe(PLAYERS_FILE)
     player = players[players["name"].str.lower() == player_name.lower()].iloc[0]
-
-
 
     stats = read_csv_safe(PLAYER_STATS_FILE)
     if stats.empty:
@@ -1712,16 +1671,60 @@ def player_my_stats_page(player_name: str):
 
     # --- Performance Tracker ---
     st.subheader("📈 Performance Tracker")
-    st.plotly_chart(
-        px.line(
-            mine.sort_values("match_id"),
-            x="match_id",
-            y="rating",
-            markers=True,
-            title="Ratings over Matches",
-        ),
-        use_container_width=True,
+
+    # Eye-comfortable colors
+    line_color = "#6CA0DC"       # soft blue
+    marker_color = "#88B04B"     # soft green
+    background_color = "#F7F7F7" # light gray
+    axis_color = "#333333"       # dark for labels/grid lines
+
+    fig = px.line(
+        mine.sort_values("match_id"),
+        x="match_id",
+        y="rating",
+        markers=True,
+        title="Ratings over Matches",
+        labels={"match_id": "Match ID", "rating": "Rating"}
     )
+
+    # Customize line and marker
+    fig.update_traces(
+        line=dict(color=line_color, width=3),
+        marker=dict(color=marker_color, size=10, line=dict(width=1, color="white"))
+    )
+
+    # Update layout for readability
+    fig.update_layout(
+        height=400,
+        margin=dict(l=20, r=20, t=40, b=20),
+        plot_bgcolor=background_color,
+        paper_bgcolor=background_color,
+        title=dict(font=dict(size=20, color=axis_color)),
+        xaxis=dict(
+            showgrid=True,
+            gridcolor="#AAAAAA",  # darker gray
+            linecolor=axis_color,
+            tickfont=dict(size=14, color=axis_color),
+            title=dict(text="Match ID", font=dict(size=16, color=axis_color))
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor="#AAAAAA",  # darker gray
+            linecolor=axis_color,
+            tickfont=dict(size=14, color=axis_color),
+            title=dict(text="Rating", font=dict(size=16, color=axis_color)),
+            range=[0, 10]
+        )
+    )
+
+    # Disable interactions
+    config = {
+        "staticPlot": True,
+        "displayModeBar": False
+    }
+
+    st.plotly_chart(fig, use_container_width=True, config=config)
+
 
 
 
@@ -1769,7 +1772,7 @@ def player_tactics_board_page():
         axis=1
     )
 
-    # Draw pitch exactly like manager view
+    # Draw pitch
     fig = go.Figure()
     fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100, line=dict(width=2))
     fig.add_shape(type="line", x0=50, y0=0, x1=50, y1=100, line=dict(width=1))
@@ -1791,10 +1794,22 @@ def player_tactics_board_page():
 
     fig.update_xaxes(range=[0, 100], showgrid=False, visible=False)
     fig.update_yaxes(range=[0, 100], showgrid=False, visible=False, scaleanchor="x", scaleratio=1)
-    fig.update_layout(height=600, title=f"{formation} – Assigned XI",
-                      margin=dict(l=20, r=20, t=40, b=20), plot_bgcolor="green")
-    st.plotly_chart(fig, use_container_width=True)
+    fig.update_layout(
+        height=600,
+        title=f"{formation} – Assigned XI",
+        margin=dict(l=20, r=20, t=40, b=20),
+        plot_bgcolor="green"
+    )
 
+    # -------------------------------
+    # Disable all interactions for view-only
+    # -------------------------------
+    config = {
+        "staticPlot": True,  # disables zoom, pan, drag
+        "displayModeBar": False  # hide toolbar
+    }
+
+    st.plotly_chart(fig, use_container_width=True, config=config)
 
 
 # -------------------------------
@@ -1952,116 +1967,119 @@ def admin_delete_all_data():
                 st.error(f"Error while deleting: {e}")
 
 
+import streamlit as st
+
+import streamlit as st
+
 # -------------------------------
-# ROUTER PER ROLE
+# UTILITY: Tab Navigation
+# -------------------------------
+def render_tabs(tabs: list, role_pages: dict):
+    selected_tab = st.tabs(tabs)[0]  # first tab selected by default
+
+    for i, tab_name in enumerate(tabs):
+        with selected_tab if i == 0 else st.tabs([tab_name])[0]:
+            role_pages[tab_name]()
+
+
+# -------------------------------
+# ROUTER PER ROLE (Tabs Layout)
 # -------------------------------
 def run_admin():
     render_header()
-    st.sidebar.header("Admin Menu")
-    page = st.sidebar.radio("Go to", [
+    tabs = [
         "Dashboard",
         "Matches",
         "Player Stats",
-        "📸 Upload Player Stats",   # 👈 NEW
-        "Players (Add/Edit)",
+        "Upload Player Stats",
+        "Players",
         "Training Sessions",
-        "Training Attendance (All)",
-        "Fan Wall Moderation",
-        "Auto Reports",
-        "Auto Best XI",
-        "⚠ Danger Zone (Delete All Data)"
-    ])
+        "Attendance",
+        "Fan Wall",
+        "Reports",
+        "Best XI",
+        "Danger Zone"
+    ]
 
-    if page == "Dashboard":
-        page_dashboard()
-    elif page == "Matches":
-        admin_matches_page()
-    elif page == "Player Stats":
-        admin_player_stats_page()
-    elif page == "📸 Upload Player Stats":   # 👈 NEW
-        admin_upload_player_stats_page()
-    elif page == "Players (Add/Edit)":
-        admin_players_crud_page()
-    elif page == "Training Sessions":
-        admin_training_sessions_page()
-    elif page == "Training Attendance (All)":
-        admin_training_attendance_all()
-    elif page == "Fan Wall Moderation":
-        admin_fanwall_moderation()
-    elif page == "Auto Reports":
-        admin_reports_page()
-    elif page == "Auto Best XI":
-        page_best_xi()
-    elif page == "⚠ Danger Zone (Delete All Data)":
-        admin_delete_all_data()
+    pages = {
+        "Dashboard": page_dashboard,
+        "Matches": admin_matches_page,
+        "Player Stats": admin_player_stats_page,
+        "Upload Player Stats": admin_upload_player_stats_page,
+        "Players": admin_players_crud_page,
+        "Training Sessions": admin_training_sessions_page,
+        "Attendance": admin_training_attendance_all,
+        "Fan Wall": admin_fanwall_moderation,
+        "Reports": admin_reports_page,
+        "Best XI": page_best_xi,
+        "Danger Zone": admin_delete_all_data
+    }
 
-
+    # Render tabs
+    selected_tab = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tab[i]:
+            pages[tab_name]()
 
 
 def run_manager():
     render_header()
-    st.sidebar.header("Manager Menu")
-    page = st.sidebar.radio("Go to", [
-        "Dashboard",
-        "Tactics – Text",
-        "Tactics – Visual Board",
-        "Training Attendance (Session View)",
-        "Auto Best XI",
-    ])
-    if page == "Dashboard":
-        page_dashboard()
-    elif page == "Tactics – Text":
-        manager_tactics_text_page()
-    elif page == "Tactics – Visual Board":
-        manager_tactics_board_page()
-    elif page == "Training Attendance (Session View)":
-        manager_training_attendance_overview()
-    elif page == "Auto Best XI":
-        page_best_xi()
+    tabs = ["Dashboard", "Tactics Text", "Tactics Board", "Attendance", "Best XI"]
+
+    pages = {
+        "Dashboard": page_dashboard,
+        "Tactics Text": manager_tactics_text_page,
+        "Tactics Board": manager_tactics_board_page,
+        "Attendance": manager_training_attendance_overview,
+        "Best XI": page_best_xi
+    }
+
+    selected_tab = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tab[i]:
+            pages[tab_name]()
+
 
 def run_player():
     render_header()
-    st.sidebar.header("Player Menu")
-    page = st.sidebar.radio("Go to", [
-    "Dashboard",
-    "My Stats",
-    "Training Attendance",
-    "Tactics – Text (view)",
-    "Tactics – Visual Board (view)",
-    "Auto Best XI (view)"
-])
+    tabs = ["Dashboard", "My Stats", "Attendance", "Tactics Text", "Tactics Board", "Best XI"]
 
-    if page == "Dashboard":
-        page_dashboard()
-    elif page == "My Stats":
-        player_my_stats_page(st.session_state.auth.get("name","Player"))
-    elif page == "Training Attendance":
-        player_training_attendance_page(st.session_state.auth.get("name","Player"))
-    elif page == "Auto Best XI (view)":
-        page_best_xi()
-    elif page == "Tactics – Text (view)":
-     player_tactics_text_page()
-    elif page == "Tactics – Visual Board (view)":
-     player_tactics_board_page()
-    
+    pages = {
+        "Dashboard": page_dashboard,
+        "My Stats": lambda: player_my_stats_page(st.session_state.auth.get("name", "Player")),
+        "Attendance": lambda: player_training_attendance_page(st.session_state.auth.get("name", "Player")),
+        "Tactics Text": player_tactics_text_page,
+        "Tactics Board": player_tactics_board_page,
+        "Best XI": page_best_xi
+    }
+
+    selected_tab = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tab[i]:
+            pages[tab_name]()
+
 
 def run_fan():
     render_header()
-    st.sidebar.header("Fan Menu")
-    page = st.sidebar.radio("Go to", ["Dashboard","Public Results & Fan Wall"])
-    if page == "Dashboard":
-        page_dashboard()
-    elif page == "Public Results & Fan Wall":
-        fan_public_page()
+    tabs = ["Dashboard", "Public Results & Fan Wall"]
+
+    pages = {
+        "Dashboard": page_dashboard,
+        "Public Results & Fan Wall": fan_public_page
+    }
+
+    selected_tab = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tab[i]:
+            pages[tab_name]()
+
 
 # -------------------------------
 # MAIN
 # -------------------------------
 def main():
-
     init_session()
 
-    # Intro / Login routing
     if st.session_state.page == "intro" and st.session_state.auth["role"] is None:
         intro_page()
         return
@@ -2069,12 +2087,10 @@ def main():
         login_ui()
         return
     elif st.session_state.page == "fan_public_only" and st.session_state.auth["role"] == "fan":
-        # Minimal fan public preview route
         render_header()
         fan_public_page()
         return
 
-    # Authenticated routes
     role = st.session_state.auth["role"]
     if role == "admin":
         run_admin()
@@ -2085,8 +2101,9 @@ def main():
     elif role == "fan":
         run_fan()
     else:
-        # Fallback -> Intro
         logout()
+
 
 if __name__ == "__main__":
     main()
+
