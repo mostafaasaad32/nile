@@ -35,14 +35,15 @@ import io
 st.markdown(
     """
     <style>
-    #MainMenu {visibility: hidden;}      /* hamburger menu */
-    header {visibility: hidden;}         /* top header */
-    footer {visibility: hidden;}         /* "Made with Streamlit" */
+    #MainMenu {visibility: hidden;}      /* Hamburger menu */
+    header {visibility: hidden;}         /* Streamlit top header */
+    footer {visibility: hidden;}         /* "Made with Streamlit" footer */
     .viewerBadge_container__1QSob {display: none;}  /* GitHub/Fork badge */
     </style>
     """,
     unsafe_allow_html=True,
 )
+
 
 
 st.set_page_config(page_title="Nile SC Manager", page_icon="assets/images/icon.png", layout="centered")
