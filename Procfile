@@ -1,2 +1,3 @@
-web: streamlit run niles.py --server.port 7860 --server.address 0.0.0.0
+web: streamlit run niles.py --server.port $PORT --server.address 0.0.0.0
+
 
