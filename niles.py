@@ -31,23 +31,32 @@ import io
 # -------------------------------
 # PAGE CONFIG (mobile-first)
 # -------------------------------
-
 st.markdown(
     """
     <style>
-    /* Hide Streamlit's default menu */
+    /* Hide Streamlit main menu */
     #MainMenu {visibility: hidden;}
 
-    /* Hide Streamlit footer */
+    /* Hide footer */
     footer {visibility: hidden;}
 
-    /* Hide the "Made with Streamlit" and "GitHub/Fork" badges */
-    .viewerBadge_container__1QSob {display: none;}
-    .stDeployButton {display: none;}
-    .stAppDeployButton {display: none;}
-
-    /* DO NOT hide header (this keeps sidebar toggle working) */
+    /* Hide deploy/fork/github buttons */
+    .viewerBadge_container__1QSob {display: none !important;}
+    .stDeployButton {display: none !important;}
+    .stAppDeployButton {display: none !important;}
+    [data-testid="stToolbar"] {visibility: hidden !important;}
     </style>
+
+    <script>
+    // Continuously remove fork/github buttons every 500ms
+    setInterval(function() {
+        let badges = document.getElementsByClassName('viewerBadge_container__1QSob');
+        for (let item of badges) { item.style.display = 'none'; }
+
+        let deployBtn = document.querySelector('[data-testid="stToolbar"]');
+        if (deployBtn) { deployBtn.style.display = 'none'; }
+    }, 500);
+    </script>
     """,
     unsafe_allow_html=True,
 )
