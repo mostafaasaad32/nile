@@ -31,39 +31,41 @@ import io
 # -------------------------------
 # PAGE CONFIG (mobile-first)
 # -------------------------------
-def hide_streamlit_chrome():
-    st.markdown(
-        """
-        <style>
-        /* Hide Streamlit main menu & footer */
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
+st.markdown(
+    """
+    <style>
+    /* Hide Streamlit main menu */
+    #MainMenu {visibility: hidden;}
 
-        /* Hide toolbar, deploy button, fork/github */
-        .viewerBadge_container__1QSob {display: none !important;}
-        .stDeployButton {display: none !important;}
-        .stAppDeployButton {display: none !important;}
-        [data-testid="stToolbar"] {visibility: hidden !important;}
-        </style>
+    /* Hide footer */
+    footer {visibility: hidden;}
 
-        <script>
-        // Continuously remove fork/github buttons every 500ms
-        setInterval(function() {
-            let badges = document.getElementsByClassName('viewerBadge_container__1QSob');
-            for (let item of badges) { item.style.display = 'none'; }
-            let deployBtn = document.querySelector('[data-testid="stToolbar"]');
-            if (deployBtn) { deployBtn.style.display = 'none'; }
-        }, 500);
-        </script>
-        """,
-        unsafe_allow_html=True,
-    )
+    /* Hide deploy/fork/github buttons */
+    .viewerBadge_container__1QSob {display: none !important;}
+    .stDeployButton {display: none !important;}
+    .stAppDeployButton {display: none !important;}
+    [data-testid="stToolbar"] {visibility: hidden !important;}
+    </style>
+
+    <script>
+    // Continuously remove fork/github buttons every 500ms
+    setInterval(function() {
+        let badges = document.getElementsByClassName('viewerBadge_container__1QSob');
+        for (let item of badges) { item.style.display = 'none'; }
+
+        let deployBtn = document.querySelector('[data-testid="stToolbar"]');
+        if (deployBtn) { deployBtn.style.display = 'none'; }
+    }, 500);
+    </script>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 
 st.set_page_config(page_title="Nile SC Manager", page_icon="assets/images/icon.png", layout="centered")
 
-LOGO_URL = "assets/images/icon.png"
+LOGO_URL = "https://drive.google.com/drive/folders/1pSoVF8ah5mll7Y3xcSfCt6sCaQNU2KHc"
 
 # -------------------------------
 # GLOBAL STYLES (Desktop + Mobile)
@@ -504,27 +506,39 @@ def last_match_info(matches: pd.DataFrame):
     return past.iloc[-1].to_dict()
 
 def render_header():
-    st.markdown(
-        """
-        <div class='glass hero' style="margin-bottom:12px;">
-            <div class="glow"></div>
-            <div class="hero-content">
-                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                    <div class="title">Nile Esports ProClubs Hub</div>
-                    <span class='badge'>Live</span>
-                </div>
-                <div class="small" style="margin-top:6px;">Manage matches, tactics, roster, training & fan hype — all in one place.</div>
+    role = st.session_state.auth.get("role", "Guest")
+    name = st.session_state.auth.get("name", "User")
+
+    # Top header: logo, title, logout
+    col1, col2 = st.columns([4,1])
+    with col1:
+        st.markdown(
+            f"""
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <img src="C:/My Career/nileapp/.streamlit/static/icon.png" width="50" style="border-radius:8px;">
+                <div style="font-size:20px; font-weight:bold;">Nile Esports ProClubs Hub</div>
+                <span style="color:#ff4b4b; font-weight:bold;">Live</span>
             </div>
+            <div style="font-size:12px; color:#666; margin-top:4px;">
+                Manage matches, tactics, roster, training & fan hype — all in one place.
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    with col2:
+        if st.button("Logout"):
+            logout()
+
+    # Small role info below the header
+    st.markdown(
+        f"""
+        <div style="font-size:14px; color:#333; margin:8px 0;">
+            Role: <b>{role.upper()}</b> | User: <b>{name}</b>
         </div>
         """,
-        unsafe_allow_html=True,
+        unsafe_allow_html=True
     )
-    role = st.session_state.auth["role"]
-    name = st.session_state.auth["name"]
-    st.sidebar.markdown(f"### ⚽ {APP_TITLE}")
-    st.sidebar.success(f"Role: {role.upper()} | User: {name}")
-    if st.sidebar.button("Logout"):
-        logout()
+
 
 # -------------------------------
 # INTRO PAGE (before login)
@@ -2109,7 +2123,6 @@ def run_fan():
 # MAIN
 # -------------------------------
 def main():
-    hide_streamlit_chrome()
     init_session()
 
     if st.session_state.page == "intro" and st.session_state.auth["role"] is None:
