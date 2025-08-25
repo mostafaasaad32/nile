@@ -1967,146 +1967,112 @@ def admin_delete_all_data():
                 st.error(f"Error while deleting: {e}")
 
 
-import streamlit as st
-
 # -------------------------------
-# PAGE CONFIG & HIDE STREAMLIT UI
-# -------------------------------
-st.set_page_config(
-    page_title="Football App",
-    page_icon="⚽",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
-st.markdown("""
-<style>
-#MainMenu {visibility: hidden;}
-header {visibility: hidden;}
-footer {visibility: hidden;}
-.bottom-tab {display: flex; justify-content: space-around; padding: 10px; background-color: #222; position: fixed; bottom: 0; width: 100%; z-index: 100;}
-.bottom-tab label {color: #ccc; font-size: 16px; padding: 10px; flex:1; text-align: center;}
-.bottom-tab input[type="radio"]:checked + label {color: #00ffcc; font-weight: bold;}
-body {padding-bottom: 70px;}
-</style>
-""", unsafe_allow_html=True)
-
-
-# -------------------------------
-# BOTTOM TABS WITH STATE
-# -------------------------------
-def bottom_tabs(tabs_icons: dict, key="selected_tab"):
-    # Use st.radio with a key to store the selected tab automatically
-    selected_tab = st.radio(
-        label="Select Tab",
-        options=list(tabs_icons.keys()),
-        index=0,  # default first tab
-        key=key,
-        label_visibility="collapsed",
-        horizontal=True
-    )
-
-    # Render custom bottom tab bar (just for styling, state is already stored in session_state[key])
-    html = '<div class="bottom-tab">'
-    for tab_name, icon in tabs_icons.items():
-        checked = 'checked' if tab_name == selected_tab else ''
-        html += f'<input type="radio" id="{tab_name}" name="tab_{key}" {checked}>'
-        html += f'<label for="{tab_name}">{icon}<br>{tab_name}</label>'
-    html += '</div>'
-    st.markdown(html, unsafe_allow_html=True)
-
-    return selected_tab
-
-
-# -------------------------------
-# ROLE PAGES
+# ROUTER PER ROLE (Tabs Layout with Icons)
 # -------------------------------
 def run_admin():
     render_header()
-    tabs_icons = {
-        "Dashboard": "🏠",
-        "Matches": "⚽",
-        "Player Stats": "📊",
-        "Upload Player Stats": "📸",
-        "Players": "👤",
-        "Training Sessions": "📝",
-        "Attendance": "📋",
-        "Fan Wall": "💬",
-        "Reports": "📄",
-        "Best XI": "⭐",
-        "Danger Zone": "⚠️"
-    }
+    tabs = [
+        "🏠 Dashboard",
+        "⚽ Matches",
+        "📊 Player Stats",
+        "📸 Upload Player Stats",
+        "👤 Players",
+        "📝 Training Sessions",
+        "📋 Attendance",
+        "💬 Fan Wall",
+        "📄 Reports",
+        "⭐ Best XI",
+        "⚠️ Danger Zone"
+    ]
+
     pages = {
-        "Dashboard": page_dashboard,
-        "Matches": admin_matches_page,
-        "Player Stats": admin_player_stats_page,
-        "Upload Player Stats": admin_upload_player_stats_page,
-        "Players": admin_players_crud_page,
-        "Training Sessions": admin_training_sessions_page,
-        "Attendance": admin_training_attendance_all,
-        "Fan Wall": admin_fanwall_moderation,
-        "Reports": admin_reports_page,
-        "Best XI": page_best_xi,
-        "Danger Zone": admin_delete_all_data
+        "🏠 Dashboard": page_dashboard,
+        "⚽ Matches": admin_matches_page,
+        "📊 Player Stats": admin_player_stats_page,
+        "📸 Upload Player Stats": admin_upload_player_stats_page,
+        "👤 Players": admin_players_crud_page,
+        "📝 Training Sessions": admin_training_sessions_page,
+        "📋 Attendance": admin_training_attendance_all,
+        "💬 Fan Wall": admin_fanwall_moderation,
+        "📄 Reports": admin_reports_page,
+        "⭐ Best XI": page_best_xi,
+        "⚠️ Danger Zone": admin_delete_all_data
     }
-    selected_tab = bottom_tabs(tabs_icons, key="admin_tab")
-    pages[selected_tab]()
+
+    selected_tab = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tab[i]:
+            pages[tab_name]()
 
 
 def run_manager():
     render_header()
-    tabs_icons = {
-        "Dashboard": "🏠",
-        "Tactics Text": "📄",
-        "Tactics Board": "📊",
-        "Attendance": "📋",
-        "Best XI": "⭐"
-    }
+    tabs = [
+        "🏠 Dashboard",
+        "📄 Tactics Text",
+        "📊 Tactics Board",
+        "📋 Attendance",
+        "⭐ Best XI"
+    ]
+
     pages = {
-        "Dashboard": page_dashboard,
-        "Tactics Text": manager_tactics_text_page,
-        "Tactics Board": manager_tactics_board_page,
-        "Attendance": manager_training_attendance_overview,
-        "Best XI": page_best_xi
+        "🏠 Dashboard": page_dashboard,
+        "📄 Tactics Text": manager_tactics_text_page,
+        "📊 Tactics Board": manager_tactics_board_page,
+        "📋 Attendance": manager_training_attendance_overview,
+        "⭐ Best XI": page_best_xi
     }
-    selected_tab = bottom_tabs(tabs_icons, key="manager_tab")
-    pages[selected_tab]()
+
+    selected_tab = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tab[i]:
+            pages[tab_name]()
 
 
 def run_player():
     render_header()
-    tabs_icons = {
-        "Dashboard": "🏠",
-        "My Stats": "📊",
-        "Attendance": "📋",
-        "Tactics Text": "📄",
-        "Tactics Board": "📊",
-        "Best XI": "⭐"
-    }
+    tabs = [
+        "🏠 Dashboard",
+        "📊 My Stats",
+        "📋 Attendance",
+        "📄 Tactics Text",
+        "📊 Tactics Board",
+        "⭐ Best XI"
+    ]
+
     pages = {
-        "Dashboard": page_dashboard,
-        "My Stats": lambda: player_my_stats_page(st.session_state.auth.get("name", "Player")),
-        "Attendance": lambda: player_training_attendance_page(st.session_state.auth.get("name", "Player")),
-        "Tactics Text": player_tactics_text_page,
-        "Tactics Board": player_tactics_board_page,
-        "Best XI": page_best_xi
+        "🏠 Dashboard": page_dashboard,
+        "📊 My Stats": lambda: player_my_stats_page(st.session_state.auth.get("name", "Player")),
+        "📋 Attendance": lambda: player_training_attendance_page(st.session_state.auth.get("name", "Player")),
+        "📄 Tactics Text": player_tactics_text_page,
+        "📊 Tactics Board": player_tactics_board_page,
+        "⭐ Best XI": page_best_xi
     }
-    selected_tab = bottom_tabs(tabs_icons, key="player_tab")
-    pages[selected_tab]()
+
+    selected_tab = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tab[i]:
+            pages[tab_name]()
 
 
 def run_fan():
     render_header()
-    tabs_icons = {
-        "Dashboard": "🏠",
-        "Public Results & Fan Wall": "💬"
-    }
+    tabs = [
+        "🏠 Dashboard",
+        "💬 Public Results & Fan Wall"
+    ]
+
     pages = {
-        "Dashboard": page_dashboard,
-        "Public Results & Fan Wall": fan_public_page
+        "🏠 Dashboard": page_dashboard,
+        "💬 Public Results & Fan Wall": fan_public_page
     }
-    selected_tab = bottom_tabs(tabs_icons, key="fan_tab")
-    pages[selected_tab]()
+
+    selected_tab = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tab[i]:
+            pages[tab_name]()
+
 
 
 # -------------------------------
@@ -2114,21 +2080,19 @@ def run_fan():
 # -------------------------------
 def main():
     init_session()
-    role = st.session_state.auth.get("role")
 
-    # Intro / Login routing
-    if st.session_state.page == "intro" and role is None:
+    if st.session_state.page == "intro" and st.session_state.auth["role"] is None:
         intro_page()
         return
-    elif st.session_state.page == "login" and role is None:
+    elif st.session_state.page == "login" and st.session_state.auth["role"] is None:
         login_ui()
         return
-    elif st.session_state.page == "fan_public_only" and role == "fan":
+    elif st.session_state.page == "fan_public_only" and st.session_state.auth["role"] == "fan":
         render_header()
         fan_public_page()
         return
 
-    # Authenticated routing
+    role = st.session_state.auth["role"]
     if role == "admin":
         run_admin()
     elif role == "manager":
@@ -2143,5 +2107,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
