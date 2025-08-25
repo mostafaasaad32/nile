@@ -63,7 +63,7 @@ st.markdown(
 
 
 
-LOGO_URL = "https://i.postimg.cc/FsD9Nx5X/icon.png"
+LOGO_URL = "https://scontent.fcai20-4.fna.fbcdn.net/v/t39.30808-6/460331146_122191529468078659_8549609423668977699_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeEogfareJPi_JT1tAC-LFAXYDCIEt4d8QBgMIgS3h3xADavaqieLvC-GdEW6JvdlEAm3FAmZUj65l-E9vQlcUh5&_nc_ohc=qT3CIwK0ou4Q7kNvwE-I714&_nc_oc=AdnU_s3nGZ9XR-vdnggsBvuYHFScydWVI_o9rln-3Q4a8VopOnIKeAuLQgYRmrzreUY&_nc_zt=23&_nc_ht=scontent.fcai20-4.fna&_nc_gid=y9HZh1tFikGmalsHgaHjOw&oh=00_AfWHnLhN7Sf9BGvg4uq-_RmOA5pYtKfq1_73z0GDd6P07g&oe=68B231B6"
 
 # Setup page config (favicon will now use the external link)
 st.set_page_config(
@@ -574,10 +574,66 @@ def intro_page():
 # LOGIN PAGE
 # -------------------------------
 def login_ui():
-    st.image(LOGO_URL, width=90)  # <-- Simple native Streamlit way
-    st.title("Sign In")
-    st.write("Choose your role and use your access code")
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <img src="{LOGO_URL}" style="width:90px; height:auto; margin-bottom:10px;">
+        <h2 style="margin:0;">Sign In</h2>
+        <p style="margin:.3rem 0 1rem 0;">Choose your role and use your access code</p>
+    </div>
+    """, unsafe_allow_html=True)
 
+    role = st.selectbox("Select your role", ["Admin", "Manager", "Player", "Fan"])
+    name = st.text_input("Your name")
+    code_required = role != "Fan"
+    code = st.text_input(
+        "Access code" if code_required else "Access code (not required)",
+        type="password", disabled=not code_required
+    )
+
+    # ✅ Stack buttons full-width (better for thumbs on mobile)
+    if st.button("Enter", type="primary", use_container_width=True):
+        if not name:
+            st.warning("Please enter your name.")
+            return
+
+        if role == "Fan":
+            save_login("fan", name)
+            st.success(f"Welcome, {name}! You're logged in as Fan.")
+            st.balloons()
+            st.rerun()
+
+        elif role == "Admin":
+            valid = ROLE_CODES.get("admin", {}).get(name)
+            if valid and code == valid:
+                save_login("admin", name)
+                st.success("Welcome, Admin!")
+                st.balloons()
+                st.rerun()
+            else:
+                st.error("Invalid admin name or code.")
+
+        elif role == "Manager":
+            valid = ROLE_CODES.get("manager", {}).get(name)
+            if valid and code == valid:
+                save_login("manager", name)
+                st.success("Welcome, Manager!")
+                st.balloons()
+                st.rerun()
+            else:
+                st.error("Invalid manager name or code.")
+
+        elif role == "Player":
+            if validate_player_login(name, code):
+                save_login("player", name)
+                st.success(f"Welcome, {name}! Let's ball.")
+                st.balloons()
+                st.rerun()
+            else:
+                st.error("Invalid player name or code.")
+
+    if st.button("⬅ Back to Intro", use_container_width=True):
+        st.session_state.page = "intro"
+        st.rerun()
 
 
 # -------------------------------
