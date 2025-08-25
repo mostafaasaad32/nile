@@ -515,7 +515,7 @@ def render_header():
         st.markdown(
             f"""
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <img src="C:/My Career/nileapp/.streamlit/static/icon.png" width="50" style="border-radius:8px;">
+                <img src="https://drive.google.com/drive/folders/1pSoVF8ah5mll7Y3xcSfCt6sCaQNU2KHc" width="50" style="border-radius:8px;">
                 <div style="font-size:20px; font-weight:bold;">Nile Esports ProClubs Hub</div>
                 <span style="color:#ff4b4b; font-weight:bold;">Live</span>
             </div>
