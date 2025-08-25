@@ -63,9 +63,12 @@ st.markdown(
 
 
 
-st.set_page_config(page_title="Nile SC Manager", page_icon="assets/images/icon.png", layout="centered")
+LOGO_URL = "static/images/icon.png"
+st.set_page_config(
+    page_title="Nile SC Manager",
+    page_icon=LOGO_URL  # Streamlit يقبل مسار لصورة موجودة في static
+)
 
-LOGO_URL = "https://scontent.fcai20-4.fna.fbcdn.net/v/t39.30808-6/460331146_122191529468078659_8549609423668977699_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeEogfareJPi_JT1tAC-LFAXYDCIEt4d8QBgMIgS3h3xADavaqieLvC-GdEW6JvdlEAm3FAmZUj65l-E9vQlcUh5&_nc_ohc=qT3CIwK0ou4Q7kNvwE-I714&_nc_oc=AdnU_s3nGZ9XR-vdnggsBvuYHFScydWVI_o9rln-3Q4a8VopOnIKeAuLQgYRmrzreUY&_nc_zt=23&_nc_ht=scontent.fcai20-4.fna&_nc_gid=YIcmRqt2JqCisaOyuqQn_A&oh=00_AfXa58wI6s4l6HtjbcXvxip6Pdohrs4SPTZ1JnvmW5_GLw&oe=68B231B6"
 
 
 # -------------------------------
@@ -516,7 +519,7 @@ def render_header():
         st.markdown(
             f"""
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <img src="https://scontent.fcai20-4.fna.fbcdn.net/v/t39.30808-6/460331146_122191529468078659_8549609423668977699_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeEogfareJPi_JT1tAC-LFAXYDCIEt4d8QBgMIgS3h3xADavaqieLvC-GdEW6JvdlEAm3FAmZUj65l-E9vQlcUh5&_nc_ohc=qT3CIwK0ou4Q7kNvwE-I714&_nc_oc=AdnU_s3nGZ9XR-vdnggsBvuYHFScydWVI_o9rln-3Q4a8VopOnIKeAuLQgYRmrzreUY&_nc_zt=23&_nc_ht=scontent.fcai20-4.fna&_nc_gid=YIcmRqt2JqCisaOyuqQn_A&oh=00_AfXa58wI6s4l6HtjbcXvxip6Pdohrs4SPTZ1JnvmW5_GLw&oe=68B231B6" width="50" style="border-radius:8px;">
+                <img src="{LOGO_URL}" style="width:40px;height:auto;">
                 <div style="font-size:20px; font-weight:bold;">Nile Esports ProClubs Hub</div>
                 <span style="color:#ff4b4b; font-weight:bold;">Live</span>
             </div>
@@ -579,11 +582,6 @@ def intro_page():
 # LOGIN PAGE
 # -------------------------------
 def login_ui():
-    
-    
-
-
-   
     # Branded Login Card
     st.markdown(f"""
     <div class='glass card' style='padding:24px;max-width:380px;margin:auto;text-align:center;'>
@@ -601,7 +599,6 @@ def login_ui():
         type="password", disabled=not code_required
     )
 
-    # ✅ Stack buttons full-width (better for thumbs on mobile)
     if st.button("Enter", type="primary", use_container_width=True):
         if not name:
             st.warning("Please enter your name.")
