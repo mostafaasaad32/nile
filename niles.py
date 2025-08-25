@@ -65,7 +65,7 @@ st.markdown(
 
 st.set_page_config(page_title="Nile SC Manager", page_icon="assets/images/icon.png", layout="centered")
 
-LOGO_URL = "https://drive.google.com/drive/folders/1pSoVF8ah5mll7Y3xcSfCt6sCaQNU2KHc"
+LOGO_URL = "https://drive.google.com/uc?export=view&id=1pV08Ov0euPF5phABogQjdh1_I_BDeIBA"
 
 # -------------------------------
 # GLOBAL STYLES (Desktop + Mobile)
@@ -515,7 +515,7 @@ def render_header():
         st.markdown(
             f"""
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <img src="https://drive.google.com/drive/folders/1pSoVF8ah5mll7Y3xcSfCt6sCaQNU2KHc" width="50" style="border-radius:8px;">
+                <img src="https://drive.google.com/uc?export=view&id=1pV08Ov0euPF5phABogQjdh1_I_BDeIBA" width="50" style="border-radius:8px;">
                 <div style="font-size:20px; font-weight:bold;">Nile Esports ProClubs Hub</div>
                 <span style="color:#ff4b4b; font-weight:bold;">Live</span>
             </div>
