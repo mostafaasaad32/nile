@@ -67,6 +67,7 @@ st.set_page_config(page_title="Nile SC Manager", page_icon="assets/images/icon.p
 
 LOGO_URL = "https://drive.google.com/uc?export=view&id=1pV08Ov0euPF5phABogQjdh1_I_BDeIBA"
 
+
 # -------------------------------
 # GLOBAL STYLES (Desktop + Mobile)
 # -------------------------------
