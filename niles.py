@@ -25,7 +25,6 @@ import httpx
 from postgrest.exceptions import APIError
 import google.generativeai as genai
 import io 
-import base64
 # -------------------------------
 # CONFIG (set once, top-level)
 # -------------------------------
@@ -64,26 +63,12 @@ st.markdown(
 
 
 
+LOGO_URL = "https://i.ibb.co/PZGcDFTD/icon.png"
 
-
-# 🔹 Get absolute path based on where niles.py is running
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LOGO_PATH = os.path.join(BASE_DIR, "images", "icon.png")
-
-def get_base64_image(image_path: str) -> str:
-    """Convert image file to Base64 for embedding in HTML (Cloud-safe)."""
-    if not os.path.exists(image_path):
-        st.error(f"❌ Logo not found: {image_path}")
-        return ""
-    with open(image_path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
-LOGO_B64 = get_base64_image(LOGO_PATH)
-LOGO_URL = f"data:image/png;base64,{LOGO_B64}"
-
+# Setup page config (favicon will now use the external link)
 st.set_page_config(
     page_title="Nile SC Manager",
-    page_icon=LOGO_PATH,
+    page_icon=LOGO_URL,
     layout="centered"
 )
 
@@ -534,13 +519,10 @@ def render_header():
     col1, col2 = st.columns([4, 1])
     with col1:
         st.markdown(f"""
-        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <img src="{LOGO_URL}" style="width:40px;height:auto;">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <img src="{LOGO_URL}" style="width:40px; height:auto;">
             <div style="font-size:20px; font-weight:bold;">Nile Esports ProClubs Hub</div>
             <span style="color:#ff4b4b; font-weight:bold;">Live</span>
-        </div>
-        <div style="font-size:12px; color:#ddd; margin-top:4px;">
-            Manage matches, tactics, roster, training & fan hype — all in one place.
         </div>
         """, unsafe_allow_html=True)
     with col2:
@@ -548,11 +530,8 @@ def render_header():
             logout()
 
     st.markdown(
-        f"""
-        <div style="font-size:14px; color:#ddd; margin:8px 0;">
-            Role: <b>{role.upper()}</b> | User: <b>{name}</b>
-        </div>
-        """,
+        f"<div style='font-size:14px; color:#ddd; margin:8px 0;'>"
+        f"Role: <b>{role.upper()}</b> | User: <b>{name}</b></div>",
         unsafe_allow_html=True
     )
 
@@ -596,12 +575,13 @@ def intro_page():
 # -------------------------------
 def login_ui():
     st.markdown(f"""
-    <div class='glass card' style='padding:24px;max-width:380px;margin:auto;text-align:center;'>
-        <img src="{LOGO_URL}" style="width:90px;height:auto;margin-bottom:10px;">
-        <h2 style='margin:0;'>Sign In</h2>
-        <p class="small" style="margin:.3rem 0 1rem 0;">Choose your role and use your access code</p>
+    <div style="text-align:center;">
+        <img src="{LOGO_URL}" style="width:90px; height:auto; margin-bottom:10px;">
+        <h2 style="margin:0;">Sign In</h2>
+        <p style="margin:.3rem 0 1rem 0;">Choose your role and use your access code</p>
     </div>
     """, unsafe_allow_html=True)
+
     role = st.selectbox("Select your role", ["Admin", "Manager", "Player", "Fan"])
     name = st.text_input("Your name")
     code_required = role != "Fan"
@@ -610,6 +590,7 @@ def login_ui():
         type="password", disabled=not code_required
     )
 
+    # ✅ Stack buttons full-width (better for thumbs on mobile)
     if st.button("Enter", type="primary", use_container_width=True):
         if not name:
             st.warning("Please enter your name.")
@@ -653,7 +634,6 @@ def login_ui():
     if st.button("⬅ Back to Intro", use_container_width=True):
         st.session_state.page = "intro"
         st.rerun()
-
 
 
 # -------------------------------
