@@ -31,35 +31,33 @@ import io
 # -------------------------------
 # PAGE CONFIG (mobile-first)
 # -------------------------------
-st.markdown(
-    """
-    <style>
-    /* Hide Streamlit main menu */
-    #MainMenu {visibility: hidden;}
+def hide_streamlit_chrome():
+    st.markdown(
+        """
+        <style>
+        /* Hide Streamlit main menu & footer */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
 
-    /* Hide footer */
-    footer {visibility: hidden;}
+        /* Hide toolbar, deploy button, fork/github */
+        .viewerBadge_container__1QSob {display: none !important;}
+        .stDeployButton {display: none !important;}
+        .stAppDeployButton {display: none !important;}
+        [data-testid="stToolbar"] {visibility: hidden !important;}
+        </style>
 
-    /* Hide deploy/fork/github buttons */
-    .viewerBadge_container__1QSob {display: none !important;}
-    .stDeployButton {display: none !important;}
-    .stAppDeployButton {display: none !important;}
-    [data-testid="stToolbar"] {visibility: hidden !important;}
-    </style>
-
-    <script>
-    // Continuously remove fork/github buttons every 500ms
-    setInterval(function() {
-        let badges = document.getElementsByClassName('viewerBadge_container__1QSob');
-        for (let item of badges) { item.style.display = 'none'; }
-
-        let deployBtn = document.querySelector('[data-testid="stToolbar"]');
-        if (deployBtn) { deployBtn.style.display = 'none'; }
-    }, 500);
-    </script>
-    """,
-    unsafe_allow_html=True,
-)
+        <script>
+        // Continuously remove fork/github buttons every 500ms
+        setInterval(function() {
+            let badges = document.getElementsByClassName('viewerBadge_container__1QSob');
+            for (let item of badges) { item.style.display = 'none'; }
+            let deployBtn = document.querySelector('[data-testid="stToolbar"]');
+            if (deployBtn) { deployBtn.style.display = 'none'; }
+        }, 500);
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 
@@ -2111,6 +2109,7 @@ def run_fan():
 # MAIN
 # -------------------------------
 def main():
+    hide_streamlit_chrome()
     init_session()
 
     if st.session_state.page == "intro" and st.session_state.auth["role"] is None:
