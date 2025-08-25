@@ -31,6 +31,19 @@ import io
 # -------------------------------
 # PAGE CONFIG (mobile-first)
 # -------------------------------
+
+
+
+
+HIDE_STREAMLIT_STYLE = """
+    <style>
+    .stApp iframe {display: none !important;}
+    footer {visibility: hidden !important;}
+    #root > div:nth-child(1) > div:nth-child(3) {display: none !important;}
+    </style>
+"""
+st.markdown(HIDE_STREAMLIT_STYLE, unsafe_allow_html=True)
+
 st.markdown(
     """
     <style>
