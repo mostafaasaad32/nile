@@ -25,6 +25,7 @@ import httpx
 from postgrest.exceptions import APIError
 import google.generativeai as genai
 import io 
+import base64
 # -------------------------------
 # CONFIG (set once, top-level)
 # -------------------------------
@@ -63,12 +64,27 @@ st.markdown(
 
 
 
-LOGO_URL = "static/images/icon.png"
+# 🔹 Use a path relative to your app file
+LOGO_PATH = os.path.join(".streamlit", "static", "icon.png")
+
+def get_base64_image(image_path: str) -> str:
+    """Convert image file to Base64 for embedding in HTML (works in Streamlit Cloud)."""
+    try:
+        with open(image_path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except FileNotFoundError:
+        st.error(f"❌ Logo not found: {image_path}")
+        return ""
+
+LOGO_B64 = get_base64_image(LOGO_PATH)
+LOGO_URL = f"data:image/png;base64,{LOGO_B64}"
+
+# ✅ Page setup
 st.set_page_config(
     page_title="Nile SC Manager",
-    page_icon=LOGO_URL  # Streamlit يقبل مسار لصورة موجودة في static
+    page_icon=LOGO_PATH,  # Tab icon will work locally, fallback to default if missing
+    layout="centered"
 )
-
 
 
 # -------------------------------
@@ -513,27 +529,22 @@ def render_header():
     role = st.session_state.auth.get("role", "Guest")
     name = st.session_state.auth.get("name", "User")
 
-    # Top header: logo, title, logout
-    col1, col2 = st.columns([4,1])
+    col1, col2 = st.columns([4, 1])
     with col1:
-        st.markdown(
-            f"""
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <img src="{LOGO_URL}" style="width:40px;height:auto;">
-                <div style="font-size:20px; font-weight:bold;">Nile Esports ProClubs Hub</div>
-                <span style="color:#ff4b4b; font-weight:bold;">Live</span>
-            </div>
-            <div style="font-size:12px; color:#ddd; margin-top:4px;">
-                Manage matches, tactics, roster, training & fan hype — all in one place.
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        st.markdown(f"""
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <img src="{LOGO_URL}" style="width:40px;height:auto;">
+            <div style="font-size:20px; font-weight:bold;">Nile Esports ProClubs Hub</div>
+            <span style="color:#ff4b4b; font-weight:bold;">Live</span>
+        </div>
+        <div style="font-size:12px; color:#ddd; margin-top:4px;">
+            Manage matches, tactics, roster, training & fan hype — all in one place.
+        </div>
+        """, unsafe_allow_html=True)
     with col2:
         if st.button("Logout"):
             logout()
 
-    # Small role info below the header
     st.markdown(
         f"""
         <div style="font-size:14px; color:#ddd; margin:8px 0;">
@@ -582,15 +593,13 @@ def intro_page():
 # LOGIN PAGE
 # -------------------------------
 def login_ui():
-    # Branded Login Card
     st.markdown(f"""
     <div class='glass card' style='padding:24px;max-width:380px;margin:auto;text-align:center;'>
-        <img src='{LOGO_URL}' style='width:90px;height:auto;margin-bottom:10px;'>
+        <img src="{LOGO_URL}" style="width:90px;height:auto;margin-bottom:10px;">
         <h2 style='margin:0;'>Sign In</h2>
         <p class="small" style="margin:.3rem 0 1rem 0;">Choose your role and use your access code</p>
     </div>
     """, unsafe_allow_html=True)
-
     role = st.selectbox("Select your role", ["Admin", "Manager", "Player", "Fan"])
     name = st.text_input("Your name")
     code_required = role != "Fan"
@@ -642,6 +651,7 @@ def login_ui():
     if st.button("⬅ Back to Intro", use_container_width=True):
         st.session_state.page = "intro"
         st.rerun()
+
 
 
 # -------------------------------
