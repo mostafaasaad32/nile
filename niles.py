@@ -35,10 +35,18 @@ import io
 st.markdown(
     """
     <style>
-    #MainMenu {visibility: hidden;}      /* Hamburger menu */
-    header {visibility: hidden;}         /* Streamlit top header */
-    footer {visibility: hidden;}         /* "Made with Streamlit" footer */
-    .viewerBadge_container__1QSob {display: none;}  /* GitHub/Fork badge */
+    /* Hide Streamlit's default menu */
+    #MainMenu {visibility: hidden;}
+
+    /* Hide Streamlit footer */
+    footer {visibility: hidden;}
+
+    /* Hide the "Made with Streamlit" and "GitHub/Fork" badges */
+    .viewerBadge_container__1QSob {display: none;}
+    .stDeployButton {display: none;}
+    .stAppDeployButton {display: none;}
+
+    /* DO NOT hide header (this keeps sidebar toggle working) */
     </style>
     """,
     unsafe_allow_html=True,
