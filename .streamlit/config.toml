@@ -1,17 +1,5 @@
 [server]
 enableCORS = false
-headless = true
-port = 8501
 
 [ui]
 hideTopBar = true
-
-[global]
-favicon = "C:/My Career/nileapp/.streamlit/static/icon.png"
-
-[theme]
-primaryColor = "#1f77b4"
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f0f2f6"
-textColor = "#262730"
-font = "sans serif"
