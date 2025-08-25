@@ -558,6 +558,7 @@ def intro_page():
     </style>
     """, unsafe_allow_html=True)
 
+
     # ✅ On mobile → stack buttons vertically (no columns)
     if st.button("🚀 Enter the Hub", use_container_width=True):
         st.session_state.page = "login"
