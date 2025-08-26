@@ -32,7 +32,7 @@ import io
 # PAGE CONFIG (mobile-first)
 # -------------------------------
 
-LOGO_URL = "https://raw.githubusercontent.com/mostafaasaad32/nile/master/images/icon.png"
+LOGO_URL = "https://github.com/mostafaasaad32/nile/raw/master/images/Artboard_1.png"
 
 # Setup page config
 st.set_page_config(
@@ -562,7 +562,7 @@ def render_header():
     with col1:
       st.markdown(f"""
 <div style="display:flex; align-items:center; gap:10px;">
-    <img src="{LOGO_URL}" style="width:40px; height:auto;">
+    <img src="{LOGO_URL}" style="width:240px; height:auto;">
     <div class="app-title">Nile Esports Hub</div>
     <span style="color:#ff4b4b; font-weight:bold;">Live</span>
 </div>
@@ -582,25 +582,41 @@ def render_header():
 # INTRO PAGE (before login)
 # -------------------------------
 def intro_page():
-    # Intro Splash Screen
+    # Remove all default Streamlit padding/margin
+    st.markdown("""
+    <style>
+        .block-container {
+            padding-top: 0rem !important;
+            padding-bottom: 0rem !important;
+            margin-top: 0rem !important;
+        }
+        .main .block-container {
+            padding-top: 0rem !important;
+        }
+        header, .stToolbar {display: none !important;} /* Hide Streamlit's header bar */
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Intro Content
     st.markdown(f"""
-    <div style='display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;text-align:center;'>
+    <div style='display:flex;flex-direction:column;align-items:center;text-align:center;margin:0;padding:0;'>
         <img src='{LOGO_URL}'
-             style='width:160px;height:auto;animation:fadeIn 2s ease-in-out;'>
-        <h1 class="app-title" style='margin-top:15px;'>Nile Esports Hub</h1>
-        <p class="app-subtitle">One Club. One Heartbeat. 🖤💚</p>
+             style='width:350px;height:auto;margin:0;padding:0;animation:fadeIn 1.5s ease-in-out;'>
+        <h1 class="app-title" style='margin:2px 0 0 0;padding:0;'>Nile Esports Hub</h1>
+        <p class="app-subtitle" style='margin:0;padding:0;'>One Club • One Heartbeat 🖤💚</p>
     </div>
     <style>
         @keyframes fadeIn {{ from {{opacity:0;}} to {{opacity:1;}} }}
         @media (max-width:600px){{
-            img {{ max-width:120px !important; }}
+            img {{ max-width:140px !important; }}
             .app-title {{ font-size:22px !important; }}
             .app-subtitle {{ font-size:14px !important; }}
         }}
     </style>
     """, unsafe_allow_html=True)
 
-    # Buttons
+    # Buttons (closer to subtitle)
+    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
     if st.button("🚀 Enter the Hub", use_container_width=True):
         st.session_state.page = "login"
         st.rerun()
@@ -614,13 +630,16 @@ def intro_page():
 
 
 
+
+
+
 # -------------------------------
 # LOGIN PAGE
 # -------------------------------
 def login_ui():
     st.markdown(f"""
     <div style="text-align:center;">
-        <img src="{LOGO_URL}" style="width:90px; height:auto; margin-bottom:10px;">
+        <img src="{LOGO_URL}" style="width:350px; height:auto; margin-bottom:10px;">
         <h2 style="margin:0;">Sign In</h2>
         <p style="margin:.3rem 0 1rem 0;">Choose your role and use your access code</p>
     </div>
