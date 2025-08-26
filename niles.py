@@ -32,163 +32,174 @@ import io
 # PAGE CONFIG (mobile-first)
 # -------------------------------
 
-
-
-
-HIDE_STREAMLIT_STYLE = """
-    <style>
-    .stApp iframe {display: none !important;}
-    footer {visibility: hidden !important;}
-    #root > div:nth-child(1) > div:nth-child(3) {display: none !important;}
-    </style>
-"""
-st.markdown(HIDE_STREAMLIT_STYLE, unsafe_allow_html=True)
-
-st.markdown(
-    """
-    <style>
-    /* Hide Streamlit main menu */
-    #MainMenu {visibility: hidden;}
-
-    /* Hide footer */
-    footer {visibility: hidden;}
-
-    /* Hide deploy/fork/github buttons */
-    .viewerBadge_container__1QSob {display: none !important;}
-    .stDeployButton {display: none !important;}
-    .stAppDeployButton {display: none !important;}
-    [data-testid="stToolbar"] {visibility: hidden !important;}
-    </style>
-
-    <script>
-    // Continuously remove fork/github buttons every 500ms
-    setInterval(function() {
-        let badges = document.getElementsByClassName('viewerBadge_container__1QSob');
-        for (let item of badges) { item.style.display = 'none'; }
-
-        let deployBtn = document.querySelector('[data-testid="stToolbar"]');
-        if (deployBtn) { deployBtn.style.display = 'none'; }
-    }, 500);
-    </script>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-
 LOGO_URL = "https://raw.githubusercontent.com/mostafaasaad32/nile/master/images/icon.png"
 
-# Setup page config (favicon will now use the external link)
+# Setup page config
 st.set_page_config(
     page_title="Nile SC Manager",
     page_icon=LOGO_URL,
     layout="centered"
 )
 
-st.markdown(
-    """
-    <style>
-    /* Hide Streamlit default elements */
-    #MainMenu {visibility: hidden;}              /* hamburger menu */
-    footer {visibility: hidden;}                 /* footer "Built with Streamlit" */
-    .viewerBadge_container__1QSob {display: none !important;}  /* top-right deploy/share buttons */
-    .stDeployButton {display: none !important;}
-    .stAppDeployButton {display: none !important;}
-    [data-testid="stToolbar"] {visibility: hidden !important;} /* top toolbar */
-
-    /* Hide bottom navigation bar (Home / Explore on mobile) */
-    [data-testid="stBottomBlockContainer"] {display: none !important;}
-    [data-testid="stAppViewBlockContainer"] {padding-bottom: 0px !important;}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-
-# -------------------------------
-# GLOBAL STYLES (Desktop + Mobile)
-# -------------------------------
-appINTRO_CSS = """
+# ===================================
+# CLEAN FINAL THEME + FONT STYLES
+# ===================================
+GLOBAL_CSS = """
 <style>
-:root {
-  --glass-bg: rgba(255,255,255,0.08);
-  --glass-brd: rgba(255,255,255,0.18);
-  --accent: #1e3a8a;
-  --accent-2: #0ea5e9;
-  --button-accent: #22c55e;
+/* ====== HIDE STREAMLIT DEFAULT UI ====== */
+#MainMenu, footer, [data-testid="stToolbar"], .viewerBadge_container__1QSob,
+.stDeployButton, .stAppDeployButton {
+  display: none !important;
+  visibility: hidden !important;
 }
 
-/* Background */
-html, body, [data-testid="stAppViewContainer"] {
-  background: linear-gradient(180deg, #0b1220, #0d1b2a) !important;
+/* ====== CUSTOM FONT IMPORTS ====== */
+@font-face {
+  font-family: 'SUPER EXP BLACK OBLIQUE';
+  src: url('/fonts/SuperExpBlackOblique.woff2') format('woff2'),
+       url('/fonts/SuperExpBlackOblique.ttf') format('truetype');
+  font-weight: 900;
+  font-style: oblique;
+}
+@font-face {
+  font-family: 'SUPER EXP OBLIQUE';
+  src: url('/fonts/SuperExpOblique.woff2') format('woff2'),
+       url('/fonts/SuperExpOblique.ttf') format('truetype');
+  font-weight: 700;
+  font-style: oblique;
+}
+@font-face {
+  font-family: 'WIDE MEDIUM';
+  src: url('/fonts/WideMedium.woff2') format('woff2'),
+       url('/fonts/WideMedium.ttf') format('truetype');
+  font-weight: 500;
+  font-stretch: expanded;
+}
+
+/* ====== COLOR PALETTE ====== */
+:root {
+  --app-bg: #0A1128;
+  --sidebar-bg: #0A1128;
+  --accent-green: #34D399;
+  --accent-blue: #2563EB;
+  --text-secondary: #E5E7EB;
+  --glass-bg: rgba(255,255,255,0.08);
+  --glass-border: rgba(255,255,255,0.18);
+}
+
+/* ====== APP BACKGROUND ====== */
+html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
+  background-color: var(--app-bg) !important;
   color: white !important;
 }
 
-/* Sidebar */
+/* ====== SIDEBAR ====== */
 [data-testid="stSidebar"] {
-  background-color: #0b1220 !important;
+  background-color: var(--sidebar-bg) !important;
 }
 [data-testid="stSidebar"] * {
-  color: #ffffff !important;
-  font-weight: 500;
-}
-
-/* Buttons */
-.stButton > button {
-  background: linear-gradient(90deg, var(--button-accent), var(--accent-2)) !important;
   color: white !important;
-  border-radius: 12px !important;
-  border: none !important;
-  font-weight: bold !important;
-  padding: 10px 14px !important;
-}
-.stButton > button:hover {
-  opacity: 0.9 !important;
-}
-[data-testid="stSidebar"] .stButton > button {
-  background-color: #dc2626 !important;
-}
-[data-testid="stSidebar"] .stButton > button:hover {
-  background-color: #b91c1c !important;
 }
 
-/* Glass Cards */
+/* ====== GLASS CARDS ====== */
 .glass {
   background: var(--glass-bg);
-  border: 1px solid var(--glass-brd);
+  border: 1px solid var(--glass-border);
   box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
   backdrop-filter: blur(10px);
   border-radius: 18px;
   padding: 16px;
 }
 
-/* Typography */
-.title {
-  font-weight: 800;
-  font-size: 32px;
-  line-height: 1.2;
-  text-shadow: 0 6px 20px rgba(34,197,94,.25);
+/* ====== BUTTONS ====== */
+.stButton > button {
+  font-family: 'WIDE MEDIUM', sans-serif !important;
+  font-weight: 500 !important;
+  font-stretch: expanded;
+  font-size: 16px !important;
+  letter-spacing: 0.5px;
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-blue)) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 10px 16px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+  transition: 0.2s ease-in-out !important;
 }
-.subtitle {
-  font-size: 15px;
-  opacity: 0.9;
+.stButton > button:hover {
+  opacity: 0.9 !important;
+  transform: translateY(-1px) !important;
 }
 
-/* ---------------- MOBILE ---------------- */
+/* ====== TITLES ====== */
+.app-title {
+  font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
+  font-weight: 900 !important;
+  font-style: oblique !important;
+  letter-spacing: 1.5px;
+  color: #ffffff !important;
+  font-size: 32px !important;
+}
+.app-subtitle {
+  font-family: 'WIDE MEDIUM', sans-serif !important;
+  font-weight: 500 !important;
+  font-stretch: expanded !important;
+  color: var(--text-secondary) !important;
+  font-size: 18px !important;
+  letter-spacing: 1px !important;
+}
+
+/* ====== MAIN & SECONDARY HEADINGS ====== */
+.main-heading, .stTabs [role="tab"][aria-selected="true"], .stSubheader {
+  font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
+  font-weight: 900 !important;
+  font-style: oblique !important;
+  letter-spacing: 1.2px !important;
+  color: #ffffff !important;
+  text-transform: uppercase !important;
+}
+.secondary-heading, .stTabs [role="tab"] {
+  font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
+  font-weight: 700 !important;
+  font-style: oblique !important;
+  letter-spacing: 1px !important;
+  color: var(--text-secondary) !important;
+}
+
+/* ====== METRICS ====== */
+.stMetricLabel {
+  font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
+  font-weight: 700 !important;
+  font-style: oblique !important;
+  letter-spacing: 1px !important;
+  color: var(--text-secondary) !important;
+}
+[data-testid="stMetricValue"] {
+  font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
+  font-weight: 900 !important;
+  font-style: oblique !important;
+  color: #ffffff !important;
+}
+
+/* ====== TABS ====== */
+.stTabs [role="tab"] {
+  font-size: 15px !important;
+  padding: 10px 16px !important;
+}
+.stTabs [role="tab"][aria-selected="true"] {
+  border-bottom: 3px solid var(--accent-green) !important;
+}
+
+/* ====== MOBILE RESPONSIVE ====== */
 @media (max-width: 600px) {
-  .title { font-size: 22px !important; }
-  .subtitle { font-size: 13px !important; }
-  img { max-width: 120px !important; height: auto !important; }
+  .app-title { font-size: 24px !important; }
+  .app-subtitle { font-size: 14px !important; }
   .stButton > button { font-size: 14px !important; padding: 8px 10px !important; }
   .glass { padding: 12px !important; border-radius: 14px !important; }
 }
 </style>
 """
-st.markdown(appINTRO_CSS, unsafe_allow_html=True)
-
-
-
-
+st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
 
 
@@ -549,13 +560,13 @@ def render_header():
 
     col1, col2 = st.columns([4, 1])
     with col1:
-        st.markdown(f"""
-        <div style="display:flex; align-items:center; gap:10px;">
-            <img src="{LOGO_URL}" style="width:40px; height:auto;">
-            <div style="font-size:20px; font-weight:bold;">Nile Esports ProClubs Hub</div>
-            <span style="color:#ff4b4b; font-weight:bold;">Live</span>
-        </div>
-        """, unsafe_allow_html=True)
+      st.markdown(f"""
+<div style="display:flex; align-items:center; gap:10px;">
+    <img src="{LOGO_URL}" style="width:40px; height:auto;">
+    <div class="app-title">Nile Esports Hub</div>
+    <span style="color:#ff4b4b; font-weight:bold;">Live</span>
+</div>
+""", unsafe_allow_html=True)
     with col2:
         if st.button("Logout"):
             logout()
@@ -571,29 +582,25 @@ def render_header():
 # INTRO PAGE (before login)
 # -------------------------------
 def intro_page():
-
-
-    
-    # Professional Splash Intro
+    # Intro Splash Screen
     st.markdown(f"""
     <div style='display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;text-align:center;'>
         <img src='{LOGO_URL}'
              style='width:160px;height:auto;animation:fadeIn 2s ease-in-out;'>
-        <h1 class="title" style='margin-top:15px;'>Nile Esports</h1>
-        <p class="subtitle">One Club. One Heartbeat. 🖤💚</p>
+        <h1 class="app-title" style='margin-top:15px;'>Nile Esports Hub</h1>
+        <p class="app-subtitle">One Club. One Heartbeat. 🖤💚</p>
     </div>
     <style>
         @keyframes fadeIn {{ from {{opacity:0;}} to {{opacity:1;}} }}
         @media (max-width:600px){{
             img {{ max-width:120px !important; }}
-            .title {{ font-size:22px !important; }}
-            .subtitle {{ font-size:14px !important; }}
+            .app-title {{ font-size:22px !important; }}
+            .app-subtitle {{ font-size:14px !important; }}
         }}
     </style>
     """, unsafe_allow_html=True)
 
-
-    # ✅ On mobile → stack buttons vertically (no columns)
+    # Buttons
     if st.button("🚀 Enter the Hub", use_container_width=True):
         st.session_state.page = "login"
         st.rerun()
@@ -603,6 +610,8 @@ def intro_page():
         st.session_state.page = "fan_public_only"
         st.balloons()
         st.rerun()
+
+
 
 
 # -------------------------------
@@ -697,7 +706,9 @@ def page_dashboard():
 
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("Last Match")
+        
+        st.markdown("<h2 class='main-heading'>Last Match</h2>", unsafe_allow_html=True)
+
         if not past_matches.empty:
             lm = past_matches.iloc[0]
             st.metric(label=f"vs {lm['opponent']} on {lm['date']}",
@@ -708,7 +719,8 @@ def page_dashboard():
             st.info("No past matches yet.")
 
     with col2:
-        st.subheader("Next Match")
+        
+        st.markdown("<h2 class='main-heading'>Next Match</h2>", unsafe_allow_html=True)
         if not upcoming_matches.empty:
             nm = upcoming_matches.iloc[0]
             days_left = (nm["date"] - date.today()).days
@@ -721,20 +733,23 @@ def page_dashboard():
     st.divider()
 
     # Show full past/upcoming lists
-    st.subheader("📋 Match Results")
+    st.markdown("<h2 class='main-heading'>📋 Match Results</h2>", unsafe_allow_html=True)
+
     if not past_matches.empty:
         st.dataframe(past_matches.reset_index(drop=True), use_container_width=True)
     else:
         st.caption("No results yet.")
 
-    st.subheader("📅 Upcoming Matches")
+    
+    st.markdown("<h2 class='main-heading'>📅 Upcoming Matches</h2>", unsafe_allow_html=True)
     if not upcoming_matches.empty:
         st.dataframe(upcoming_matches.reset_index(drop=True), use_container_width=True)
     else:
         st.caption("No upcoming fixtures.")
 
     st.divider()
-    st.subheader("Leaderboards")
+    
+    st.markdown("<h2 class='main-heading'>Leaderboards</h2>", unsafe_allow_html=True)
     if stats.empty:
         st.info("No player stats yet.")
     else:
@@ -770,7 +785,8 @@ def page_dashboard():
             )
 
         # Best Average Rating with Rank
-        st.caption("Best Average Rating (min 3 matches)")
+        
+        st.markdown("<h2 class='main-heading'>Best Average Rating (min 3 matches)</h2>", unsafe_allow_html=True)
         best = agg[agg["matches"] >= 3].sort_values("avg_rating", ascending=False)
         best.insert(0, "Rank", best["avg_rating"].rank(method="min", ascending=False).astype(int))
         st.dataframe(best, use_container_width=True)
@@ -2188,4 +2204,19 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+## HEAD => SUPER EXP BLACK OBLIQUE
+## SUPER EXP OBLIQUE
+
+## EXPANDED MID
+# WIDE MID
+
+
+## NILE ESPORTS =>SUPER EXP BLACK
+## TEXT  =>WIDE MID
+
+## BUTTONS SKY BLUE
+
+
+
 
