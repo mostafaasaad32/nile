@@ -570,24 +570,81 @@ def render_header():
 # -------------------------------
 # INTRO PAGE (before login)
 # -------------------------------
+import streamlit as st
+from streamlit_javascript import st_javascript   # make sure installed: pip install streamlit-javascript
+
 def intro_page():
-    # Professional Splash Intro
-    st.markdown(f"""
-    <div style='display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;text-align:center;'>
-        <img src='{LOGO_URL}'
-             style='width:160px;height:auto;animation:fadeIn 2s ease-in-out;'>
-        <h1 class="title" style='margin-top:15px;'>Nile Esports</h1>
-        <p class="subtitle">One Club. One Heartbeat. 🖤💚</p>
-    </div>
-    <style>
-        @keyframes fadeIn {{ from {{opacity:0;}} to {{opacity:1;}} }}
-        @media (max-width:600px){{
-            img {{ max-width:120px !important; }}
-            .title {{ font-size:22px !important; }}
-            .subtitle {{ font-size:14px !important; }}
-        }}
-    </style>
-    """, unsafe_allow_html=True)
+    if "intro_done" not in st.session_state:
+        st.session_state.intro_done = False
+
+    # Step 1: Show intro video until it ends
+    if not st.session_state.intro_done:
+        st.markdown(
+            """
+            <style>
+            .intro-container {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                background: black;
+            }
+            video {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            </style>
+
+            <div class="intro-container">
+                <video id="introVideo" autoplay muted playsinline>
+                  <source src="intro.mp4" type="video/mp4">
+                  Your browser does not support the video tag.
+                </video>
+            </div>
+
+            <script>
+            const vid = document.getElementById('introVideo');
+            if (vid) {
+                vid.onended = () => {
+                    window.parent.postMessage({isIntroDone: true}, "*");
+                };
+            }
+            </script>
+            """,
+            unsafe_allow_html=True
+        )
+
+        result = st_javascript("""
+        new Promise((resolve) => {
+            window.addEventListener('message', (e) => {
+                if (e.data.isIntroDone) resolve(true);
+            });
+        });
+        """)
+
+        if result:
+            st.session_state.intro_done = True
+            st.rerun()
+
+    # Step 2: After video → show logo + buttons
+    else:
+        st.markdown(f"""
+        <div style='display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;text-align:center;'>
+            <img src='{LOGO_URL}'
+                 style='width:160px;height:auto;animation:fadeIn 2s ease-in-out;'>
+            <h1 class="title" style='margin-top:15px;'>Nile Esports</h1>
+            <p class="subtitle">One Club. One Heartbeat. 🖤💚</p>
+        </div>
+        <style>
+            @keyframes fadeIn {{ from {{opacity:0;}} to {{opacity:1;}} }}
+            @media (max-width:600px){{
+                img {{ max-width:120px !important; }}
+                .title {{ font-size:22px !important; }}
+                .subtitle {{ font-size:14px !important; }}
+            }}
+        </style>
+        """, unsafe_allow_html=True)
 
 
     # ✅ On mobile → stack buttons vertically (no columns)
