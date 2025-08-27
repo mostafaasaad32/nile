@@ -63,7 +63,28 @@ a[href="https://streamlit.io"] {visibility: hidden !important; display: none !im
 """
 st.markdown(HIDE_STREAMLIT_UI, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* Remove Streamlit default padding/margin */
+.block-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+}
 
+/* Make all columns stack naturally on small screens */
+.css-ocqkz7, .css-1kyxreq, .stColumn {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+}
+
+/* Force buttons and inputs to span full width */
+.stButton > button, .stTextInput, .stSelectbox, .stTextArea {
+    width: 100% !important;
+}
+</style>
+""", unsafe_allow_html=True)
 LOGO_URL = "https://github.com/mostafaasaad32/nile/raw/master/images/Artboard_1.png"
 
 # Setup page config
