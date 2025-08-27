@@ -2184,57 +2184,61 @@ def admin_delete_all_data():
 # -------------------------------
 # NAVIGATION HELPERS
 # -------------------------------
-import streamlit as st
+# ============================
+# Professional Bottom Nav
+# ============================
 
-def bottom_nav(pages: dict, default: str):
-    """Fixed compact bottom navigation bar with Streamlit buttons."""
+# ============================
+# Professional Tab Navigation
+# ============================
 
-    if "current_page" not in st.session_state:
-        st.session_state.current_page = default
+def tab_nav(pages: dict, default: str):
+    """Render professional Streamlit tabs for navigation."""
 
-    # Render the current page
-    pages[st.session_state.current_page]()
-
-    # Fixed bottom nav bar styles
+    # --- CSS Styling for Pro Tabs ---
     st.markdown("""
     <style>
-    .bottom-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0; right: 0;
-        height: 55px;
-        background: #0A1128;
-        border-top: 1px solid #222;
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        z-index: 1000;
+    .stTabs [role="tablist"] {
+        justify-content: center;
+        border-bottom: 2px solid #222;
     }
-    .bottom-bar button {
-        font-size: 14px !important;
-        padding: 4px 6px !important;
-        background: none !important;
-        border: none !important;
-        color: #9CA3AF !important;
+    .stTabs [role="tab"] {
+        font-family: 'WIDE MEDIUM', sans-serif !important;
+        font-size: 14px;
+        font-weight: 500;
+        padding: 8px 16px;
+        border-radius: 8px 8px 0 0;
+        background-color: #0A1128;
+        color: #9CA3AF;
+        margin: 0 4px;
     }
-    .bottom-bar button:hover {
+    .stTabs [role="tab"]:hover {
+        background-color: #111827;
+        color: white;
+    }
+    .stTabs [role="tab"][aria-selected="true"] {
+        background: linear-gradient(90deg, #10B981, #2563EB);
         color: white !important;
+        font-weight: 700 !important;
     }
-    .bottom-bar button:focus {
-        color: #10B981 !important;
-        font-weight: bold !important;
-    }
-    .block-container { padding-bottom: 80px !important; }
     </style>
     """, unsafe_allow_html=True)
 
-    # Place nav buttons inside bar
-    nav_cols = st.columns(len(pages))
-    for i, (label, func) in enumerate(pages.items()):
-        with nav_cols[i]:
-            if st.button(label, key=f"nav_{label}"):
-                st.session_state.current_page = label
-                st.rerun()
+    # --- Render Tabs ---
+    labels = list(pages.keys())
+    icons  = [pages[l][0] for l in labels]
+    funcs  = [pages[l][1] for l in labels]
+
+    tab_labels = [f"{icons[i]} {labels[i]}" for i in range(len(labels))]
+    tabs = st.tabs(tab_labels)
+
+    for i, tab in enumerate(tabs):
+        with tab:
+            funcs[i]()
+
+
+
+
 
 
 
@@ -2250,19 +2254,21 @@ def bottom_nav(pages: dict, default: str):
 def run_admin():
     render_header()
     pages = {
-        "🏠 Dashboard": page_dashboard,
-        "⚽ Matches": admin_matches_page,
-        "📊 Player Stats": admin_player_stats_page,
-        "📸 Upload Stats": admin_upload_player_stats_page,
-        "👤 Players": admin_players_crud_page,
-        "📝 Training": admin_training_sessions_page,
-        "📋 Attendance": admin_training_attendance_all,
-        "💬 Fan Wall": admin_fanwall_moderation,
-        "📄 Reports": admin_reports_page,
-        "⭐ Best XI": page_best_xi,
-        "⚠️ Danger": admin_delete_all_data,
+        "Dashboard": ("🏠", page_dashboard),
+        "Matches": ("⚽", admin_matches_page),
+        "Stats": ("📊", admin_player_stats_page),
+        "Upload": ("📸", admin_upload_player_stats_page),
+        "Players": ("👤", admin_players_crud_page),
+        "Training": ("📝", admin_training_sessions_page),
+        "Attendance": ("📋", admin_training_attendance_all),
+        "Fan Wall": ("💬", admin_fanwall_moderation),
+        "Reports": ("📄", admin_reports_page),
+        "Best XI": ("⭐", page_best_xi),
+        "Danger": ("⚠️", admin_delete_all_data),
     }
-    bottom_nav(pages, "🏠 Dashboard")
+    tab_nav(pages, "Dashboard")
+
+
 
 
 # -------------------------------
@@ -2271,13 +2277,14 @@ def run_admin():
 def run_manager():
     render_header()
     pages = {
-        "🏠 Dashboard": page_dashboard,
-        "📄 Tactics": manager_tactics_text_page,
-        "📊 Board": manager_tactics_board_page,
-        "📋 Attendance": manager_training_attendance_overview,
-        "⭐ Best XI": page_best_xi,
+        "Dashboard": ("🏠", page_dashboard),
+        "Tactics": ("📄", manager_tactics_text_page),
+        "Board": ("📈", manager_tactics_board_page),
+        "Attendance": ("📋", manager_training_attendance_overview),
+        "Best XI": ("⭐", page_best_xi),
     }
-    bottom_nav(pages, "🏠 Dashboard")
+    tab_nav(pages, "Dashboard")
+
 
 
 # -------------------------------
@@ -2286,14 +2293,15 @@ def run_manager():
 def run_player():
     render_header()
     pages = {
-        "🏠 Dashboard": page_dashboard,
-        "📊 My Stats": lambda: player_my_stats_page(st.session_state.auth.get("name", "Player")),
-        "📋 Attendance": lambda: player_training_attendance_page(st.session_state.auth.get("name", "Player")),
-        "📄 Tactics": player_tactics_text_page,
-        "📊 Board": player_tactics_board_page,
-        "⭐ Best XI": page_best_xi,
+        "Dashboard": ("🏠", page_dashboard),
+        "My Stats": ("📊", lambda: player_my_stats_page(st.session_state.auth.get("name", "Player"))),
+        "Attendance": ("📋", lambda: player_training_attendance_page(st.session_state.auth.get("name", "Player"))),
+        "Tactics": ("📄", player_tactics_text_page),
+        "Board": ("📈", player_tactics_board_page),
+        "Best XI": ("⭐", page_best_xi),
     }
-    bottom_nav(pages, "🏠 Dashboard")
+    tab_nav(pages, "Dashboard")
+
 
 
 # -------------------------------
@@ -2302,10 +2310,10 @@ def run_player():
 def run_fan():
     render_header()
     pages = {
-        "🏠 Dashboard": page_dashboard,
-        "💬 Fan Wall": fan_public_page,
+        "Dashboard": ("🏠", page_dashboard),
+        "Fan Wall": ("💬", fan_public_page),
     }
-    bottom_nav(pages, "🏠 Dashboard")
+    tab_nav(pages, "Dashboard")
 
 
 # -------------------------------
