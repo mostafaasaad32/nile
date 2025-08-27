@@ -1673,18 +1673,46 @@ ST: Lead the press, stay central in attack."""
         write_csv_safe(tactics, TACTICS_FILE)
         st.success("Tactical plan saved ✅")
 
-
 def manager_tactics_board_page():
-    st.subheader("⚽ Manager Tactics Board – Editable")
-    st.markdown("""
-    <iframe src="https://homecrowd.io/create-formation"
-            width="100%" height="80vh"
-            style="border:none; border-radius:10px;">
-    </iframe>
-    """, unsafe_allow_html=True)
-    st.info("💡 Use this board to assign names & positions. Once ready, share/export the link with players.")
+    # Hide Streamlit header, footer, and padding for this page
+    st.markdown(
+        """
+        <style>
+        /* Remove Streamlit default chrome */
+        #MainMenu, header, footer, [data-testid="stToolbar"] {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        .block-container {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        /* On mobile, let iframe take full height */
+        @media (max-width: 768px) {
+            .fullscreen-iframe {
+                height: 100vh !important;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
+    
+    st.markdown("<h2 class='main-heading'>⚽ Manager Tactics Board – Editable</h2>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div style="height:85vh; width:100%;">
+            <iframe src="https://tactical-board.com/uk/big-football"
+                    class="fullscreen-iframe"
+                    style="width:100%; height:100%; border:none; border-radius:12px;">
+            </iframe>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
+    
 
 
 
@@ -1866,14 +1894,33 @@ def player_tactics_text_page():
     st.caption(f"Last updated by {latest['updated_by']} on {latest['updated_at']}")
 
 def player_tactics_board_page():
-    st.subheader("👕 Player Tactics Board – View Only")
-    st.markdown("""
-    <iframe src="https://homecrowd.io/create-formation"
-            width="100%" height="75vh"
-            style="border:none; border-radius:10px; pointer-events:none;">
-    </iframe>
-    """, unsafe_allow_html=True)
-    st.caption("📌 This board is locked. Players can only view, not edit.")
+    
+    st.markdown("<h2 class='main-heading'>👕 Player Tactics Board – View Only</h2>", unsafe_allow_html=True)
+    # Responsive wrapper + disable interaction
+    st.markdown(
+        """
+        <style>
+        @media (max-width: 768px) {
+            .player-iframe {
+                height: 100vh !important;  /* full screen on mobile */
+            }
+        }
+        </style>
+
+        <div style="height:85vh; width:100%;">
+            <iframe src="https://tactical-board.com/uk/big-football"
+                    class="player-iframe"
+                    style="width:100%; height:100%; border:none; border-radius:12px; pointer-events:none;">
+            </iframe>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.caption("📌 This board is locked. Players can only view the tactics — editing is disabled.")
+
+
+
 
 
 
