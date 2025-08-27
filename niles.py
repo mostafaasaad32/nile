@@ -1662,188 +1662,13 @@ ST: Lead the press, stay central in attack."""
         st.success("Tactical plan saved ✅")
 
 
-
 def manager_tactics_board_page():
-    st.subheader("Interactive Tactics Board – Assign Players to Formation")
-
-    # === Internal function: formation layout ===
-    def formation_layout(formation: str):
-        X_GK = 10
-        X_DEF = 25
-        X_DM  = 42
-        X_CM  = 50
-        X_AM  = 65
-        X_FW  = 82
-        X_W   = 75
-
-        layouts = {
-            "4-3-3": [
-                ("GK",  X_GK, 50),
-                ("RB",  X_DEF, 20), ("RCB", X_DEF, 40), ("LCB", X_DEF, 60), ("LB",  X_DEF, 80),
-                ("RCM", 50, 40), ("CDM", 50, 50), ("LCM", 50, 60),
-                ("RW",  X_W, 30), ("ST",  X_FW, 50), ("LW",  X_W, 70),
-            ],
-            "4-2-3-1": [
-                ("GK",  X_GK, 50),
-                ("RB",  X_DEF, 20), ("RCB", X_DEF, 40), ("LCB", X_DEF, 60), ("LB",  X_DEF, 80),
-                ("RDM", X_DM, 45), ("LDM", X_DM, 55),
-                ("RAM", X_AM, 35), ("CAM", X_AM, 50), ("LAM", X_AM, 65),
-                ("ST",  X_FW, 50),
-            ],
-            "4-4-2": [
-                ("GK",  X_GK, 50),
-                ("RB",  X_DEF, 20), ("RCB", X_DEF, 40), ("LCB", X_DEF, 60), ("LB",  X_DEF, 80),
-                ("RM",  X_CM, 30), ("RCM", X_CM, 45), ("LCM", X_CM, 55), ("LM",  X_CM, 70),
-                ("RST", X_FW, 45), ("LST", X_FW, 55),
-            ],
-            "3-5-2": [
-                ("GK",  X_GK, 50),
-                ("RCB", 28, 40), ("CB", 28, 50), ("LCB", 28, 60),
-                ("RM",  45, 30), 
-                ("RDM", 50, 43), ("LDM", 50, 57), 
-                ("CAM", X_AM, 50), 
-                ("LM",  45, 70),
-                ("RST", X_FW, 45), ("LST", X_FW, 55),
-            ],
-            "3-4-3": [
-                ("GK",  X_GK, 50),
-                ("RCB", 28, 40), ("CB", 28, 50), ("LCB", 28, 60),
-                ("RM", 48, 30), ("RCM", 55, 45), ("LCM", 55, 55), ("LM", 48, 70),
-                ("RW",  X_W, 35), ("ST",  X_FW, 50), ("LW",  X_W, 65),
-            ],
-            "5-2-1-2": [
-                ("GK",  X_GK, 50),
-                ("RWB", 25, 30), ("RCB", 20, 40), ("CB", 20, 50), ("LCB", 20, 60), ("LWB", 25, 70),
-                ("RCM", 52, 45), ("LCM", 52, 55),
-                ("CAM", 64, 50),
-                ("RST", X_FW, 45), ("LST", X_FW, 55),
-            ],
-            "4-1-2-1-2": [
-                ("GK",  X_GK, 50),
-                ("RB",  X_DEF, 20), ("RCB", X_DEF, 40), ("LCB", X_DEF, 60), ("LB",  X_DEF, 80),
-                ("CDM", 46, 50),
-                ("RCM", 56, 42), ("LCM", 56, 58),
-                ("CAM", 66, 50),
-                ("RST", X_FW, 45), ("LST", X_FW, 55),
-            ],
-        }
-        return layouts.get(formation, layouts["4-3-3"])
-
-    # === Internal function: draw pitch ===
-    def draw_pitch(assignments_df: pd.DataFrame, title: str = "Tactics Board"):
-        fig = go.Figure()
-
-        # Pitch outline & markings
-        fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100, line=dict(width=2))
-        fig.add_shape(type="line", x0=50, y0=0, x1=50, y1=100, line=dict(width=1))
-        fig.add_shape(type="rect", x0=0,  y0=18, x1=18,  y1=82, line=dict(width=1))
-        fig.add_shape(type="rect", x0=82, y0=18, x1=100, y1=82, line=dict(width=1))
-        fig.add_shape(type="rect", x0=0,  y0=36, x1=6,   y1=64, line=dict(width=1))
-        fig.add_shape(type="rect", x0=94, y0=36, x1=100, y1=64, line=dict(width=1))
-        fig.add_shape(type="circle", x0=50-9.15, y0=50-9.15, x1=50+9.15, y1=50+9.15, line=dict(width=1))
-
-        if not assignments_df.empty:
-            fig.add_trace(go.Scatter(
-                x=assignments_df["x"],
-                y=assignments_df["y"],
-                mode="markers+text",
-                marker=dict(size=18, color="blue", line=dict(width=2, color="white")),
-                text=assignments_df["label"],
-                textposition="top center",
-                textfont=dict(color="white")
-            ))
-
-        fig.update_xaxes(range=[0, 100], showgrid=False, visible=False)
-        fig.update_yaxes(range=[0, 100], showgrid=False, visible=False, scaleanchor="x", scaleratio=1)
-        fig.update_layout(height=600, title=title, margin=dict(l=20, r=20, t=40, b=20), plot_bgcolor="green")
-        st.plotly_chart(fig, use_container_width=True)
-
-    # === Main logic ===
-    players = read_csv_safe(PLAYERS_FILE)
-    if players.empty:
-        st.info("No players in roster. Ask Admin to add players first.")
-        return
-
-    active_players = sorted(players[players.get("active", True) == True]["name"].dropna().astype(str).unique())
-
-    formation = st.selectbox("Formation", FORMATIONS, key="board_formation")
-    layout = formation_layout(formation)
-
-    pos_df = read_csv_safe(TACTICS_POS_FILE)
-    prev = pos_df[pos_df["formation"] == formation].copy()
-    if not prev.empty:
-        prev = prev.sort_values("updated_at").groupby("position").tail(1).set_index("position")
-
-    st.caption("Each player can be assigned to **one** position only. Picked players disappear from other dropdowns.")
-
-    assignments = []
-    cols = st.columns(3)
-    num_slots = len(layout)
-
-    # Initialize defaults
-    for idx, (pos_label, x, y) in enumerate(layout):
-        key = f"board_sel::{formation}::{pos_label}::{idx}"
-        if key not in st.session_state:
-            default_player = None
-            if isinstance(prev, pd.DataFrame) and not prev.empty and pos_label in prev.index:
-                default_player = prev.loc[pos_label, "player_name"]
-            if default_player not in active_players:
-                default_player = "—"
-            st.session_state[key] = default_player if default_player else "—"
-
-    # Render dropdowns with live filtering
-    for idx, (pos_label, x, y) in enumerate(layout):
-        key = f"board_sel::{formation}::{pos_label}::{idx}"
-        taken_elsewhere = {
-            st.session_state.get(f"board_sel::{formation}::{layout[j][0]}::{j}", "—")
-            for j in range(num_slots) if j != idx
-        }
-        taken_elsewhere.discard("—")
-        current = st.session_state.get(key, "—")
-        available = [p for p in active_players if (p not in taken_elsewhere) or (p == current)]
-        options = ["—"] + available
-        if current not in options:
-            current = "—"
-            st.session_state[key] = "—"
-        with cols[idx % 3]:
-            st.selectbox(pos_label, options=options, index=options.index(current), key=key)
-        assignments.append({
-            "formation": formation,
-            "position": pos_label,
-            "player_name": None if st.session_state[key] == "—" else st.session_state[key],
-            "x": x, "y": y,
-        })
-
-    # Save & Clear buttons
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("💾 Save Board", use_container_width=True):
-            chosen = [a["player_name"] for a in assignments if a["player_name"]]
-            dupes = [p for p in set(chosen) if chosen.count(p) > 1]
-            if dupes:
-                st.error(f"Duplicate selections detected: {', '.join(sorted(dupes))}. Fix before saving.")
-            else:
-                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                df = read_csv_safe(TACTICS_POS_FILE)
-                df = df[df["formation"] != formation]
-                for row in assignments:
-                    row.update({"updated_by": st.session_state.auth.get("name"), "updated_at": now})
-                df = pd.concat([df, pd.DataFrame(assignments)], ignore_index=True)
-                write_csv_safe(df, TACTICS_POS_FILE)
-                st.success("Board saved.")
-                st.rerun()
-
-    with c2:
-        if st.button("🧹 Clear Board", type="secondary", use_container_width=True):
-            for idx, (pos_label, _, _) in enumerate(layout):
-                key = f"board_sel::{formation}::{pos_label}::{idx}"
-                st.session_state[key] = "—"
-            st.rerun()
-
-    # Draw pitch with assignments
-    show = pd.DataFrame(assignments)
-    show["label"] = show.apply(lambda r: f"{r['position']} {r['player_name'] or ''}".strip(), axis=1)
-    draw_pitch(show, title=f"{formation} – Assigned XI")
+    st.subheader("⚽ Manager Tactics Board – Interactive")
+    st.markdown("""
+    <iframe src="https://tactical-board.com/uk/big-football"
+            width="100%" height="750" style="border:none; border-radius:10px;">
+    </iframe>
+    """, unsafe_allow_html=True)
 
 
 
@@ -1853,12 +1678,9 @@ def manager_tactics_board_page():
 # PLAYER PAGES
 # -------------------------------
 
-
-import plotly.express as px
-import streamlit as st
-
 def player_my_stats_page(player_name: str):
-    st.subheader("📊 My Stats")
+    # ===== Load Player Info =====
+    st.markdown("<h1 class='main-heading'>📊 My Performance Dashboard</h1>", unsafe_allow_html=True)
 
     players = read_csv_safe(PLAYERS_FILE)
     player = players[players["name"].str.lower() == player_name.lower()].iloc[0]
@@ -1873,31 +1695,94 @@ def player_my_stats_page(player_name: str):
         st.info("No stats recorded for you yet.")
         return
 
-    # --- Summary Metrics ---
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Matches", value=len(mine))
-    c2.metric("Goals", value=int(mine["goals"].sum()))
-    c3.metric("Assists", value=int(mine["assists"].sum()))
-    avg_rating = round(mine["rating"].mean(), 2) if not mine["rating"].isna().all() else "N/A"
-    c4.metric("Avg Rating", value=avg_rating)
+    # ===== Hero Player Card =====
+    st.markdown(f"""
+    <div style="text-align:center; margin-bottom:25px;">
+        <div style="
+            display:inline-block;
+            background:rgba(255,255,255,0.06);
+            padding:20px;
+            border-radius:20px;
+            box-shadow:0 8px 20px rgba(0,0,0,0.4);
+            ">
+            <h2 style="margin:0; color:#34D399;">{player['name']}</h2>
+            <p style="margin:0; color:#E5E7EB;">Position: {player['position']}</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.divider()
+    # ===== Summary Metrics =====
+    matches_played = len(mine)
+    goals = int(mine["goals"].sum())
+    assists = int(mine["assists"].sum())
+    avg_rating = round(mine["rating"].mean(), 2) if not mine["rating"].isna().all() else "N/A"
+
+    st.markdown("""
+    <style>
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .metric-card {
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 16px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+    }
+    .metric-value {
+        font-size: 26px;
+        font-weight: bold;
+        color: #34D399;
+        margin-bottom: 5px;
+    }
+    .metric-label {
+        font-size: 14px;
+        color: #E5E7EB;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div class="metric-grid">
+        <div class="metric-card">
+            <div class="metric-value">{matches_played}</div>
+            <div class="metric-label">Matches</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">{goals}</div>
+            <div class="metric-label">Goals</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">{assists}</div>
+            <div class="metric-label">Assists</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">{avg_rating}</div>
+            <div class="metric-label">Avg Rating</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ===== Charts Section =====
     st.subheader("📈 Performance Tracker")
 
-    # Sort by match for timeline plots
     mine = mine.sort_values("match_id")
 
-    # --- Plot 1: Goals & Assists per Match ---
+    # Goals & Assists per Match
     fig1 = px.bar(
         mine,
         x="match_id",
         y=["goals", "assists"],
-        title="Goals & Assists per Match",
-        labels={"value": "Count", "match_id": "Match ID", "variable": "Stat"}
+        title="⚽ Goals & 🎯 Assists per Match",
+        labels={"value": "Count", "match_id": "Match", "variable": "Stat"},
+        barmode="group"
     )
-    st.plotly_chart(fig1, use_container_width=True, config={"staticPlot": True})
 
-    # --- Plot 2: Cumulative Goals & Assists ---
+    # Cumulative Goals & Assists
     mine["cum_goals"] = mine["goals"].cumsum()
     mine["cum_assists"] = mine["assists"].cumsum()
     fig2 = px.line(
@@ -1905,33 +1790,43 @@ def player_my_stats_page(player_name: str):
         x="match_id",
         y=["cum_goals", "cum_assists"],
         markers=True,
-        title="Cumulative Goals & Assists",
-        labels={"value": "Total", "match_id": "Match ID", "variable": "Stat"}
+        title="📊 Cumulative Goals & Assists",
+        labels={"value": "Total", "match_id": "Match", "variable": "Stat"}
     )
-    st.plotly_chart(fig2, use_container_width=True, config={"staticPlot": True})
 
-    # --- Plot 3: Cards per Match ---
+    # Cards
     fig3 = px.bar(
         mine,
         x="match_id",
         y=["yellow_cards", "red_cards"],
-        title="Cards per Match",
-        labels={"value": "Cards", "match_id": "Match ID", "variable": "Card Type"}
+        title="🟨🟥 Cards per Match",
+        labels={"value": "Cards", "match_id": "Match", "variable": "Card Type"},
+        barmode="stack"
     )
-    st.plotly_chart(fig3, use_container_width=True, config={"staticPlot": True})
 
-    # --- Plot 4: Ratings over Matches ---
+    # Ratings
     fig4 = px.line(
         mine,
         x="match_id",
         y="rating",
         markers=True,
-        title="Ratings over Matches",
-        labels={"match_id": "Match ID", "rating": "Rating"}
+        title="⭐ Ratings Over Matches",
+        labels={"match_id": "Match", "rating": "Rating"}
     )
-    fig4.update_yaxes(range=[0, 10])  # keep rating scale fixed
-    st.plotly_chart(fig4, use_container_width=True, config={"staticPlot": True})
+    fig4.update_yaxes(range=[0, 10])
 
+    # ===== Show Charts in Grid =====
+    c1, c2 = st.columns(2)
+    with c1:
+        st.plotly_chart(fig1, use_container_width=True, config={"staticPlot": True})
+    with c2:
+        st.plotly_chart(fig2, use_container_width=True, config={"staticPlot": True})
+
+    c3, c4 = st.columns(2)
+    with c3:
+        st.plotly_chart(fig3, use_container_width=True, config={"staticPlot": True})
+    with c4:
+        st.plotly_chart(fig4, use_container_width=True, config={"staticPlot": True})
 
 
 
@@ -1956,68 +1851,50 @@ def player_tactics_text_page():
     st.caption(f"Last updated by {latest['updated_by']} on {latest['updated_at']}")
 
 def player_tactics_board_page():
-    st.subheader("Tactics Board – View Only")
+    st.markdown(
+        """
+        <h2 style='text-align: center; color: #2563EB;'>
+            👕 Player Tactics Board – View Only
+        </h2>
+        <p style='text-align: center; color: gray;'>
+            This tactics board is <b>locked</b>. You can view it, but not interact with it.
+        </p>
 
-    pos_df = read_csv_safe(TACTICS_POS_FILE)
-    if pos_df.empty:
-        st.info("No tactics board set yet.")
-        return
+        <style>
+        .locked-iframe-container {
+            position: relative;
+            width: 95%;
+            margin: auto;
+            border: 2px solid #2563EB;
+            border-radius: 12px;
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+        .locked-iframe-container iframe {
+            border-radius: 12px;
+        }
+        .locked-iframe-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: transparent;
+            z-index: 999;
+        }
+        </style>
 
-    # Pick latest update
-    latest_time = pos_df["updated_at"].max()
-    latest = pos_df[pos_df["updated_at"] == latest_time].copy()
-    if latest.empty:
-        st.info("No tactics board found.")
-        return
-
-    formation = latest["formation"].iloc[0]
-    st.write(f"**Formation:** {formation}")
-    st.caption(f"Last updated by {latest['updated_by'].iloc[0]} on {latest_time}")
-
-    # Prepare labels for the pitch
-    latest["label"] = latest.apply(
-        lambda r: f"{r['position']} {r['player_name'] or ''}".strip(),
-        axis=1
+        <div class="locked-iframe-container">
+            <iframe src="https://tactical-board.com/uk/big-football"
+                    width="100%" height="650" frameborder="0">
+            </iframe>
+            <div class="locked-iframe-overlay"></div>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
-    # Draw pitch
-    fig = go.Figure()
-    fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100, line=dict(width=2))
-    fig.add_shape(type="line", x0=50, y0=0, x1=50, y1=100, line=dict(width=1))
-    fig.add_shape(type="rect", x0=0,  y0=18, x1=18,  y1=82, line=dict(width=1))
-    fig.add_shape(type="rect", x0=82, y0=18, x1=100, y1=82, line=dict(width=1))
-    fig.add_shape(type="rect", x0=0,  y0=36, x1=6,   y1=64, line=dict(width=1))
-    fig.add_shape(type="rect", x0=94, y0=36, x1=100, y1=64, line=dict(width=1))
-    fig.add_shape(type="circle", x0=50-9.15, y0=50-9.15, x1=50+9.15, y1=50+9.15, line=dict(width=1))
+    st.caption("📌 Manager controls this board. Players can only view.")
 
-    fig.add_trace(go.Scatter(
-        x=latest["x"],
-        y=latest["y"],
-        mode="markers+text",
-        marker=dict(size=18, color="blue", line=dict(width=2, color="white")),
-        text=latest["label"],
-        textposition="top center",
-        textfont=dict(color="white")
-    ))
 
-    fig.update_xaxes(range=[0, 100], showgrid=False, visible=False)
-    fig.update_yaxes(range=[0, 100], showgrid=False, visible=False, scaleanchor="x", scaleratio=1)
-    fig.update_layout(
-        height=600,
-        title=f"{formation} – Assigned XI",
-        margin=dict(l=20, r=20, t=40, b=20),
-        plot_bgcolor="green"
-    )
-
-    # -------------------------------
-    # Disable all interactions for view-only
-    # -------------------------------
-    config = {
-        "staticPlot": True,  # disables zoom, pan, drag
-        "displayModeBar": False  # hide toolbar
-    }
-
-    st.plotly_chart(fig, use_container_width=True, config=config)
 
 
 # -------------------------------
