@@ -1674,43 +1674,46 @@ ST: Lead the press, stay central in attack."""
         st.success("Tactical plan saved ✅")
 
 def manager_tactics_board_page():
-    # Hide Streamlit header, footer, and padding for this page
+    st.subheader("⚽ Manager Tactics Board – Editable")
+
     st.markdown(
         """
         <style>
-        /* Remove Streamlit default chrome */
-        #MainMenu, header, footer, [data-testid="stToolbar"] {
-            display: none !important;
-            visibility: hidden !important;
+        /* Zoom effect */
+        .tactics-iframe-wrapper {
+            height: 85vh;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 12px;
         }
-        .block-container {
-            padding: 0 !important;
-            margin: 0 !important;
+        .tactics-iframe {
+            width: 90%;   /* zoom in horizontally */
+            height: 90%;  /* zoom in vertically */
+            transform: scale(1.2);  /* zoom level */
+            transform-origin: top left;
+            border: none;
         }
-        /* On mobile, let iframe take full height */
         @media (max-width: 768px) {
-            .fullscreen-iframe {
-                height: 100vh !important;
+            .tactics-iframe-wrapper { height: 100vh; }
+            .tactics-iframe {
+                width: 140%;
+                height: 140%;
+                transform: scale(1.4); /* more zoom for mobile */
             }
         }
         </style>
-        """,
-        unsafe_allow_html=True,
-    )
 
-    
-    st.markdown("<h2 class='main-heading'>⚽ Manager Tactics Board – Editable</h2>", unsafe_allow_html=True)
-    st.markdown(
-        """
-        <div style="height:85vh; width:100%;">
+        <div class="tactics-iframe-wrapper">
             <iframe src="https://tactical-board.com/uk/big-football"
-                    class="fullscreen-iframe"
-                    style="width:100%; height:100%; border:none; border-radius:12px;">
+                    class="tactics-iframe">
             </iframe>
         </div>
         """,
         unsafe_allow_html=True,
     )
+
+    st.info("💡 Use this board to move players and create tactics. When ready, click **Save/Share** and copy the link for players.")
+
 
     
 
