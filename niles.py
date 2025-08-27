@@ -119,10 +119,35 @@ button[title="View fullscreen"] {
 GLOBAL_CSS = """
 <style>
 /* ====== HIDE STREAMLIT DEFAULT UI ====== */
-#MainMenu, footer, [data-testid="stToolbar"], .viewerBadge_container__1QSob,
+#MainMenu, footer, header,
+[data-testid="stToolbar"], 
+.viewerBadge_container__1QSob,
 .stDeployButton, .stAppDeployButton {
   display: none !important;
   visibility: hidden !important;
+}
+
+/* 🚫 Remove "Built with Streamlit" + fullscreen widget toolbar */
+[data-testid="stDecoration"], 
+[data-testid="stFullScreenFrame"], 
+[data-testid="StyledFullScreenButton"],
+button[title="View fullscreen"],
+div[title="View fullscreen"],
+section[data-testid="stToolbar"],
+.stDecoration,
+.stToolbar {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* 🚫 Remove any watermark badges */
+iframe[title="streamlit-badge"], 
+a[href*="streamlit.io"], 
+div.viewerBadge_container__1QSob {
+    display: none !important;
+    visibility: hidden !important;
 }
 
 /* ====== CUSTOM FONT IMPORTS ====== */
@@ -163,7 +188,7 @@ GLOBAL_CSS = """
 html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   background-color: var(--app-bg) !important;
   color: white !important;
-  overflow-x: hidden !important; /* prevent horizontal scroll */
+  overflow-x: hidden !important;
 }
 
 /* ====== SIDEBAR ====== */
@@ -277,20 +302,16 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
     position: fixed;
     bottom: 0;
     left: 0; right: 0;
-    height: 60px;  /* touch-friendly */
+    height: 60px;
     background: #111827;
     display: flex;
     justify-content: space-around;
     align-items: center;
     border-top: 1px solid #333;
     z-index: 10000;
-
-    /* Safe-area padding for iOS/Android */
     padding-bottom: env(safe-area-inset-bottom, 10px);
     box-sizing: border-box;
 }
-
-/* Nav icons */
 .navbar a {
     flex: 1;
     text-align: center;
@@ -300,46 +321,23 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
     padding: 6px 0;
     transition: all 0.2s ease-in-out;
 }
-.navbar a.active {
-    color: #10B981;
-    font-weight: bold;
-}
-.navbar a:hover {
-    color: white;
-}
-
-/* Ensure page content is not hidden behind nav bar */
-.block-container {
-    padding-bottom: 90px !important;
-}
+.navbar a.active { color: #10B981; font-weight: bold; }
+.navbar a:hover { color: white; }
+.block-container { padding-bottom: 90px !important; }
 
 /* ====== MOBILE RESPONSIVE ====== */
 @media (max-width: 600px) {
-  .block-container { 
-    padding: 0.5rem !important; 
-    max-width: 100% !important; 
-  }
-  h1, h2, h3, .app-title, .main-heading {
-    font-size: 18px !important;
-  }
-  .app-subtitle, p, div, span {
-    font-size: 13px !important;
-  }
-  .stButton > button {
-    font-size: 14px !important;
-    padding: 8px 12px !important;
-    width: 100% !important; /* ✅ full width for thumbs */
-  }
+  .block-container { padding: 0.5rem !important; max-width: 100% !important; }
+  h1, h2, h3, .app-title, .main-heading { font-size: 18px !important; }
+  .app-subtitle, p, div, span { font-size: 13px !important; }
+  .stButton > button { font-size: 14px !important; padding: 8px 12px !important; width: 100% !important; }
   .glass { padding: 8px !important; border-radius: 12px !important; }
   .stDataFrame { font-size: 12px !important; }
-  .stPlotlyChart, .stAltairChart {
-    height: auto !important;
-    min-height: 280px !important; /* ✅ smaller for phones */
-  }
+  .stPlotlyChart, .stAltairChart { height: auto !important; min-height: 280px !important; }
 }
-
 </style>
 """
+
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
 st.markdown("""
