@@ -2184,70 +2184,52 @@ def admin_delete_all_data():
 # -------------------------------
 # NAVIGATION HELPERS
 # -------------------------------
+import streamlit as st
+
+import streamlit as st
+
 def bottom_nav(pages: dict, default: str):
-    """Render bottom navigation bar and return current page."""
-    # Get current page from URL (query params)
-    current = st.query_params.get("page", default)
+    """Render bottom navigation bar using Streamlit session_state."""
+    if "current_page" not in st.session_state:
+        st.session_state.current_page = default
 
-    # Render selected page
-    if current in pages:
-        pages[current]()
-    else:
-        pages[default]()
+    # Render current page
+    pages[st.session_state.current_page]()
 
-    # Build nav bar HTML
-    nav_html = '<div class="navbar">'
-    for label in pages.keys():
-        active_class = "active" if label == current else ""
-        nav_html += f'<a class="{active_class}" href="?page={label}">{label}</a>'
-    nav_html += "</div>"
+    # Layout for nav bar
+    cols = st.columns(len(pages))
 
+    # Render each button in nav
+    for i, (label, func) in enumerate(pages.items()):
+        if cols[i].button(label, key=f"nav_{label}"):
+            st.session_state.current_page = label
+            st.rerun()
+
+    # Inject styles (to make it fixed at bottom)
     st.markdown("""
     <style>
-    /* Bottom Navigation Bar */
-    .navbar {
-        position: fixed;
-        bottom: 0;
-        left: 0; right: 0;
-        height: 65px; /* slightly taller */
-        background: #0A1128;
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        border-top: 1px solid #222;
-        z-index: 9999;
-
-        /* ✅ Critical fix: support safe-area for iOS & Android */
-        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
-        box-sizing: border-box;
-    }
-
-    .navbar a {
-        flex: 1;
-        text-align: center;
+    div[data-testid="column"] > div > button {
+        background: none;
+        border: none;
+        font-size: 20px;
         color: #9CA3AF;
-        text-decoration: none;
-        font-size: 22px; /* bigger for thumb press */
-        line-height: 1.4;
-        padding: 4px 0;
-        transition: all 0.2s ease-in-out;
+        padding: 10px;
+        width: 100%;
     }
-
-    .navbar a.active {
-        color: #10B981;
-        font-weight: bold;
-    }
-
-    .navbar a:hover {
+    div[data-testid="column"] > div > button:hover {
         color: white;
     }
-
-    /* ✅ Ensure page content never overlaps the nav */
+    div[data-testid="column"] > div > button:focus {
+        color: #10B981 !important;
+        font-weight: bold !important;
+    }
     .block-container {
-        padding-bottom: 110px !important; /* matches nav height + safe area */
+        padding-bottom: 100px !important;
     }
     </style>
-    """ + nav_html, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+
+
 
 
 
