@@ -31,6 +31,18 @@ import io
 # -------------------------------
 # PAGE CONFIG (mobile-first)
 # -------------------------------
+
+st.markdown("""
+<style>
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+a[href="https://streamlit.io"] {display: none !important;}
+.viewerBadge_container__1QSob {display: none !important;}
+[data-testid="stToolbar"] {visibility: hidden !important;}
+</style>
+""", unsafe_allow_html=True)
+
 # Hide Streamlit Branding and Controls
 HIDE_STREAMLIT_UI = """
 <style>
