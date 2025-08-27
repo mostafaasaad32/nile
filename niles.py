@@ -647,8 +647,8 @@ def render_header():
     col1, col2 = st.columns([4, 1])
     with col1:
       st.markdown(f"""
-<div style="display:flex; align-items:center; gap:10px;">
-    <img src="{LOGO_URL}" style="width:240px; height:auto;">
+<div style="display:flex; align-items:center; gap:5px;">
+    <img src="{LOGO_URL}" style="width:180px; height:auto;">
     <div class="app-title">Nile Esports Hub</div>
     <span style="color:#ff4b4b; font-weight:bold;">Live</span>
 </div>
