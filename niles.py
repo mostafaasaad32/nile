@@ -1610,115 +1610,215 @@ def draw_pitch(assignments_df: pd.DataFrame, title: str = "Tactics Board"):
     st.plotly_chart(fig, use_container_width=True)
 
 def manager_tactics_text_page():
-    st.subheader("Team Tactical Plan (Manager Only)")
+    st.title("📋 Team Tactical Plans")
+    st.caption("Manager access only — Create, review, and save tactical strategies.")
 
     tactics = read_csv_safe(TACTICS_FILE)
-    if not tactics.empty:
-        st.write("**Current Saved Tactical Plans**")
-        st.dataframe(
-            tactics.drop(columns=["image_path"], errors="ignore"),
-            use_container_width=True
-        )
-    else:
-        st.info("No tactics saved yet.")
+
+    # === CURRENT TACTICAL PLANS ===
+    with st.expander("📖 View Saved Tactical Plans", expanded=True):
+        if not tactics.empty:
+            st.dataframe(
+                tactics.drop(columns=["image_path"], errors="ignore"),
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("⚠️ No tactical plans saved yet.")
 
     st.divider()
-    st.markdown("### 📝 Create / Update Tactical Plan")
+    st.subheader("📝 Create or Update Tactical Plan")
 
+    # === TACTICAL FORM ===
     with st.form("tactics_form"):
-        formation = st.selectbox("Formation", FORMATIONS)
-
-        style_of_play = st.selectbox(
-            "Overall Style",
-            ["High Press & Quick Build-up", "Balanced Play", "Defensive & Counter", "Possession Focus"]
-        )
+        col1, col2 = st.columns(2)
+        with col1:
+            formation = st.selectbox("Formation", FORMATIONS, index=0)
+        with col2:
+            style_of_play = st.selectbox(
+                "Style of Play",
+                ["High Press & Quick Build-up", "Balanced Play", "Defensive & Counter", "Possession Focus"],
+                index=1
+            )
 
         defensive_plan = st.text_area(
-            "Defensive Strategy",
-            "Maintain a compact defensive block. Press in packs when the ball enters our half. Fullbacks track wingers tightly."
+            "🛡️ Defensive Strategy",
+            placeholder="E.g., Stay compact, press in packs, track wingers tightly..."
         )
 
         offensive_plan = st.text_area(
-            "Offensive Strategy",
-            "Build from the back with short passes. Switch play quickly to stretch the opponent. Overlap fullbacks when chasing a goal."
+            "⚽ Offensive Strategy",
+            placeholder="E.g., Build from the back, switch play quickly, overlap fullbacks..."
         )
 
         key_players = st.text_area(
-            "Key Player Instructions",
-            """GK: Distribute short and initiate quick counters.
-CBs: Hold the line, win aerial duels.
-CM: Control tempo, dictate play.
-Wingers: Cut inside, exploit half-spaces.
-ST: Lead the press, stay central in attack."""
+            "⭐ Key Player Instructions",
+            placeholder="E.g., GK: Distribute short, ST: Stay central, Wingers: Cut inside..."
         )
 
         extra_notes = st.text_area(
-            "Additional Notes",
-            "Stay composed under pressure. Communicate constantly. Adjust tempo based on match situation."
+            "🗒️ Additional Notes",
+            placeholder="Any final reminders or match-specific adjustments..."
         )
 
         submitted = st.form_submit_button("💾 Save Tactical Plan", type="primary")
 
+    # === SAVE LOGIC ===
     if submitted:
         new_row = {
             "formation": formation,
-            "roles": key_players,
-            "instructions": f"Style: {style_of_play}\n\nDefensive: {defensive_plan}\n\nOffensive: {offensive_plan}",
-            "notes": extra_notes,
+            "roles": key_players.strip(),
+            "instructions": f"Style: {style_of_play}\n\n"
+                            f"Defensive: {defensive_plan.strip()}\n\n"
+                            f"Offensive: {offensive_plan.strip()}",
+            "notes": extra_notes.strip(),
             "image_path": None,
-            "updated_by": st.session_state.auth.get("name"),
+            "updated_by": st.session_state.get("auth", {}).get("name", "Manager"),
             "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
+
+        # Prevent duplicate rows by formation + timestamp
         tactics = pd.concat([tactics, pd.DataFrame([new_row])], ignore_index=True)
         write_csv_safe(tactics, TACTICS_FILE)
-        st.success("Tactical plan saved ✅")
+
+        st.success("✅ Tactical plan saved successfully!")
+        st.rerun()
 
 def manager_tactics_board_page():
-    st.subheader("⚽ Manager Tactics Board – Editable")
+    st.subheader("⚽ Manager – Assign Players to Formation")
 
+    # === Internal function: formation layout ===
+    def formation_layout(formation: str):
+        layouts = {
+            "4-3-3": ["GK", "RB", "RCB", "LCB", "LB", "RCM", "CDM", "LCM", "RW", "ST", "LW"],
+            "4-2-3-1": ["GK", "RB", "RCB", "LCB", "LB", "RDM", "LDM", "RAM", "CAM", "LAM", "ST"],
+            "4-4-2": ["GK", "RB", "RCB", "LCB", "LB", "RM", "RCM", "LCM", "LM", "RST", "LST"],
+            "3-5-2": ["GK", "RCB", "CB", "LCB", "RM", "RDM", "LDM", "CAM", "LM", "RST", "LST"],
+            "3-4-3": ["GK", "RCB", "CB", "LCB", "RM", "RCM", "LCM", "LM", "RW", "ST", "LW"],
+            "5-2-1-2": ["GK", "RWB", "RCB", "CB", "LCB", "LWB", "RCM", "LCM", "CAM", "RST", "LST"],
+            "4-1-2-1-2": ["GK", "RB", "RCB", "LCB", "LB", "CDM", "RCM", "LCM", "CAM", "RST", "LST"],
+        }
+        return layouts.get(formation, layouts["4-3-3"])
+
+    # === Main logic ===
+    players = read_csv_safe(PLAYERS_FILE)
+    if players.empty:
+        st.info("No players in roster. Ask Admin to add players first.")
+        return
+
+    active_players = sorted(players[players.get("active", True) == True]["name"].dropna().astype(str).unique())
+
+    formation = st.selectbox("Formation", FORMATIONS, key="board_formation")
+    positions = formation_layout(formation)
+
+    pos_df = read_csv_safe(TACTICS_POS_FILE)
+    prev = pos_df[pos_df["formation"] == formation].copy()
+    if not prev.empty:
+        prev = prev.sort_values("updated_at").groupby("position").tail(1).set_index("position")
+
+    st.caption("Each player can be assigned to **one** position only. Picked players disappear from other dropdowns.")
+
+    assignments = []
+    cols = st.columns(3)
+    num_slots = len(positions)
+
+    # Initialize defaults
+    for idx, pos_label in enumerate(positions):
+        key = f"board_sel::{formation}::{pos_label}::{idx}"
+        if key not in st.session_state:
+            default_player = None
+            if isinstance(prev, pd.DataFrame) and not prev.empty and pos_label in prev.index:
+                default_player = prev.loc[pos_label, "player_name"]
+            if default_player not in active_players:
+                default_player = "—"
+            st.session_state[key] = default_player if default_player else "—"
+
+    # Render dropdowns
+    for idx, pos_label in enumerate(positions):
+        key = f"board_sel::{formation}::{pos_label}::{idx}"
+        taken_elsewhere = {
+            st.session_state.get(f"board_sel::{formation}::{positions[j]}::{j}", "—")
+            for j in range(num_slots) if j != idx
+        }
+        taken_elsewhere.discard("—")
+        current = st.session_state.get(key, "—")
+        available = [p for p in active_players if (p not in taken_elsewhere) or (p == current)]
+        options = ["—"] + available
+        if current not in options:
+            current = "—"
+            st.session_state[key] = "—"
+        with cols[idx % 3]:
+            st.selectbox(pos_label, options=options, index=options.index(current), key=key)
+        assignments.append({
+            "formation": formation,
+            "position": pos_label,
+            "player_name": None if st.session_state[key] == "—" else st.session_state[key],
+        })
+
+    # Save & Clear buttons
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("💾 Save Lineup", use_container_width=True):
+            chosen = [a["player_name"] for a in assignments if a["player_name"]]
+            dupes = [p for p in set(chosen) if chosen.count(p) > 1]
+            if dupes:
+                st.error(f"Duplicate selections detected: {', '.join(sorted(dupes))}. Fix before saving.")
+            else:
+                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                df = read_csv_safe(TACTICS_POS_FILE)
+                df = df[df["formation"] != formation]
+                for row in assignments:
+                    row.update({"updated_by": st.session_state.auth.get("name"), "updated_at": now})
+                df = pd.concat([df, pd.DataFrame(assignments)], ignore_index=True)
+                write_csv_safe(df, TACTICS_POS_FILE)
+                st.success("✅ Lineup saved.")
+                st.rerun()
+
+    with c2:
+        if st.button("🧹 Clear Lineup", type="secondary", use_container_width=True):
+            for idx, pos_label in enumerate(positions):
+                key = f"board_sel::{formation}::{pos_label}::{idx}"
+                st.session_state[key] = "—"
+            st.rerun()
+
+    # === Show as styled list instead of pitch ===
+    st.markdown("### 📋 Current Lineup")
     st.markdown(
         """
         <style>
-        .tactics-iframe-wrapper {
-            height: 85vh;
-            width: 100%;
-            overflow: hidden;
+        .lineup-card {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.2);
             border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
         }
-        .tactics-iframe {
-            width: 120%;
-            height: 120%;
-            transform: scale(1.2);
-            transform-origin: top left;
-            border: none;
+        .lineup-pos {
+            font-size: 13px;
+            font-weight: bold;
+            color: #34D399;
         }
-
-        /* 📱 Mobile friendly */
-        @media (max-width: 768px) {
-            .tactics-iframe-wrapper {
-                height: 100vh;   /* full screen on phones */
-                border-radius: 0; /* use all space */
-            }
-            .tactics-iframe {
-                width: 110%;     /* small zoom for mobile */
-                height: 110%;
-                transform: scale(1.1);
-                transform-origin: top left;
-            }
+        .lineup-name {
+            font-size: 16px;
+            color: white;
         }
         </style>
-
-        <div class="tactics-iframe-wrapper">
-            <iframe src="https://tactical-board.com/uk/big-football"
-                    class="tactics-iframe">
-            </iframe>
-        </div>
         """,
-        unsafe_allow_html=True,
+        unsafe_allow_html=True
     )
 
-    st.info("💡 Use this board to move players and create tactics. When ready, click **Save/Share** and copy the link for players.")
-
+    for a in assignments:
+        if a["player_name"]:
+            st.markdown(
+                f"""
+                <div class="lineup-card">
+                    <div class="lineup-pos">{a['position']}</div>
+                    <div class="lineup-name">{a['player_name']}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
     
 
@@ -1728,10 +1828,86 @@ def manager_tactics_board_page():
 # -------------------------------
 # PLAYER PAGES
 # -------------------------------
-
 def player_my_stats_page(player_name: str):
-    # ===== Load Player Info =====
-    st.markdown("<h1 class='main-heading'>📊 My Performance Dashboard</h1>", unsafe_allow_html=True)
+    # ====== Global Theme & Fonts ======
+    st.markdown("""
+    <style>
+    /* Importing custom-like fonts (fallback: Montserrat) */
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+
+    html, body, [class*="css"] {
+        background: linear-gradient(160deg, #0C182E 40%, #000000 100%);
+        color: #FFFFFF;
+    }
+
+    /* Font Classes */
+    .super-head {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 900;
+        font-style: oblique;
+        font-size: 40px;
+        color: #00C0FA;
+        text-align: center;
+    }
+    .sub-head {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 700;
+        font-style: oblique;
+        font-size: 28px;
+        color: #00C0FA;
+    }
+    .text-mid {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 500;
+        font-size: 16px;
+        color: #FFFFFF;
+    }
+
+    /* Cards */
+    .card, .metric-card, .chart-card {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+    }
+
+    /* Metric Grid */
+    .metric-grid, .chart-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .metric-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #015EEA;
+    }
+    .metric-label {
+        font-size: 14px;
+        color: #FFFFFF;
+    }
+
+    /* Buttons */
+    .stButton>button {
+        background-color: #015EEA;
+        color: white;
+        font-weight: bold;
+        border-radius: 12px;
+        padding: 8px 16px;
+        border: none;
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        background-color: #00C0FA;
+        transform: scale(1.05);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ===== Player Info =====
+    st.markdown("<h1 class='super-head'>📊 My Performance Dashboard</h1>", unsafe_allow_html=True)
 
     players = read_csv_safe(PLAYERS_FILE)
     player = players[players["name"].str.lower() == player_name.lower()].iloc[0]
@@ -1746,18 +1922,12 @@ def player_my_stats_page(player_name: str):
         st.info("No stats recorded for you yet.")
         return
 
-    # ===== Hero Player Card =====
+    # ===== Hero Card =====
     st.markdown(f"""
     <div style="text-align:center; margin-bottom:25px;">
-        <div style="
-            display:inline-block;
-            background:rgba(255,255,255,0.06);
-            padding:20px;
-            border-radius:20px;
-            box-shadow:0 8px 20px rgba(0,0,0,0.4);
-            ">
-            <h2 style="margin:0; color:#34D399;">{player['name']}</h2>
-            <p style="margin:0; color:#E5E7EB;">Position: {player['position']}</p>
+        <div class="card">
+            <h2 class="sub-head">{player['name']}</h2>
+            <p class="text-mid">Position: {player['position']}</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1768,116 +1938,36 @@ def player_my_stats_page(player_name: str):
     assists = int(mine["assists"].sum())
     avg_rating = round(mine["rating"].mean(), 2) if not mine["rating"].isna().all() else "N/A"
 
-    st.markdown("""
-    <style>
-    .metric-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 20px;
-        margin-bottom: 30px;
-    }
-    .metric-card {
-        background: rgba(255,255,255,0.08);
-        border: 1px solid rgba(255,255,255,0.15);
-        border-radius: 16px;
-        padding: 20px;
-        text-align: center;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.35);
-    }
-    .metric-value {
-        font-size: 26px;
-        font-weight: bold;
-        color: #34D399;
-        margin-bottom: 5px;
-    }
-    .metric-label {
-        font-size: 14px;
-        color: #E5E7EB;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
     st.markdown(f"""
     <div class="metric-grid">
-        <div class="metric-card">
-            <div class="metric-value">{matches_played}</div>
-            <div class="metric-label">Matches</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-value">{goals}</div>
-            <div class="metric-label">Goals</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-value">{assists}</div>
-            <div class="metric-label">Assists</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-value">{avg_rating}</div>
-            <div class="metric-label">Avg Rating</div>
-        </div>
+        <div class="metric-card"><div class="metric-value">{matches_played}</div><div class="metric-label">Matches</div></div>
+        <div class="metric-card"><div class="metric-value">{goals}</div><div class="metric-label">Goals</div></div>
+        <div class="metric-card"><div class="metric-value">{assists}</div><div class="metric-label">Assists</div></div>
+        <div class="metric-card"><div class="metric-value">{avg_rating}</div><div class="metric-label">Avg Rating</div></div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ===== Charts Section =====
-    st.subheader("📈 Performance Tracker")
-
+    # ===== Charts =====
+    st.markdown("<h2 class='sub-head'>📈 Performance Tracker</h2>", unsafe_allow_html=True)
     mine = mine.sort_values("match_id")
 
-    # Goals & Assists per Match
-    fig1 = px.bar(
-        mine,
-        x="match_id",
-        y=["goals", "assists"],
-        title="⚽ Goals & 🎯 Assists per Match",
-        labels={"value": "Count", "match_id": "Match", "variable": "Stat"},
-        barmode="group"
-    )
-
-    # Cumulative Goals & Assists
-    mine["cum_goals"] = mine["goals"].cumsum()
-    mine["cum_assists"] = mine["assists"].cumsum()
-    fig2 = px.line(
-        mine,
-        x="match_id",
-        y=["cum_goals", "cum_assists"],
-        markers=True,
-        title="📊 Cumulative Goals & Assists",
-        labels={"value": "Total", "match_id": "Match", "variable": "Stat"}
-    )
-
-    # Cards
-    fig3 = px.bar(
-        mine,
-        x="match_id",
-        y=["yellow_cards", "red_cards"],
-        title="🟨🟥 Cards per Match",
-        labels={"value": "Cards", "match_id": "Match", "variable": "Card Type"},
-        barmode="stack"
-    )
-
-    # Ratings
-    fig4 = px.line(
-        mine,
-        x="match_id",
-        y="rating",
-        markers=True,
-        title="⭐ Ratings Over Matches",
-        labels={"match_id": "Match", "rating": "Rating"}
-    )
+    fig1 = px.bar(mine, x="match_id", y=["goals", "assists"], barmode="group",
+                  title="⚽ Goals & 🎯 Assists per Match", color_discrete_sequence=["#015EEA", "#00C0FA"])
+    mine["cum_goals"], mine["cum_assists"] = mine["goals"].cumsum(), mine["assists"].cumsum()
+    fig2 = px.line(mine, x="match_id", y=["cum_goals", "cum_assists"], markers=True,
+                   title="📊 Cumulative Goals & Assists", color_discrete_sequence=["#015EEA", "#00C0FA"])
+    fig3 = px.bar(mine, x="match_id", y=["yellow_cards", "red_cards"], barmode="stack",
+                  title="🟨🟥 Cards per Match", color_discrete_sequence=["#FFD700", "#FF0000"])
+    fig4 = px.line(mine, x="match_id", y="rating", markers=True,
+                   title="⭐ Ratings Over Matches", color_discrete_sequence=["#00C0FA"])
     fig4.update_yaxes(range=[0, 10])
 
-    # ===== Show Charts in Grid =====
-    c1, c2 = st.columns(2)
-    with c1:
-        st.plotly_chart(fig1, use_container_width=True, config={"staticPlot": True})
-    with c2:
-        st.plotly_chart(fig2, use_container_width=True, config={"staticPlot": True})
-
-    c3, c4 = st.columns(2)
-    with c3:
-        st.plotly_chart(fig3, use_container_width=True, config={"staticPlot": True})
-    with c4:
-        st.plotly_chart(fig4, use_container_width=True, config={"staticPlot": True})
+    st.markdown("<div class='chart-grid'>", unsafe_allow_html=True)
+    for fig in [fig1, fig2, fig3, fig4]:
+        st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
+        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 
@@ -1886,46 +1976,256 @@ def player_my_stats_page(player_name: str):
 
 
 
+
+# Theme colors
+CYAN = "#00C0FA"
+DARK_BLUE = "#0C182E"
+BLUE = "#015EEA"
+WHITE = "#FFFFFF"
+
+import streamlit as st
+import streamlit.components.v1 as components
 
 def player_tactics_text_page():
-    st.subheader("Team Tactical Plan")
+    st.subheader("📋 Team Tactical Plan")
+
     tactics = read_csv_safe(TACTICS_FILE)
     if tactics.empty:
-        st.info("No tactical plan has been set yet.")
+        st.info("⚠️ No tactical plan has been set yet.")
         return
+
     latest = tactics.sort_values("updated_at", ascending=False).iloc[0]
-    st.write(f"**Formation:** {latest['formation']}")
-    st.write(f"**Instructions:**\n{latest['instructions']}")
-    st.write(f"**Key Player Roles:**\n{latest['roles']}")
-    if latest.get("notes"):
-        st.write(f"**Notes:**\n{latest['notes']}")
-    st.caption(f"Last updated by {latest['updated_by']} on {latest['updated_at']}")
+
+    # Replace newlines with <br>
+    instructions_html = latest["instructions"].replace("\n", "<br>")
+    roles_html = latest["roles"].replace("\n", "<br>")
+    notes_html = latest["notes"].replace("\n", "<br>") if latest.get("notes") else ""
+
+    # Full HTML page
+    html_content = f"""
+    <html>
+    <head>
+        <style>
+            body {{
+                background: #0C182E;
+                color: white;
+                font-family: 'Segoe UI', sans-serif;
+                margin: 0;
+                padding: 0;
+            }}
+            .tactics-card {{
+                background: linear-gradient(160deg, #0C182E 40%, #000000 100%);
+                border: 1px solid rgba(0, 192, 250, 0.4);
+                border-radius: 20px;
+                padding: 30px;
+                margin: 20px auto;
+                max-width: 900px;
+                box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+            }}
+            .tactics-title {{
+                font-size: 30px;
+                font-weight: bold;
+                text-align: center;
+                color: #00C0FA;
+                margin-bottom: 25px;
+            }}
+            .tactics-subtitle {{
+                font-size: 22px;
+                font-weight: bold;
+                margin-top: 20px;
+                color: #00C0FA;
+                border-bottom: 2px solid rgba(0,192,250,0.4);
+                padding-bottom: 5px;
+            }}
+            .tactics-content {{
+                font-size: 18px;
+                margin-top: 10px;
+                line-height: 1.7;
+            }}
+            .tactics-footer {{
+                font-size: 14px;
+                color: rgba(255,255,255,0.7);
+                margin-top: 25px;
+                text-align: right;
+                font-style: italic;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="tactics-card">
+            <div class="tactics-title">{latest['formation']}</div>
+
+            <div class="tactics-subtitle">📝 Instructions</div>
+            <div class="tactics-content">{instructions_html}</div>
+
+            <div class="tactics-subtitle">🎯 Key Player Roles</div>
+            <div class="tactics-content">{roles_html}</div>
+    """
+
+    if notes_html:
+        html_content += f"""
+            <div class="tactics-subtitle">📌 Notes</div>
+            <div class="tactics-content">{notes_html}</div>
+        """
+
+    html_content += f"""
+            <div class="tactics-footer">
+                Last updated by <b>{latest['updated_by']}</b> on {latest['updated_at']}
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    # 🔥 Render HTML directly
+    components.html(html_content, height=700, scrolling=True)
+
+
+
+
 
 def player_tactics_board_page():
-    
-    st.markdown("<h2 class='main-heading'>👕 Player Tactics Board – View Only</h2>", unsafe_allow_html=True)
-    # Responsive wrapper + disable interaction
-    st.markdown(
-        """
-        <style>
-        @media (max-width: 768px) {
-            .player-iframe {
-                height: 100vh !important;  /* full screen on mobile */
-            }
-        }
-        </style>
+    st.subheader("📋 Tactics Board – Starting XI")
 
-        <div style="height:85vh; width:100%;">
-            <iframe src="https://tactical-board.com/uk/big-football"
-                    class="player-iframe"
-                    style="width:100%; height:100%; border:none; border-radius:12px; pointer-events:none;">
-            </iframe>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    pos_df = read_csv_safe(TACTICS_POS_FILE)
+    if pos_df.empty:
+        st.info("No tactics board set yet.")
+        return
 
-    st.caption("📌 This board is locked. Players can only view the tactics — editing is disabled.")
+    latest_time = pos_df["updated_at"].max()
+    latest = pos_df[pos_df["updated_at"] == latest_time].copy()
+    if latest.empty:
+        st.info("No tactics board found.")
+        return
+
+    formation = latest["formation"].iloc[0]
+    updated_by = latest["updated_by"].iloc[0] if "updated_by" in latest else "Manager"
+    st.caption(f"Formation: **{formation}** | Last updated by **{updated_by}** on {latest_time}")
+
+    # === Group by lines ===
+    gk_positions = ["GK"]
+    defence_positions = ["RB", "RCB", "CB", "LCB", "LB", "RWB", "LWB"]
+    midfield_positions = ["CDM", "RDM", "LDM", "RCM", "LCM", "CM", "CAM", "RAM", "LAM", "RM", "LM"]
+    attack_positions = ["RW", "LW", "ST", "RST", "LST"]
+
+    def get_line(pos):
+        if pos in gk_positions: return "Goalkeeper"
+        if pos in defence_positions: return "Defence"
+        if pos in midfield_positions: return "Midfield"
+        if pos in attack_positions: return "Attack"
+        return "Other"
+
+    latest["line"] = latest["position"].apply(get_line)
+
+    position_order = {
+        "GK": 0, "RB": 1, "RCB": 2, "CB": 3, "LCB": 4, "LB": 5,
+        "RWB": 6, "LWB": 7,
+        "CDM": 8, "RDM": 9, "LDM": 10, "RCM": 11, "LCM": 12,
+        "CM": 13, "CAM": 14, "RAM": 15, "LAM": 16,
+        "RM": 17, "LM": 18,
+        "RW": 19, "LW": 20, "ST": 21, "RST": 22, "LST": 23
+    }
+    latest["order"] = latest["position"].map(position_order).fillna(99)
+    latest = latest.sort_values(["line", "order"])
+
+    # === THEME COLORS ===
+    DARK_BLUE = "#0C182E"
+    BLUE = "#015EEA"
+    SKY_BLUE = "#00C0FA"
+    WHITE = "#FFFFFF"
+
+    st.markdown(f"""
+    <style>
+    /* Import professional sporty fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Orbitron:wght@700;900&display=swap');
+
+    /* Background */
+    .stApp {{
+        background: linear-gradient(160deg, {DARK_BLUE} 40%, #000000 100%);
+    }}
+    /* Section titles */
+    .line-title {{
+        font-family: 'Oswald', sans-serif;
+        font-size: 24px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        text-align: center;
+        margin: 25px 0 15px 0;
+        color: {SKY_BLUE};
+        text-shadow: 0px 0px 6px rgba(255,255,255,0.6);
+        font-stretch: expanded;
+        font-style: oblique;
+    }}
+    /* Player grid */
+    .line-grid {{
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 18px;
+        margin-bottom: 40px;
+    }}
+    /* Player card */
+    .player-card {{
+        background: linear-gradient(145deg, {BLUE} 10%, {DARK_BLUE} 90%);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 18px;
+        padding: 18px;
+        text-align: center;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }}
+    .player-card:hover {{
+        transform: scale(1.07);
+        box-shadow: 0 0 20px {SKY_BLUE};
+    }}
+    /* Position label */
+    .pos-label {{
+        font-family: 'Oswald', sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        font-stretch: semi-expanded;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: {SKY_BLUE};
+        margin-bottom: 8px;
+    }}
+    /* Player name */
+    .player-name {{
+        font-family: 'Orbitron', sans-serif;
+        font-size: 24px;
+        font-weight: 900;
+        font-stretch: expanded;
+        font-style: oblique;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: {WHITE};
+    }}
+    </style>
+""", unsafe_allow_html=True)
+
+    # === Render cards by line ===
+    for line in ["Goalkeeper", "Defence", "Midfield", "Attack"]:
+        line_players = latest[latest["line"] == line]
+        if not line_players.empty:
+            st.markdown(f"<div class='line-title'>{line}</div>", unsafe_allow_html=True)
+            st.markdown("<div class='line-grid'>", unsafe_allow_html=True)
+            for _, row in line_players.iterrows():
+                player_name = row["player_name"] if row["player_name"] else "—"
+                st.markdown(f"""
+                    <div class="player-card">
+                        <div class="pos-label">{row['position']}</div>
+                        <div class="player-name">{player_name}</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+
+
+
+
+
+
+
 
 
 
@@ -2284,9 +2584,9 @@ if __name__ == "__main__":
     main()
 
 ## HEAD => SUPER EXP BLACK OBLIQUE
-## SUPER EXP OBLIQUE
+##  sub head SUPER EXP OBLIQUE
 
-## EXPANDED MID
+##  text =>EXPANDED MID
 # WIDE MID
 
 
