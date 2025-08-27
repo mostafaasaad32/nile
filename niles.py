@@ -94,6 +94,25 @@ st.set_page_config(
     layout="wide",  
     initial_sidebar_state="collapsed"
 )
+st.markdown("""
+<style>
+/* 🔒 Hide Streamlit's fullscreen icon on widgets */
+button[title="View fullscreen"] {
+    display: none !important;
+}
+
+/* 🔒 Hide "Made with Streamlit" watermark inside widgets */
+[data-testid="stDecoration"] {
+    display: none !important;
+}
+
+/* 🔒 Hide extra toolbars */
+[data-testid="stToolbar"], .viewerBadge_container__1QSob {
+    display: none !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ===================================
 # CLEAN FINAL THEME + FONT STYLES
 # ===================================
