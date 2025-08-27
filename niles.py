@@ -276,6 +276,51 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   .glass { padding: 10px !important; border-radius: 14px !important; }
   h1, h2, h3, p, div, span { font-size: 14px !important; }
 }
+
+/* ====== NAVBAR (Mobile Bottom Navigation Fixed) ====== */
+.navbar {
+    position: fixed;
+    bottom: 0;
+    left: 0; right: 0;
+    height: 55px;
+    background: #111827; /* dark slate */
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-top: 1px solid #333;
+    z-index: 10000; /* keep on top */
+    padding-bottom: env(safe-area-inset-bottom); /* for iOS/Android safe area */
+    box-sizing: border-box;
+}
+
+/* Each link */
+.navbar a {
+    flex: 1;
+    text-align: center;
+    color: #9CA3AF;  /* gray-400 */
+    font-size: 20px;
+    text-decoration: none;
+    padding: 6px 0;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Active tab */
+.navbar a.active {
+    color: #10B981; /* green-500 */
+    font-weight: bold;
+}
+
+/* Hover effect */
+.navbar a:hover {
+    color: white;
+}
+
+/* Add bottom padding to content so it's not hidden behind navbar */
+.block-container {
+    padding-bottom: 70px !important;
+}
+
+
 </style>
 """
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
