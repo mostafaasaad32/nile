@@ -87,13 +87,21 @@ st.markdown("""
 """, unsafe_allow_html=True)
 LOGO_URL = "https://github.com/mostafaasaad32/nile/raw/master/images/Artboard_1.png"
 
-# Setup page config
 st.set_page_config(
     page_title="Nile SC Manager",
     page_icon="⚽",
-    layout="wide",  
+    layout="wide",   # ✅ full width
     initial_sidebar_state="collapsed"
 )
+
+# ✅ Mobile scaling
+st.markdown(
+    """
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    """,
+    unsafe_allow_html=True
+)
+
 st.markdown("""
 <style>
 /* 🔒 Hide Streamlit's fullscreen icon on widgets */
@@ -150,27 +158,33 @@ div.viewerBadge_container__1QSob {
     visibility: hidden !important;
 }
 
-/* ====== CUSTOM FONT IMPORTS ====== */
-@font-face {
-  font-family: 'SUPER EXP BLACK OBLIQUE';
-  src: url('/fonts/SuperExpBlackOblique.woff2') format('woff2'),
-       url('/fonts/SuperExpBlackOblique.ttf') format('truetype');
-  font-weight: 900;
-  font-style: oblique;
+/* ====== FORCE FULL-WIDTH INPUTS & BUTTONS ====== */
+.stTextInput, .stTextArea, .stSelectbox, .stNumberInput, .stDateInput, .stTimeInput,
+.stMultiSelect, .stFileUploader, .stDownloadButton, .stSlider, .stRadio, .stCheckbox,
+.stButton > button {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
 }
-@font-face {
-  font-family: 'SUPER EXP OBLIQUE';
-  src: url('/fonts/SuperExpOblique.woff2') format('woff2'),
-       url('/fonts/SuperExpOblique.ttf') format('truetype');
-  font-weight: 700;
-  font-style: oblique;
-}
-@font-face {
-  font-family: 'WIDE MEDIUM';
-  src: url('/fonts/WideMedium.woff2') format('woff2'),
-       url('/fonts/WideMedium.ttf') format('truetype');
-  font-weight: 500;
+
+/* Buttons styling */
+.stButton > button {
+  font-family: 'WIDE MEDIUM', sans-serif !important;
+  font-weight: 500 !important;
   font-stretch: expanded;
+  font-size: 16px !important;
+  letter-spacing: 0.5px;
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-blue)) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 10px 16px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+  transition: 0.2s ease-in-out !important;
+}
+.stButton > button:hover {
+  opacity: 0.9 !important;
+  transform: translateY(-1px) !important;
 }
 
 /* ====== COLOR PALETTE ====== */
@@ -207,26 +221,6 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   backdrop-filter: blur(10px);
   border-radius: 18px;
   padding: 16px;
-}
-
-/* ====== BUTTONS ====== */
-.stButton > button {
-  font-family: 'WIDE MEDIUM', sans-serif !important;
-  font-weight: 500 !important;
-  font-stretch: expanded;
-  font-size: 16px !important;
-  letter-spacing: 0.5px;
-  background: linear-gradient(90deg, var(--accent-green), var(--accent-blue)) !important;
-  color: white !important;
-  border: none !important;
-  border-radius: 12px !important;
-  padding: 10px 16px !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
-  transition: 0.2s ease-in-out !important;
-}
-.stButton > button:hover {
-  opacity: 0.9 !important;
-  transform: translateY(-1px) !important;
 }
 
 /* ====== TITLES ====== */
@@ -337,6 +331,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 }
 </style>
 """
+
 
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
