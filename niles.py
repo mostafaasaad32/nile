@@ -342,6 +342,22 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 """
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* 🚫 Remove Streamlit widget toolbar (appears on focus) */
+[data-testid="stDecoration"],
+[data-testid="StyledFullScreenButton"],
+[data-testid="StyledToolbar"],
+button[title="View fullscreen"],
+.stDecoration,
+.stToolbar {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 
 
