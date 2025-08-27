@@ -123,7 +123,7 @@ GLOBAL_CSS = """
 html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   background-color: var(--app-bg) !important;
   color: white !important;
-  overflow-x: hidden !important; /* prevent horizontal scroll on mobile */
+  overflow-x: hidden !important; /* prevent horizontal scroll */
 }
 
 /* ====== SIDEBAR ====== */
@@ -217,54 +217,60 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 
 /* ====== TABLES ====== */
 [data-testid="stDataFrame"] {
-  max-width: 100% !important;
+  display: block !important;
   overflow-x: auto !important;
+  white-space: nowrap !important;
+  max-width: 100% !important;
   font-size: 13px !important;
 }
 
-/* ====== TABS ====== */
-.stTabs [role="tab"] {
-  font-size: 15px !important;
-  padding: 10px 16px !important;
-}
-.stTabs [role="tab"][aria-selected="true"] {
-  border-bottom: 3px solid var(--accent-green) !important;
-}
-
 /* ====== PLOTS & IMAGES ====== */
-.stPlotlyChart, .stImage {
+.stPlotlyChart, .stAltairChart, .stVegaLiteChart, .stPydeckChart, .stImage {
   max-width: 100% !important;
+  width: 100% !important;
   height: auto !important;
+  overflow-x: auto !important;
 }
 
-/* ====== NAVBAR (Mobile Bottom Navigation) ====== */
+/* ====== NAVBAR (Mobile Bottom Navigation Fixed) ====== */
 .navbar {
     position: fixed;
     bottom: 0;
     left: 0; right: 0;
-    height: 50px;
-    background: #111827; /* dark slate */
+    height: 60px;  /* touch-friendly */
+    background: #111827;
     display: flex;
     justify-content: space-around;
     align-items: center;
     border-top: 1px solid #333;
-    z-index: 9999;
+    z-index: 10000;
+
+    /* Safe-area padding for iOS/Android */
+    padding-bottom: env(safe-area-inset-bottom, 10px);
+    box-sizing: border-box;
 }
+
+/* Nav icons */
 .navbar a {
     flex: 1;
     text-align: center;
-    color: #9CA3AF;  /* gray-400 */
-    font-size: 20px;
+    color: #9CA3AF;
+    font-size: 22px;
     text-decoration: none;
-    padding: 5px;
+    padding: 6px 0;
     transition: all 0.2s ease-in-out;
 }
 .navbar a.active {
-    color: #10B981; /* green-500 */
+    color: #10B981;
     font-weight: bold;
 }
 .navbar a:hover {
     color: white;
+}
+
+/* Ensure page content is not hidden behind nav bar */
+.block-container {
+    padding-bottom: 90px !important;
 }
 
 /* ====== MOBILE RESPONSIVE ====== */
@@ -276,54 +282,10 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   .glass { padding: 10px !important; border-radius: 14px !important; }
   h1, h2, h3, p, div, span { font-size: 14px !important; }
 }
-
-/* ====== NAVBAR (Mobile Bottom Navigation Fixed) ====== */
-.navbar {
-    position: fixed;
-    bottom: 0;
-    left: 0; right: 0;
-    height: 55px;
-    background: #111827; /* dark slate */
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    border-top: 1px solid #333;
-    z-index: 10000; /* keep on top */
-    padding-bottom: env(safe-area-inset-bottom); /* for iOS/Android safe area */
-    box-sizing: border-box;
-}
-
-/* Each link */
-.navbar a {
-    flex: 1;
-    text-align: center;
-    color: #9CA3AF;  /* gray-400 */
-    font-size: 20px;
-    text-decoration: none;
-    padding: 6px 0;
-    transition: all 0.2s ease-in-out;
-}
-
-/* Active tab */
-.navbar a.active {
-    color: #10B981; /* green-500 */
-    font-weight: bold;
-}
-
-/* Hover effect */
-.navbar a:hover {
-    color: white;
-}
-
-/* Add bottom padding to content so it's not hidden behind navbar */
-.block-container {
-    padding-bottom: 70px !important;
-}
-
-
 </style>
 """
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+
 
 
 
@@ -2236,34 +2198,54 @@ def bottom_nav(pages: dict, default: str):
     # Build nav bar HTML
     nav_html = '<div class="navbar">'
     for label in pages.keys():
-        nav_html += f'<a href="?page={label}">{label}</a>'
+        active_class = "active" if label == current else ""
+        nav_html += f'<a class="{active_class}" href="?page={label}">{label}</a>'
     nav_html += "</div>"
 
+    # Inject styles + nav HTML
     st.markdown("""
     <style>
+    /* Bottom Navigation Bar */
     .navbar {
         position: fixed;
         bottom: 0;
         left: 0; right: 0;
-        height: 60px;
+        height: 60px;  /* enough for thumb press */
         background: #0A1128;
         display: flex;
         justify-content: space-around;
         align-items: center;
         border-top: 1px solid #222;
         z-index: 9999;
+
+        /* Fix cut-off on mobile safe areas */
+        padding-bottom: env(safe-area-inset-bottom, 10px);
+        box-sizing: border-box;
     }
     .navbar a {
-        color: white;
+        flex: 1;
+        text-align: center;
+        color: #9CA3AF;
         text-decoration: none;
-        font-size: 14px;
+        font-size: 20px;
+        padding: 6px 0;
+        transition: all 0.2s ease-in-out;
+    }
+    .navbar a.active {
+        color: #10B981;  /* highlight active */
         font-weight: bold;
     }
     .navbar a:hover {
-        opacity: 0.8;
+        color: white;
+    }
+
+    /* Prevent content from being hidden behind nav bar */
+    .block-container {
+        padding-bottom: 90px !important;
     }
     </style>
     """ + nav_html, unsafe_allow_html=True)
+
 
 
 # -------------------------------
