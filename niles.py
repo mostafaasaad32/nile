@@ -298,11 +298,7 @@ st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 # -------------------------------
 # CONFIG
 # -------------------------------
-st.set_page_config(
-    page_title="Nile SC Manager",
-    page_icon="⚽",
-    layout="wide"
-)
+
 
 DATA_DIR = "data"
 UPLOADS_DIR = "uploads"
