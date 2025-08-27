@@ -69,10 +69,10 @@ LOGO_URL = "https://github.com/mostafaasaad32/nile/raw/master/images/Artboard_1.
 # Setup page config
 st.set_page_config(
     page_title="Nile SC Manager",
-    page_icon=LOGO_URL,
-    layout="centered"
+    page_icon="⚽",
+    layout="centered",  
+    initial_sidebar_state="collapsed"
 )
-
 # ===================================
 # CLEAN FINAL THEME + FONT STYLES
 # ===================================
@@ -275,13 +275,29 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 
 /* ====== MOBILE RESPONSIVE ====== */
 @media (max-width: 600px) {
-  .block-container { padding: 0.5rem !important; max-width: 100% !important; }
-  .app-title { font-size: 22px !important; }
-  .app-subtitle { font-size: 14px !important; }
-  .stButton > button { font-size: 14px !important; padding: 6px 10px !important; }
-  .glass { padding: 10px !important; border-radius: 14px !important; }
-  h1, h2, h3, p, div, span { font-size: 14px !important; }
+  .block-container { 
+    padding: 0.5rem !important; 
+    max-width: 100% !important; 
+  }
+  h1, h2, h3, .app-title, .main-heading {
+    font-size: 18px !important;
+  }
+  .app-subtitle, p, div, span {
+    font-size: 13px !important;
+  }
+  .stButton > button {
+    font-size: 14px !important;
+    padding: 8px 12px !important;
+    width: 100% !important; /* ✅ full width for thumbs */
+  }
+  .glass { padding: 8px !important; border-radius: 12px !important; }
+  .stDataFrame { font-size: 12px !important; }
+  .stPlotlyChart, .stAltairChart {
+    height: auto !important;
+    min-height: 280px !important; /* ✅ smaller for phones */
+  }
 }
+
 </style>
 """
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
@@ -837,14 +853,14 @@ def page_dashboard():
     st.markdown("<h2 class='main-heading'>📋 Match Results</h2>", unsafe_allow_html=True)
 
     if not past_matches.empty:
-        st.dataframe(past_matches.reset_index(drop=True), use_container_width=True)
+        st.dataframe(past_matches.reset_index(drop=True), use_container_width=True,height=300)
     else:
         st.caption("No results yet.")
 
     
     st.markdown("<h2 class='main-heading'>📅 Upcoming Matches</h2>", unsafe_allow_html=True)
     if not upcoming_matches.empty:
-        st.dataframe(upcoming_matches.reset_index(drop=True), use_container_width=True)
+        st.dataframe(upcoming_matches.reset_index(drop=True), use_container_width=True,height=300)
     else:
         st.caption("No upcoming fixtures.")
 
@@ -890,7 +906,7 @@ def page_dashboard():
         st.markdown("<h2 class='main-heading'>Best Average Rating (min 3 matches)</h2>", unsafe_allow_html=True)
         best = agg[agg["matches"] >= 3].sort_values("avg_rating", ascending=False)
         best.insert(0, "Rank", best["avg_rating"].rank(method="min", ascending=False).astype(int))
-        st.dataframe(best, use_container_width=True)
+        st.dataframe(best, use_container_width=True,height=300)
 
 
 
@@ -976,7 +992,7 @@ def admin_matches_page():
         if matches.empty:
             st.info("No matches yet.")
         else:
-            st.dataframe(matches.sort_values("date", ascending=False), use_container_width=True)
+            st.dataframe(matches.sort_values("date", ascending=False), use_container_width=True,height=300)
             del_mid = st.selectbox(
                 "Delete match",
                 options=matches["match_id"].astype(int).tolist(),
@@ -1189,7 +1205,7 @@ def admin_training_sessions_page():
         sessions["dt"] = pd.to_datetime(sessions["date"] + " " + sessions["time"])
     except Exception:
         sessions["dt"] = pd.to_datetime(sessions["date"], errors="coerce")
-    st.dataframe(sessions.drop(columns=["dt"]).sort_values(["date", "time"]), use_container_width=True)
+    st.dataframe(sessions.drop(columns=["dt"]).sort_values(["date", "time"]), use_container_width=True,height=300)
 
     del_id = st.text_input("Delete session by session_id")
     if st.button("Delete Session"):
@@ -1237,7 +1253,7 @@ def manager_training_attendance_overview():
         st.info("No attendance submitted yet.")
     else:
         table = subset[["player_name","status"]].sort_values("player_name").reset_index(drop=True)
-        st.dataframe(table.style.applymap(_attendance_color, subset=["status"]), use_container_width=True)
+        st.dataframe(table.style.applymap(_attendance_color, subset=["status"]), use_container_width=True,height=300)
 
         # quick counts
         y = (subset["status"].str.lower() == "yes").sum()
@@ -1314,7 +1330,7 @@ def player_training_attendance_page(player_name: str):
     else:
         pct = round((mine["status"].str.lower()=="yes").mean()*100, 1)
         st.metric("Attendance %", pct)
-        st.dataframe(mine.sort_values(["date","timestamp"], ascending=False), use_container_width=True)
+        st.dataframe(mine.sort_values(["date","timestamp"], ascending=False), use_container_width=True,height=300)
 
 def admin_training_attendance_all():
     
@@ -1328,13 +1344,13 @@ def admin_training_attendance_all():
     # Color table
     st.caption("Latest Attendance Records")
     show = att.sort_values("timestamp", ascending=False).copy()
-    st.dataframe(show.style.applymap(_attendance_color, subset=["status"]), use_container_width=True)
+    st.dataframe(show.style.applymap(_attendance_color, subset=["status"]), use_container_width=True,height=300)
 
     # Aggregates by player
     st.subheader("By Player – Attendance %")
     byp = att.groupby("player_name")["status"].apply(lambda s: round((s.str.lower()=="yes").mean()*100,1)).reset_index()
     byp.columns = ["player_name","attendance_%"]
-    st.dataframe(byp.sort_values("attendance_%", ascending=False), use_container_width=True)
+    st.dataframe(byp.sort_values("attendance_%", ascending=False), use_container_width=True,height=300)
 
     # Aggregates by session
     st.subheader("By Session – Yes/No Counts")
@@ -1342,7 +1358,7 @@ def admin_training_attendance_all():
     no_counts  = (att["status"].str.lower()=="no").groupby(att["session_id"]).sum().rename("no")
     agg = pd.concat([yes_counts, no_counts], axis=1).fillna(0).astype(int).reset_index()
     agg = agg.merge(sessions[["session_id","date","time","title"]], on="session_id", how="left")
-    st.dataframe(agg.sort_values(["date","time"]), use_container_width=True)
+    st.dataframe(agg.sort_values(["date","time"]), use_container_width=True,height=300)
 
 
 
@@ -1590,7 +1606,7 @@ def draw_pitch(assignments_df: pd.DataFrame, title: str = "Tactics Board"):
         ))
     fig.update_xaxes(range=[0,100], showgrid=False, visible=False)
     fig.update_yaxes(range=[0,100], showgrid=False, visible=False, scaleanchor="x", scaleratio=1)
-    fig.update_layout(height=600, title=title, margin=dict(l=20,r=20,t=40,b=20))
+    fig.update_layout(height=400, title=title, margin=dict(l=10,r=10,t=40,b=10))
     st.plotly_chart(fig, use_container_width=True)
 
 def manager_tactics_text_page():
@@ -1849,17 +1865,18 @@ def player_tactics_text_page():
 def player_tactics_board_page():
     st.markdown(
         """
-        <h2 style='text-align: center; color: #2563EB;'>
+        <h2 style='text-align: center; color: #2563EB; margin-bottom: 5px;'>
             👕 Player Tactics Board – View Only
         </h2>
-        <p style='text-align: center; color: gray;'>
+        <p style='text-align: center; color: gray; font-size: 14px; margin-top: 0;'>
             This tactics board is <b>locked</b>. You can view it, but not interact with it.
         </p>
 
         <style>
         .locked-iframe-container {
             position: relative;
-            width: 95%;
+            width: 100%;
+            max-width: 900px;  /* keeps it clean on large screens */
             margin: auto;
             border: 2px solid #2563EB;
             border-radius: 12px;
@@ -1867,6 +1884,9 @@ def player_tactics_board_page():
             overflow: hidden;
         }
         .locked-iframe-container iframe {
+            width: 100%;
+            height: 70vh; /* responsive height: 70% of viewport */
+            min-height: 400px;
             border-radius: 12px;
         }
         .locked-iframe-overlay {
@@ -1876,12 +1896,24 @@ def player_tactics_board_page():
             background: transparent;
             z-index: 999;
         }
+
+        /* 📱 Mobile adjustments */
+        @media (max-width: 768px) {
+            .locked-iframe-container iframe {
+                height: 60vh;   /* smaller height on tablets/phones */
+                min-height: 300px;
+            }
+        }
+        @media (max-width: 480px) {
+            .locked-iframe-container iframe {
+                height: 55vh;   /* even smaller height on small phones */
+                min-height: 250px;
+            }
+        }
         </style>
 
         <div class="locked-iframe-container">
-            <iframe src="https://tactical-board.com/uk/big-football"
-                    width="100%" height="650" frameborder="0">
-            </iframe>
+            <iframe src="https://tactical-board.com/uk/big-football" frameborder="0"></iframe>
             <div class="locked-iframe-overlay"></div>
         </div>
         """,
@@ -1889,7 +1921,6 @@ def player_tactics_board_page():
     )
 
     st.caption("📌 Manager controls this board. Players can only view.")
-
 
 
 
@@ -1922,7 +1953,7 @@ def fan_public_page():
     wall = read_csv_safe(FANWALL_FILE)
     if not wall.empty:
         st.write("**Recent approved messages**")
-        st.dataframe(wall[wall["approved"]==True].sort_values("timestamp", ascending=False), use_container_width=True)
+        st.dataframe(wall[wall["approved"]==True].sort_values("timestamp", ascending=False), use_container_width=True,height=300)
 
 # -------------------------------
 # ADMIN: FAN WALL MODERATION & REPORTS
@@ -1935,7 +1966,7 @@ def admin_fanwall_moderation():
     if wall.empty:
         st.info("No messages yet.")
         return
-    st.dataframe(wall, use_container_width=True)
+    st.dataframe(wall, use_container_width=True,height=300)
     idx = st.number_input("Row index to toggle approval", 0, len(wall)-1, 0)
     if st.button("Toggle approval"):
         wall.loc[idx, "approved"] = not bool(wall.loc[idx, "approved"])
@@ -2020,7 +2051,7 @@ def page_best_xi():
     if sel_df.empty:
         st.info("Not enough data for this formation / filters.")
         return
-    st.dataframe(sel_df.head(11), use_container_width=True)
+    st.dataframe(sel_df.head(11), use_container_width=True,height=300)
 
 
 def admin_delete_all_data():
@@ -2051,15 +2082,7 @@ def admin_delete_all_data():
                 st.error(f"Error while deleting: {e}")
 
 
-# -------------------------------
-# ROUTER PER ROLE (Tabs Layout with Icons)
-# -------------------------------
-# -------------------------------
-# NAVIGATION HELPERS
-# -------------------------------
-# ============================
-# Professional Bottom Nav
-# ============================
+
 
 # ============================
 # Professional Tab Navigation
