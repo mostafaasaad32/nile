@@ -2186,48 +2186,58 @@ def admin_delete_all_data():
 # -------------------------------
 import streamlit as st
 
-import streamlit as st
-
 def bottom_nav(pages: dict, default: str):
-    """Render bottom navigation bar using Streamlit session_state."""
+    """Fixed compact bottom navigation bar with Streamlit buttons."""
+
+    # Init session state
     if "current_page" not in st.session_state:
         st.session_state.current_page = default
 
-    # Render current page
+    # Render current page content
     pages[st.session_state.current_page]()
 
-    # Layout for nav bar
-    cols = st.columns(len(pages))
-
-    # Render each button in nav
-    for i, (label, func) in enumerate(pages.items()):
-        if cols[i].button(label, key=f"nav_{label}"):
-            st.session_state.current_page = label
-            st.rerun()
-
-    # Inject styles (to make it fixed at bottom)
+    # Fixed bottom nav bar styles
     st.markdown("""
     <style>
-    div[data-testid="column"] > div > button {
-        background: none;
-        border: none;
-        font-size: 20px;
-        color: #9CA3AF;
-        padding: 10px;
-        width: 100%;
+    .bottom-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0; right: 0;
+        height: 55px;  /* smaller bar height */
+        background: #0A1128;
+        border-top: 1px solid #222;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        z-index: 1000;
     }
-    div[data-testid="column"] > div > button:hover {
-        color: white;
+    .bottom-bar button {
+        font-size: 14px !important;   /* smaller font */
+        padding: 4px 6px !important;  /* compact padding */
+        background: none !important;
+        border: none !important;
+        color: #9CA3AF !important;
     }
-    div[data-testid="column"] > div > button:focus {
+    .bottom-bar button:hover {
+        color: white !important;
+    }
+    .bottom-bar button:focus {
         color: #10B981 !important;
         font-weight: bold !important;
     }
-    .block-container {
-        padding-bottom: 100px !important;
-    }
+    .block-container { padding-bottom: 80px !important; } /* leave space above bar */
     </style>
     """, unsafe_allow_html=True)
+
+    # Place nav buttons inside bar
+    nav_cols = st.columns(len(pages))
+    for i, (label, func) in enumerate(pages.items()):
+        with nav_cols[i]:
+            if st.button(label, key=f"nav_{label}"):
+                st.session_state.current_page = label
+                st.rerun()
+
+
 
 
 
