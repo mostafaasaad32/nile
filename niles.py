@@ -2202,7 +2202,6 @@ def bottom_nav(pages: dict, default: str):
         nav_html += f'<a class="{active_class}" href="?page={label}">{label}</a>'
     nav_html += "</div>"
 
-    # Inject styles + nav HTML
     st.markdown("""
     <style>
     /* Bottom Navigation Bar */
@@ -2210,7 +2209,7 @@ def bottom_nav(pages: dict, default: str):
         position: fixed;
         bottom: 0;
         left: 0; right: 0;
-        height: 60px;  /* enough for thumb press */
+        height: 65px; /* slightly taller */
         background: #0A1128;
         display: flex;
         justify-content: space-around;
@@ -2218,33 +2217,38 @@ def bottom_nav(pages: dict, default: str):
         border-top: 1px solid #222;
         z-index: 9999;
 
-        /* Fix cut-off on mobile safe areas */
-        padding-bottom: env(safe-area-inset-bottom, 10px);
+        /* ✅ Critical fix: support safe-area for iOS & Android */
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
         box-sizing: border-box;
     }
+
     .navbar a {
         flex: 1;
         text-align: center;
         color: #9CA3AF;
         text-decoration: none;
-        font-size: 20px;
-        padding: 6px 0;
+        font-size: 22px; /* bigger for thumb press */
+        line-height: 1.4;
+        padding: 4px 0;
         transition: all 0.2s ease-in-out;
     }
+
     .navbar a.active {
-        color: #10B981;  /* highlight active */
+        color: #10B981;
         font-weight: bold;
     }
+
     .navbar a:hover {
         color: white;
     }
 
-    /* Prevent content from being hidden behind nav bar */
+    /* ✅ Ensure page content never overlaps the nav */
     .block-container {
-        padding-bottom: 90px !important;
+        padding-bottom: 110px !important; /* matches nav height + safe area */
     }
     </style>
     """ + nav_html, unsafe_allow_html=True)
+
 
 
 
