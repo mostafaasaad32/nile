@@ -2189,11 +2189,10 @@ import streamlit as st
 def bottom_nav(pages: dict, default: str):
     """Fixed compact bottom navigation bar with Streamlit buttons."""
 
-    # Init session state
     if "current_page" not in st.session_state:
         st.session_state.current_page = default
 
-    # Render current page content
+    # Render the current page
     pages[st.session_state.current_page]()
 
     # Fixed bottom nav bar styles
@@ -2203,7 +2202,7 @@ def bottom_nav(pages: dict, default: str):
         position: fixed;
         bottom: 0;
         left: 0; right: 0;
-        height: 55px;  /* smaller bar height */
+        height: 55px;
         background: #0A1128;
         border-top: 1px solid #222;
         display: flex;
@@ -2212,8 +2211,8 @@ def bottom_nav(pages: dict, default: str):
         z-index: 1000;
     }
     .bottom-bar button {
-        font-size: 14px !important;   /* smaller font */
-        padding: 4px 6px !important;  /* compact padding */
+        font-size: 14px !important;
+        padding: 4px 6px !important;
         background: none !important;
         border: none !important;
         color: #9CA3AF !important;
@@ -2225,7 +2224,7 @@ def bottom_nav(pages: dict, default: str):
         color: #10B981 !important;
         font-weight: bold !important;
     }
-    .block-container { padding-bottom: 80px !important; } /* leave space above bar */
+    .block-container { padding-bottom: 80px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -2236,6 +2235,7 @@ def bottom_nav(pages: dict, default: str):
             if st.button(label, key=f"nav_{label}"):
                 st.session_state.current_page = label
                 st.rerun()
+
 
 
 
