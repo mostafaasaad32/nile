@@ -1679,7 +1679,6 @@ def manager_tactics_board_page():
     st.markdown(
         """
         <style>
-        /* Zoom effect */
         .tactics-iframe-wrapper {
             height: 85vh;
             width: 100%;
@@ -1687,18 +1686,24 @@ def manager_tactics_board_page():
             border-radius: 12px;
         }
         .tactics-iframe {
-            width: 90%;   /* zoom in horizontally */
-            height: 90%;  /* zoom in vertically */
-            transform: scale(1.2);  /* zoom level */
+            width: 120%;
+            height: 120%;
+            transform: scale(1.2);
             transform-origin: top left;
             border: none;
         }
+
+        /* 📱 Mobile friendly */
         @media (max-width: 768px) {
-            .tactics-iframe-wrapper { height: 100vh; }
+            .tactics-iframe-wrapper {
+                height: 100vh;   /* full screen on phones */
+                border-radius: 0; /* use all space */
+            }
             .tactics-iframe {
-                width: 140%;
-                height: 140%;
-                transform: scale(1.4); /* more zoom for mobile */
+                width: 110%;     /* small zoom for mobile */
+                height: 110%;
+                transform: scale(1.1);
+                transform-origin: top left;
             }
         }
         </style>
