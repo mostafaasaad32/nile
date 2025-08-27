@@ -853,14 +853,14 @@ def page_dashboard():
     st.markdown("<h2 class='main-heading'>📋 Match Results</h2>", unsafe_allow_html=True)
 
     if not past_matches.empty:
-        st.dataframe(past_matches.reset_index(drop=True), use_container_width=True,height=300)
+        st.dataframe(past_matches.reset_index(drop=True), use_container_width=True)
     else:
         st.caption("No results yet.")
 
     
     st.markdown("<h2 class='main-heading'>📅 Upcoming Matches</h2>", unsafe_allow_html=True)
     if not upcoming_matches.empty:
-        st.dataframe(upcoming_matches.reset_index(drop=True), use_container_width=True,height=300)
+        st.dataframe(upcoming_matches.reset_index(drop=True), use_container_width=True)
     else:
         st.caption("No upcoming fixtures.")
 
@@ -906,7 +906,7 @@ def page_dashboard():
         st.markdown("<h2 class='main-heading'>Best Average Rating (min 3 matches)</h2>", unsafe_allow_html=True)
         best = agg[agg["matches"] >= 3].sort_values("avg_rating", ascending=False)
         best.insert(0, "Rank", best["avg_rating"].rank(method="min", ascending=False).astype(int))
-        st.dataframe(best, use_container_width=True,height=300)
+        st.dataframe(best, use_container_width=True)
 
 
 
@@ -992,7 +992,7 @@ def admin_matches_page():
         if matches.empty:
             st.info("No matches yet.")
         else:
-            st.dataframe(matches.sort_values("date", ascending=False), use_container_width=True,height=300)
+            st.dataframe(matches.sort_values("date", ascending=False), use_container_width=True)
             del_mid = st.selectbox(
                 "Delete match",
                 options=matches["match_id"].astype(int).tolist(),
@@ -1205,7 +1205,7 @@ def admin_training_sessions_page():
         sessions["dt"] = pd.to_datetime(sessions["date"] + " " + sessions["time"])
     except Exception:
         sessions["dt"] = pd.to_datetime(sessions["date"], errors="coerce")
-    st.dataframe(sessions.drop(columns=["dt"]).sort_values(["date", "time"]), use_container_width=True,height=300)
+    st.dataframe(sessions.drop(columns=["dt"]).sort_values(["date", "time"]), use_container_width=True)
 
     del_id = st.text_input("Delete session by session_id")
     if st.button("Delete Session"):
@@ -1253,7 +1253,7 @@ def manager_training_attendance_overview():
         st.info("No attendance submitted yet.")
     else:
         table = subset[["player_name","status"]].sort_values("player_name").reset_index(drop=True)
-        st.dataframe(table.style.applymap(_attendance_color, subset=["status"]), use_container_width=True,height=300)
+        st.dataframe(table.style.applymap(_attendance_color, subset=["status"]), use_container_width=True)
 
         # quick counts
         y = (subset["status"].str.lower() == "yes").sum()
@@ -1330,7 +1330,7 @@ def player_training_attendance_page(player_name: str):
     else:
         pct = round((mine["status"].str.lower()=="yes").mean()*100, 1)
         st.metric("Attendance %", pct)
-        st.dataframe(mine.sort_values(["date","timestamp"], ascending=False), use_container_width=True,height=300)
+        st.dataframe(mine.sort_values(["date","timestamp"], ascending=False), use_container_width=True)
 
 def admin_training_attendance_all():
     
@@ -1344,13 +1344,13 @@ def admin_training_attendance_all():
     # Color table
     st.caption("Latest Attendance Records")
     show = att.sort_values("timestamp", ascending=False).copy()
-    st.dataframe(show.style.applymap(_attendance_color, subset=["status"]), use_container_width=True,height=300)
+    st.dataframe(show.style.applymap(_attendance_color, subset=["status"]), use_container_width=True)
 
     # Aggregates by player
     st.subheader("By Player – Attendance %")
     byp = att.groupby("player_name")["status"].apply(lambda s: round((s.str.lower()=="yes").mean()*100,1)).reset_index()
     byp.columns = ["player_name","attendance_%"]
-    st.dataframe(byp.sort_values("attendance_%", ascending=False), use_container_width=True,height=300)
+    st.dataframe(byp.sort_values("attendance_%", ascending=False), use_container_width=True)
 
     # Aggregates by session
     st.subheader("By Session – Yes/No Counts")
@@ -1358,7 +1358,7 @@ def admin_training_attendance_all():
     no_counts  = (att["status"].str.lower()=="no").groupby(att["session_id"]).sum().rename("no")
     agg = pd.concat([yes_counts, no_counts], axis=1).fillna(0).astype(int).reset_index()
     agg = agg.merge(sessions[["session_id","date","time","title"]], on="session_id", how="left")
-    st.dataframe(agg.sort_values(["date","time"]), use_container_width=True,height=300)
+    st.dataframe(agg.sort_values(["date","time"]), use_container_width=True)
 
 
 
