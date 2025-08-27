@@ -2127,109 +2127,115 @@ def admin_delete_all_data():
 # -------------------------------
 # ROUTER PER ROLE (Tabs Layout with Icons)
 # -------------------------------
+# -------------------------------
+# NAVIGATION HELPERS
+# -------------------------------
+def bottom_nav(pages: dict, default: str):
+    """Render bottom navigation bar and return current page."""
+    # Get current page from URL (query params)
+    current = st.query_params.get("page", default)
+
+    # Render selected page
+    if current in pages:
+        pages[current]()
+    else:
+        pages[default]()
+
+    # Build nav bar HTML
+    nav_html = '<div class="navbar">'
+    for label in pages.keys():
+        nav_html += f'<a href="?page={label}">{label}</a>'
+    nav_html += "</div>"
+
+    st.markdown("""
+    <style>
+    .navbar {
+        position: fixed;
+        bottom: 0;
+        left: 0; right: 0;
+        height: 60px;
+        background: #0A1128;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        border-top: 1px solid #222;
+        z-index: 9999;
+    }
+    .navbar a {
+        color: white;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: bold;
+    }
+    .navbar a:hover {
+        opacity: 0.8;
+    }
+    </style>
+    """ + nav_html, unsafe_allow_html=True)
+
+
+# -------------------------------
+# ADMIN APP
+# -------------------------------
 def run_admin():
     render_header()
-    tabs = [
-        "🏠 Dashboard",
-        "⚽ Matches",
-        "📊 Player Stats",
-        "📸 Upload Player Stats",
-        "👤 Players",
-        "📝 Training Sessions",
-        "📋 Attendance",
-        "💬 Fan Wall",
-        "📄 Reports",
-        "⭐ Best XI",
-        "⚠️ Danger Zone"
-    ]
-
     pages = {
         "🏠 Dashboard": page_dashboard,
         "⚽ Matches": admin_matches_page,
         "📊 Player Stats": admin_player_stats_page,
-        "📸 Upload Player Stats": admin_upload_player_stats_page,
+        "📸 Upload Stats": admin_upload_player_stats_page,
         "👤 Players": admin_players_crud_page,
-        "📝 Training Sessions": admin_training_sessions_page,
+        "📝 Training": admin_training_sessions_page,
         "📋 Attendance": admin_training_attendance_all,
         "💬 Fan Wall": admin_fanwall_moderation,
         "📄 Reports": admin_reports_page,
         "⭐ Best XI": page_best_xi,
-        "⚠️ Danger Zone": admin_delete_all_data
+        "⚠️ Danger": admin_delete_all_data,
     }
-
-    selected_tab = st.tabs(tabs)
-    for i, tab_name in enumerate(tabs):
-        with selected_tab[i]:
-            pages[tab_name]()
+    bottom_nav(pages, "🏠 Dashboard")
 
 
+# -------------------------------
+# MANAGER APP
+# -------------------------------
 def run_manager():
     render_header()
-    tabs = [
-        "🏠 Dashboard",
-        "📄 Tactics Text",
-        "📊 Tactics Board",
-        "📋 Attendance",
-        "⭐ Best XI"
-    ]
-
     pages = {
         "🏠 Dashboard": page_dashboard,
-        "📄 Tactics Text": manager_tactics_text_page,
-        "📊 Tactics Board": manager_tactics_board_page,
+        "📄 Tactics": manager_tactics_text_page,
+        "📊 Board": manager_tactics_board_page,
         "📋 Attendance": manager_training_attendance_overview,
-        "⭐ Best XI": page_best_xi
+        "⭐ Best XI": page_best_xi,
     }
-
-    selected_tab = st.tabs(tabs)
-    for i, tab_name in enumerate(tabs):
-        with selected_tab[i]:
-            pages[tab_name]()
+    bottom_nav(pages, "🏠 Dashboard")
 
 
+# -------------------------------
+# PLAYER APP
+# -------------------------------
 def run_player():
     render_header()
-    tabs = [
-        "🏠 Dashboard",
-        "📊 My Stats",
-        "📋 Attendance",
-        "📄 Tactics Text",
-        "📊 Tactics Board",
-        "⭐ Best XI"
-    ]
-
     pages = {
         "🏠 Dashboard": page_dashboard,
         "📊 My Stats": lambda: player_my_stats_page(st.session_state.auth.get("name", "Player")),
         "📋 Attendance": lambda: player_training_attendance_page(st.session_state.auth.get("name", "Player")),
-        "📄 Tactics Text": player_tactics_text_page,
-        "📊 Tactics Board": player_tactics_board_page,
-        "⭐ Best XI": page_best_xi
+        "📄 Tactics": player_tactics_text_page,
+        "📊 Board": player_tactics_board_page,
+        "⭐ Best XI": page_best_xi,
     }
-
-    selected_tab = st.tabs(tabs)
-    for i, tab_name in enumerate(tabs):
-        with selected_tab[i]:
-            pages[tab_name]()
+    bottom_nav(pages, "🏠 Dashboard")
 
 
+# -------------------------------
+# FAN APP
+# -------------------------------
 def run_fan():
     render_header()
-    tabs = [
-        "🏠 Dashboard",
-        "💬 Public Results & Fan Wall"
-    ]
-
     pages = {
         "🏠 Dashboard": page_dashboard,
-        "💬 Public Results & Fan Wall": fan_public_page
+        "💬 Fan Wall": fan_public_page,
     }
-
-    selected_tab = st.tabs(tabs)
-    for i, tab_name in enumerate(tabs):
-        with selected_tab[i]:
-            pages[tab_name]()
-
+    bottom_nav(pages, "🏠 Dashboard")
 
 
 # -------------------------------
