@@ -1675,12 +1675,15 @@ ST: Lead the press, stay central in attack."""
 
 
 def manager_tactics_board_page():
-    st.subheader("⚽ Manager Tactics Board – Interactive")
+    st.subheader("⚽ Manager Tactics Board – Editable")
     st.markdown("""
-    <iframe src="https://tactical-board.com/uk/big-football"
-            width="100%" height="750" style="border:none; border-radius:10px;">
+    <iframe src="https://homecrowd.io/create-formation"
+            width="100%" height="80vh"
+            style="border:none; border-radius:10px;">
     </iframe>
     """, unsafe_allow_html=True)
+    st.info("💡 Use this board to assign names & positions. Once ready, share/export the link with players.")
+
 
 
 
@@ -1863,64 +1866,14 @@ def player_tactics_text_page():
     st.caption(f"Last updated by {latest['updated_by']} on {latest['updated_at']}")
 
 def player_tactics_board_page():
-    st.markdown(
-        """
-        <h2 style='text-align: center; color: #2563EB; margin-bottom: 5px;'>
-            👕 Player Tactics Board – View Only
-        </h2>
-        <p style='text-align: center; color: gray; font-size: 14px; margin-top: 0;'>
-            This tactics board is <b>locked</b>. You can view it, but not interact with it.
-        </p>
-
-        <style>
-        .locked-iframe-container {
-            position: relative;
-            width: 100%;
-            max-width: 900px;  /* keeps it clean on large screens */
-            margin: auto;
-            border: 2px solid #2563EB;
-            border-radius: 12px;
-            box-shadow: 0px 4px 15px rgba(0,0,0,0.25);
-            overflow: hidden;
-        }
-        .locked-iframe-container iframe {
-            width: 100%;
-            height: 70vh; /* responsive height: 70% of viewport */
-            min-height: 400px;
-            border-radius: 12px;
-        }
-        .locked-iframe-overlay {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: transparent;
-            z-index: 999;
-        }
-
-        /* 📱 Mobile adjustments */
-        @media (max-width: 768px) {
-            .locked-iframe-container iframe {
-                height: 60vh;   /* smaller height on tablets/phones */
-                min-height: 300px;
-            }
-        }
-        @media (max-width: 480px) {
-            .locked-iframe-container iframe {
-                height: 55vh;   /* even smaller height on small phones */
-                min-height: 250px;
-            }
-        }
-        </style>
-
-        <div class="locked-iframe-container">
-            <iframe src="https://tactical-board.com/uk/big-football" frameborder="0"></iframe>
-            <div class="locked-iframe-overlay"></div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    st.caption("📌 Manager controls this board. Players can only view.")
+    st.subheader("👕 Player Tactics Board – View Only")
+    st.markdown("""
+    <iframe src="https://homecrowd.io/create-formation"
+            width="100%" height="75vh"
+            style="border:none; border-radius:10px; pointer-events:none;">
+    </iframe>
+    """, unsafe_allow_html=True)
+    st.caption("📌 This board is locked. Players can only view, not edit.")
 
 
 
