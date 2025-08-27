@@ -128,34 +128,34 @@ GLOBAL_CSS = """
 <style>
 /* ====== HIDE STREAMLIT DEFAULT UI ====== */
 #MainMenu, footer, header,
-[data-testid="stToolbar"], 
 .viewerBadge_container__1QSob,
 .stDeployButton, .stAppDeployButton {
   display: none !important;
   visibility: hidden !important;
 }
 
-/* 🚫 Remove "Built with Streamlit" + fullscreen widget toolbar */
-[data-testid="stDecoration"], 
-[data-testid="stFullScreenFrame"], 
-[data-testid="StyledFullScreenButton"],
-button[title="View fullscreen"],
-div[title="View fullscreen"],
-section[data-testid="stToolbar"],
-.stDecoration,
-.stToolbar {
+/* 🚫 Kill Streamlit 1.48.1 widget overlay + fullscreen */
+div[data-testid="stDecoration"],
+div[data-testid="stDecorationContainer"],
+section[data-testid="stToolbar"] {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
     pointer-events: none !important;
+    overflow: hidden !important;
 }
-
-/* 🚫 Remove any watermark badges */
-iframe[title="streamlit-badge"], 
-a[href*="streamlit.io"], 
-div.viewerBadge_container__1QSob {
+button[title="View fullscreen"],
+div[title="View fullscreen"] {
     display: none !important;
     visibility: hidden !important;
+}
+div[data-testid="stDecoration"] p,
+div[data-testid="stDecoration"] span {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
 }
 
 /* ====== FORCE FULL-WIDTH INPUTS & BUTTONS ====== */
@@ -331,6 +331,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 }
 </style>
 """
+
 
 
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
