@@ -123,6 +123,7 @@ GLOBAL_CSS = """
 html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   background-color: var(--app-bg) !important;
   color: white !important;
+  overflow-x: hidden !important; /* prevent horizontal scroll on mobile */
 }
 
 /* ====== SIDEBAR ====== */
@@ -211,6 +212,14 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   font-weight: 900 !important;
   font-style: oblique !important;
   color: #ffffff !important;
+  font-size: 20px !important;
+}
+
+/* ====== TABLES ====== */
+[data-testid="stDataFrame"] {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  font-size: 13px !important;
 }
 
 /* ====== TABS ====== */
@@ -222,12 +231,50 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   border-bottom: 3px solid var(--accent-green) !important;
 }
 
+/* ====== PLOTS & IMAGES ====== */
+.stPlotlyChart, .stImage {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+/* ====== NAVBAR (Mobile Bottom Navigation) ====== */
+.navbar {
+    position: fixed;
+    bottom: 0;
+    left: 0; right: 0;
+    height: 50px;
+    background: #111827; /* dark slate */
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-top: 1px solid #333;
+    z-index: 9999;
+}
+.navbar a {
+    flex: 1;
+    text-align: center;
+    color: #9CA3AF;  /* gray-400 */
+    font-size: 20px;
+    text-decoration: none;
+    padding: 5px;
+    transition: all 0.2s ease-in-out;
+}
+.navbar a.active {
+    color: #10B981; /* green-500 */
+    font-weight: bold;
+}
+.navbar a:hover {
+    color: white;
+}
+
 /* ====== MOBILE RESPONSIVE ====== */
 @media (max-width: 600px) {
-  .app-title { font-size: 24px !important; }
+  .block-container { padding: 0.5rem !important; max-width: 100% !important; }
+  .app-title { font-size: 22px !important; }
   .app-subtitle { font-size: 14px !important; }
-  .stButton > button { font-size: 14px !important; padding: 8px 10px !important; }
-  .glass { padding: 12px !important; border-radius: 14px !important; }
+  .stButton > button { font-size: 14px !important; padding: 6px 10px !important; }
+  .glass { padding: 10px !important; border-radius: 14px !important; }
+  h1, h2, h3, p, div, span { font-size: 14px !important; }
 }
 </style>
 """
