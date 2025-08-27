@@ -31,6 +31,26 @@ import io
 # -------------------------------
 # PAGE CONFIG (mobile-first)
 # -------------------------------
+# Hide Streamlit Branding and Controls
+HIDE_STREAMLIT_UI = """
+<style>
+/* Hide the top menu, footer, and watermark */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* Hide viewer badges, toolbar, and deploy button */
+.viewerBadge_container__1QSob {display: none !important;}
+[data-testid="stToolbar"] {visibility: hidden !important;}
+.stDeployButton {display: none !important;}
+.stAppDeployButton {display: none !important;}
+
+/* Optional: Hide "Made with Streamlit" watermark completely */
+a[href="https://streamlit.io"] {visibility: hidden !important; display: none !important;}
+</style>
+"""
+st.markdown(HIDE_STREAMLIT_UI, unsafe_allow_html=True)
+
 
 LOGO_URL = "https://github.com/mostafaasaad32/nile/raw/master/images/Artboard_1.png"
 
@@ -816,7 +836,8 @@ def page_dashboard():
 # ADMIN PAGES (Matches, Stats, Fan Wall, Reports, PLAYERS CRUD)
 # -------------------------------
 def admin_matches_page():
-    st.subheader("⚽ Matches")
+    
+    st.markdown("<h2 class='main-heading'>⚽ Matches</h2>", unsafe_allow_html=True)
 
     tab1, tab2, tab3 = st.tabs(["➕ Add Upcoming", "✅ Add Result", "📋 All Matches"])
 
@@ -914,7 +935,8 @@ def admin_matches_page():
 
 
 def admin_player_stats_page():
-    st.header("📊 Player Stats")
+    
+    st.markdown("<h2 class='main-heading'>📊 Player Stats</h2>", unsafe_allow_html=True)
 
     stats = _supabase_client().table("player_stats").select("*").execute()
     df = pd.DataFrame(stats.data) if stats.data else pd.DataFrame()
@@ -960,7 +982,8 @@ def delete_player_and_stats(player_id: int, player_name: str):
 
 
 def admin_players_crud_page():
-    st.subheader("👤 Players – Add / Edit / Remove")
+    
+    st.markdown("<h2 class='main-heading'>👤 Players – Add / Edit / Remove</h2>", unsafe_allow_html=True)
     players = read_csv_safe(PLAYERS_FILE)
 
     # ---------------- Add Player ----------------
@@ -1062,7 +1085,8 @@ def admin_players_crud_page():
 # TRAINING: Admin/Manager/Player
 # -------------------------------
 def admin_training_sessions_page():
-    st.subheader("🏋️ Create / Manage Training Sessions")
+    
+    st.markdown("<h2 class='main-heading'>🏋️ Create / Manage Training Sessions</h2>", unsafe_allow_html=True)
     sessions = read_csv_safe(TRAINING_SESSIONS_FILE)
 
     with st.form("create_session"):
@@ -1126,7 +1150,8 @@ def _attendance_color(val: str):
     return ""
 
 def manager_training_attendance_overview():
-    st.subheader("📋 Training Attendance – Session Overview")
+    
+    st.markdown("<h2 class='main-heading'>📋 Training Attendance – Session Overview</h2>", unsafe_allow_html=True)
     sessions = read_csv_safe(TRAINING_SESSIONS_FILE)
     att = read_csv_safe(TRAINING_ATTEND_FILE)
 
@@ -1230,7 +1255,8 @@ def player_training_attendance_page(player_name: str):
         st.dataframe(mine.sort_values(["date","timestamp"], ascending=False), use_container_width=True)
 
 def admin_training_attendance_all():
-    st.subheader("📈 Training Attendance – All Players & Sessions")
+    
+    st.markdown("<h2 class='main-heading'>📈 Training Attendance – All Players & Sessions</h2>", unsafe_allow_html=True)
     att = read_csv_safe(TRAINING_ATTEND_FILE)
     sessions = read_csv_safe(TRAINING_SESSIONS_FILE)
     if att.empty or sessions.empty:
@@ -1336,7 +1362,7 @@ def extract_player_stats(image_file) -> pd.DataFrame:
 
     
 def admin_upload_player_stats_page():
-    st.title("📸 Upload Player Stats from Photo")
+    st.title("📸 Upload Stats")
 
     # ✅ Fetch matches
     matches = _supabase_client().table("matches").select("match_id, opponent, date").execute()
@@ -1963,7 +1989,9 @@ def fan_public_page():
 # ADMIN: FAN WALL MODERATION & REPORTS
 # -------------------------------
 def admin_fanwall_moderation():
-    st.subheader("Moderate Fan Wall")
+    
+    st.markdown("<h2 class='main-heading'>Moderate Fan Wall</h2>", unsafe_allow_html=True)
+
     wall = read_csv_safe(FANWALL_FILE)
     if wall.empty:
         st.info("No messages yet.")
@@ -1976,7 +2004,8 @@ def admin_fanwall_moderation():
         st.success("Toggled.")
 
 def admin_reports_page():
-    st.subheader("Auto Match Report Generator")
+    
+    st.markdown("<h2 class='main-heading'>Auto Match Report Generator</h2>", unsafe_allow_html=True)
     matches = read_csv_safe(MATCHES_FILE)
     stats = read_csv_safe(PLAYER_STATS_FILE)
     if matches.empty:
