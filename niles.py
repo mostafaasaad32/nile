@@ -2252,21 +2252,12 @@ def tab_nav(pages: dict, default: str):
 # ADMIN APP
 # -------------------------------
 def run_admin():
-    render_header()
-    pages = {
-        "Dashboard": ("🏠", page_dashboard),
-        "Matches": ("⚽", admin_matches_page),
-        "Stats": ("📊", admin_player_stats_page),
-        "Upload": ("📸", admin_upload_player_stats_page),
-        "Players": ("👤", admin_players_crud_page),
-        "Training": ("📝", admin_training_sessions_page),
-        "Attendance": ("📋", admin_training_attendance_all),
-        "Fan Wall": ("💬", admin_fanwall_moderation),
-        "Reports": ("📄", admin_reports_page),
-        "Best XI": ("⭐", page_best_xi),
-        "Danger": ("⚠️", admin_delete_all_data),
-    }
-    tab_nav(pages, "Dashboard")
+     render_header() 
+     tabs = [ "🏠 Dashboard", "⚽ Matches", "📊 Player Stats", "📸 Upload Player Stats", "👤 Players", "📝 Training Sessions", "📋 Attendance", "💬 Fan Wall", "📄 Reports", "⭐ Best XI", "⚠️ Danger Zone" ] 
+     pages = { "🏠 Dashboard": page_dashboard, "⚽ Matches": admin_matches_page, "📊 Player Stats": admin_player_stats_page, "📸 Upload Player Stats": admin_upload_player_stats_page, "👤 Players": admin_players_crud_page, "📝 Training Sessions": admin_training_sessions_page, "📋 Attendance": admin_training_attendance_all, "💬 Fan Wall": admin_fanwall_moderation, "📄 Reports": admin_reports_page, "⭐ Best XI": page_best_xi, "⚠️ Danger Zone": admin_delete_all_data }
+     selected_tab = st.tabs(tabs) 
+     for i, tab_name in enumerate(tabs): 
+         with selected_tab[i]: pages[tab_name]()
 
 
 
@@ -2276,14 +2267,27 @@ def run_admin():
 # -------------------------------
 def run_manager():
     render_header()
+
+    tabs = [
+        "🏠 Dashboard",
+        "📄 Tactics",
+        "📈 Board",
+        "📋 Attendance",
+        "⭐ Best XI",
+    ]
+
     pages = {
-        "Dashboard": ("🏠", page_dashboard),
-        "Tactics": ("📄", manager_tactics_text_page),
-        "Board": ("📈", manager_tactics_board_page),
-        "Attendance": ("📋", manager_training_attendance_overview),
-        "Best XI": ("⭐", page_best_xi),
+        "🏠 Dashboard": page_dashboard,
+        "📄 Tactics": manager_tactics_text_page,
+        "📈 Board": manager_tactics_board_page,
+        "📋 Attendance": manager_training_attendance_overview,
+        "⭐ Best XI": page_best_xi,
     }
-    tab_nav(pages, "Dashboard")
+
+    selected_tabs = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tabs[i]:
+            pages[tab_name]()
 
 
 
@@ -2292,15 +2296,30 @@ def run_manager():
 # -------------------------------
 def run_player():
     render_header()
+
+    tabs = [
+        "🏠 Dashboard",
+        "📊 My Stats",
+        "📋 Attendance",
+        "📄 Tactics",
+        "📈 Board",
+        "⭐ Best XI",
+    ]
+
     pages = {
-        "Dashboard": ("🏠", page_dashboard),
-        "My Stats": ("📊", lambda: player_my_stats_page(st.session_state.auth.get("name", "Player"))),
-        "Attendance": ("📋", lambda: player_training_attendance_page(st.session_state.auth.get("name", "Player"))),
-        "Tactics": ("📄", player_tactics_text_page),
-        "Board": ("📈", player_tactics_board_page),
-        "Best XI": ("⭐", page_best_xi),
+        "🏠 Dashboard": page_dashboard,
+        "📊 My Stats": lambda: player_my_stats_page(st.session_state.auth.get("name", "Player")),
+        "📋 Attendance": lambda: player_training_attendance_page(st.session_state.auth.get("name", "Player")),
+        "📄 Tactics": player_tactics_text_page,
+        "📈 Board": player_tactics_board_page,
+        "⭐ Best XI": page_best_xi,
     }
-    tab_nav(pages, "Dashboard")
+
+    selected_tabs = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tabs[i]:
+            pages[tab_name]()
+
 
 
 
@@ -2309,11 +2328,22 @@ def run_player():
 # -------------------------------
 def run_fan():
     render_header()
+
+    tabs = [
+        "🏠 Dashboard",
+        "💬 Fan Wall",
+    ]
+
     pages = {
-        "Dashboard": ("🏠", page_dashboard),
-        "Fan Wall": ("💬", fan_public_page),
+        "🏠 Dashboard": page_dashboard,
+        "💬 Fan Wall": fan_public_page,
     }
-    tab_nav(pages, "Dashboard")
+
+    selected_tabs = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tabs[i]:
+            pages[tab_name]()
+
 
 
 # -------------------------------
