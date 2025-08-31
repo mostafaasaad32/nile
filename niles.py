@@ -279,10 +279,10 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 }
 
 /* ====== EXTRA MOBILE LAYOUT FIXES ====== */
-@media (max-width: 780px) {
+@media (max-width: 1000px) {
   body, .block-container, [data-testid="stAppViewContainer"] {
     zoom: 1;
-    -moz-transform: scale(0.8);
+    -moz-transform: scale(0.7);
     -moz-transform-origin: 0 0;
   }
   .stTabs [role="tablist"] {
