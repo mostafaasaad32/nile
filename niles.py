@@ -281,8 +281,8 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 /* ====== EXTRA MOBILE LAYOUT FIXES ====== */
 @media (max-width: 768px) {
   body, .block-container, [data-testid="stAppViewContainer"] {
-    zoom: 0.9;
-    -moz-transform: scale(0.9);
+    zoom: 0.5;
+    -moz-transform: scale(0.5);
     -moz-transform-origin: 0 0;
   }
   .stTabs [role="tablist"] {
