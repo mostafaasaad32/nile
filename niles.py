@@ -292,19 +292,52 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   }
   .stTabs [role="tablist"]::-webkit-scrollbar { display: none; }
 
-  .stTabs [role="tab"] {
-    flex: 0 0 auto;
+  /* ====== FLAT TABS STYLE (No Rectangular Background) ====== */
+.stTabs [role="tablist"] {
+    display: flex !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    white-space: nowrap !important;
+    background: transparent !important;
+    border-bottom: 2px solid #1E40AF !important; /* bottom line */
+    margin-bottom: 12px !important;
+}
+.stTabs [role="tablist"]::-webkit-scrollbar {
+    display: none !important;
+}
+
+/* Tab text only */
+.stTabs [role="tab"] {
+    flex: 0 0 auto !important;
+    text-align: center !important;
+    padding: 8px 14px !important;
     margin: 0 2px !important;
-    font-size: 0.85rem !important;
-    padding: 6px 10px !important;
-    background: #1E3A8A !important;
-    color: #fff !important;
-  }
-  .stTabs [role="tab"][aria-selected="true"] {
-    background: #2563EB !important;
-    color: #fff !important;
+    background: transparent !important;   /* 👈 no background */
+    border-radius: 0 !important;          /* 👈 no box */
+    border: none !important;
+    font-family: 'WIDE MEDIUM', sans-serif !important;
+    font-stretch: expanded !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #FFFFFF !important;            /* 👈 white text */
+    transition: all 0.2s ease-in-out;
+    cursor: pointer !important;
+}
+
+/* Active tab: underline highlight only */
+.stTabs [role="tab"][aria-selected="true"] {
+    color: #3B82F6 !important;            /* blue highlight */
+    border-bottom: 3px solid #3B82F6 !important;
     font-weight: 800 !important;
-  }
+}
+
+/* Hover: subtle lighter white-blue */
+.stTabs [role="tab"]:hover {
+    color: #BFDBFE !important;
+}
+
 }
 </style>
 """
