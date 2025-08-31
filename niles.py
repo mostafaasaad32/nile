@@ -262,7 +262,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   justify-content: space-between;
   margin: 0 !important;
   padding: 0 !important;
-  gap: 8px;
+  gap: 3px;
 }
 
 /* ====== MOBILE RESPONSIVE ====== */
