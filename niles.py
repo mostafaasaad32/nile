@@ -297,38 +297,37 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
     padding: 6px 4px !important;
   }
 }
-/* ====== SCROLLABLE HORIZONTAL TABS ====== */
+/* ====== SCROLLABLE HORIZONTAL TABS (Dark Blue + White Text) ====== */
 .stTabs [role="tablist"] {
     display: flex !important;
-    flex-wrap: nowrap !important;       /* 👈 keep on one line */
-    overflow-x: auto !important;        /* 👈 horizontal scroll */
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
     overflow-y: hidden !important;
-    scrollbar-width: thin !important;   /* Firefox */
-    -ms-overflow-style: none !important; /* IE/Edge */
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
     white-space: nowrap !important;
-    background: #111827 !important;
-    border-bottom: 2px solid #2563EB !important;
+    background: linear-gradient(90deg, #0A1128, #1E3A8A) !important; /* navy → deep blue */
+    border-bottom: 2px solid #1E40AF !important;
     padding: 0 !important;
     margin-bottom: 12px !important;
 }
-
-/* Hide scrollbar but keep scrollability */
 .stTabs [role="tablist"]::-webkit-scrollbar {
     display: none !important;
 }
 
-/* Style individual tabs */
+/* Tabs text (all white, expanded font) */
 .stTabs [role="tab"] {
-    flex: 0 0 auto !important;          /* 👈 don’t stretch */
+    flex: 0 0 auto !important;
     text-align: center !important;
     padding: 10px 16px !important;
     margin: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
-    font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
-    font-size: 14px !important;
-    font-weight: 700 !important;
-    color: #9CA3AF !important;
+    font-family: 'WIDE MEDIUM', sans-serif !important;  /* 👈 expanded font */
+    font-stretch: expanded !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #FFFFFF !important;  /* 👈 always white text */
     border: none !important;
     transition: all 0.2s ease-in-out;
     cursor: pointer !important;
@@ -336,23 +335,39 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 
 /* Active tab */
 .stTabs [role="tab"][aria-selected="true"] {
-    color: #10B981 !important;
-    border-bottom: 3px solid #10B981 !important;
-    background: transparent !important;
-    font-weight: 900 !important;
+    color: #FFFFFF !important;
+    border-bottom: 3px solid #3B82F6 !important; /* cyan underline */
+    font-weight: 800 !important;
 }
 
-/* Hover effect */
+/* Hover */
 .stTabs [role="tab"]:hover {
-    color: white !important;
+    color: #BFDBFE !important; /* slightly lighter hover white-blue */
+}
+/* ====== HEADERS FONT CONTROL ====== */
+
+/* Main headers (big / strong) */
+h1, h2, h3,
+.main-heading,
+.stTabs [role="tab"][aria-selected="true"],
+.stSubheader {
+  font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
+  font-weight: 900 !important;
+  font-style: oblique !important;
+  letter-spacing: 1.2px !important;
+  color: #ffffff !important;
+  text-transform: uppercase !important;
 }
 
-/* Prevent last fields from being cut off under navbar */
-.block-container,
-[data-testid="stAppViewContainer"],
-[data-testid="stMain"] {
-  padding-bottom: 100px !important;  /* 👈 at least equal to navbar height */
-  box-sizing: border-box !important;
+/* Subheaders (medium weight) */
+h4, h5, h6,
+.secondary-heading,
+.stTabs [role="tab"]:not([aria-selected="true"]) {
+  font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
+  font-weight: 700 !important;
+  font-style: oblique !important;
+  letter-spacing: 1px !important;
+  color: var(--text-secondary) !important;
 }
 
 </style>
@@ -737,9 +752,7 @@ def render_header():
         st.markdown(f"""
         <div style="display:flex; align-items:center; gap:8px; margin:0; padding:0;">
             <img src="{LOGO_URL}" style="width:140px; height:auto;">
-            <div style="font-size:28px; font-weight:900; font-family:'SUPER EXP BLACK OBLIQUE', sans-serif; color:white;">
-                NILE ESPORTS HUB
-            </div>
+            <div class="app-title">NILE ESPORTS HUB</div>
             <span style="color:#ff4b4b; font-weight:bold; font-size:22px;">LIVE</span>
         </div>
         """, unsafe_allow_html=True)
@@ -750,10 +763,11 @@ def render_header():
 
     # === User info row ===
     st.markdown(
-        f"<div style='font-size:14px; color:#ddd; margin:6px 0;'>"
+        f"<div class='secondary-heading' style='font-size:14px; margin:6px 0;'>"
         f"Role: <b>{role.upper()}</b> | User: <b>{name}</b></div>",
         unsafe_allow_html=True
     )
+
 
 
 # -------------------------------
@@ -1160,20 +1174,30 @@ def admin_player_stats_page():
     matches_df = pd.DataFrame(matches.data) if matches.data else pd.DataFrame()
 
     if not matches_df.empty and "match_id" in df.columns:
+        matches_df["date"] = pd.to_datetime(matches_df["date"], errors="coerce")
+        matches_df = matches_df.sort_values("date", ascending=False)  # latest first
         match_labels = matches_df.set_index("match_id").apply(
-            lambda r: f"{r['date']} vs {r['opponent']}", axis=1, result_type="reduce"
+            lambda r: f"{r['date'].date()} vs {r['opponent']}", axis=1, result_type="reduce"
         )
         df = df.merge(match_labels.rename("match_name"),
                       left_on="match_id", right_index=True, how="left")
+
+        # 🆕 Auto-select the latest match
+        latest_match_name = match_labels.iloc[0] if not match_labels.empty else "All"
     else:
         df["match_name"] = df["match_id"].astype(str)
+        latest_match_name = "All"
 
-    # === Filters ===
+    # === Filters (auto-set last match) ===
     players = sorted(df["player_name"].unique())
     selected_player = st.selectbox("Filter by Player", ["All"] + players)
 
     matches = sorted(df["match_name"].unique())
-    selected_match = st.selectbox("Filter by Match", ["All"] + matches)
+    selected_match = st.selectbox(
+        "Filter by Match",
+        ["All"] + matches,
+        index=(["All"] + matches).index(latest_match_name) if latest_match_name in matches else 0
+    )
 
     filtered = df.copy()
     if selected_player != "All":
@@ -1181,44 +1205,30 @@ def admin_player_stats_page():
     if selected_match != "All":
         filtered = filtered[filtered["match_name"] == selected_match]
 
-    # === Editable Table ===
-    st.markdown("### ✏️ Edit Stats")
-    edited = st.data_editor(
-        filtered,
-        use_container_width=True,
-        num_rows="dynamic",
-        key="admin_stats_editor"
-    )
+    # === Card UI for stats ===
+    if filtered.empty:
+        st.warning("No stats found for this filter.")
+    else:
+        for _, row in filtered.iterrows():
+            st.markdown(f"""
+            <div class="glass" style="margin-bottom:12px; padding:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-size:16px; font-weight:900; font-family:'SUPER EXP BLACK OBLIQUE'; color:#ffffff;">
+                        {row['player_name']}
+                    </div>
+                    <div style="font-size:13px; color:#60A5FA;">
+                        {row['match_name']}
+                    </div>
+                </div>
+                <div style="margin-top:8px; font-size:14px; color:#E5E7EB;">
+                    ⚽ Goals: <span style="color:#34D399; font-weight:bold;">{row.get('goals',0)}</span> &nbsp; | &nbsp;
+                    🎯 Assists: <span style="color:#60A5FA; font-weight:bold;">{row.get('assists',0)}</span> &nbsp; | &nbsp;
+                    ⭐ Rating: <span style="color:#FBBF24; font-weight:bold;">{row.get('rating',0):.1f}</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-    if st.button("💾 Save Changes"):
-        try:
-            for _, row in edited.iterrows():
-                row_dict = row.to_dict()
-
-                # 🔧 Remove non-DB helper columns
-                row_dict.pop("match_name", None)
-
-                # 🔧 Ensure correct integer types
-                int_fields = ["id", "player_id", "match_id", "goals", "assists",
-                              "yellow_cards", "red_cards", "shots", "passes",
-                              "dribbles", "tackles", "offsides", "fouls_committed",
-                              "possession_won", "possession_lost", "minutes_played"]
-                for f in int_fields:
-                    if f in row_dict and pd.notna(row_dict[f]):
-                        row_dict[f] = int(row_dict[f])
-
-                row_id = row_dict.get("id")
-                if row_id is not None:
-                    sb.table("player_stats").update(row_dict).eq("id", row_id).execute()
-
-            st.success("✅ Stats updated successfully!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"❌ Failed to update stats: {e}")
-
-
-
-    # === Delete Single Row ===
+    # === Admin actions (delete only) ===
     st.divider()
     st.markdown("### 🗑️ Delete Individual Stat")
     selected = st.selectbox(
@@ -1234,18 +1244,7 @@ def admin_player_stats_page():
         except Exception as e:
             st.error(f"❌ Failed to delete stat: {e}")
 
-    # === Delete ALL Stats for Player ===
-    st.divider()
-    st.markdown("### 🗑️ Delete ALL Stats for a Player")
-    if players:
-        player_to_wipe = st.selectbox("Select Player to wipe all stats", players)
-        if st.button("Delete All Stats for Selected Player"):
-            try:
-                sb.table("player_stats").delete().eq("player_name", player_to_wipe).execute()
-                st.success(f"✅ All stats for {player_to_wipe} deleted")
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Failed to delete stats for {player_to_wipe}: {e}")
+
 
 
 
@@ -1267,25 +1266,19 @@ def delete_player_and_stats(player_id: int, player_name: str):
 
 
 def admin_players_crud_page():
-    
     st.markdown("<h2 class='main-heading'>👤 Players – Add / Edit / Remove</h2>", unsafe_allow_html=True)
     players = read_csv_safe(PLAYERS_FILE)
 
     # ---------------- Add Player ----------------
     with st.form("add_player"):
-        c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
-        with c1:
-            name = st.text_input("Player Name")
-        with c2:
-            position = st.selectbox(
-                "Primary Position",
-                ["GK","RB","CB","LB","RWB","LWB","CDM","CM","CAM","RM","LM","RW","LW","ST"]
-            )
-        with c3:
-            code = st.text_input("Login Code", placeholder="e.g. PL-010")
-        with c4:
-            active = st.checkbox("Active", value=True)
-
+        st.markdown("### ➕ Add Player")
+        name = st.text_input("Player Name")
+        position = st.selectbox(
+            "Primary Position",
+            ["GK","RB","CB","LB","RWB","LWB","CDM","CM","CAM","RM","LM","RW","LW","ST"]
+        )
+        code = st.text_input("Login Code", placeholder="e.g. PL-010")
+        active = st.checkbox("Active", value=True)
         submitted = st.form_submit_button("Add Player", type="primary")
 
     if submitted:
@@ -1316,20 +1309,44 @@ def admin_players_crud_page():
     st.caption("Current Roster")
 
     for _, row in players.iterrows():
-        cols = st.columns([3, 2, 2, 2])
-        with cols[0]:
-            st.write(f"**{row['name']}**")
-        with cols[1]:
-            st.write(row["position"])
-        with cols[2]:
-            st.write(row["code"])
-        with cols[3]:
-            st.write("✅ Active" if row["active"] else "❌ Inactive")
+        status_color = "#34D399" if row["active"] else "#EF4444"
+        position_color = "#60A5FA"  # blue highlight
+        code_color = "#FBBF24"      # gold
+
+        st.markdown(f"""
+<div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background: rgba(37,99,235,0.08);
+    border: 1px solid rgba(37,99,235,0.25);
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    font-size: 13px;
+">
+  <div>
+    <div style="font-family:'SUPER EXP BLACK OBLIQUE'; font-size:15px; color:#fff;">
+      {row['name']}
+    </div>
+    <div style="color:{position_color}; font-size:12px;">
+      {row['position']}
+    </div>
+  </div>
+
+  <div style="text-align:right; font-size:12px;">
+    <div style="color:{code_color};">Code: {row['code']}</div>
+    <div style="color:{status_color}; font-weight:bold;">
+      {"Active" if row['active'] else "Inactive"}
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
     st.divider()
 
     # ---------------- Edit / Delete ----------------
-    with st.expander("Quick Edit / Delete"):
+    with st.expander("✏️ Quick Edit / Delete"):
         names = players["name"].tolist()
         sel_name = st.selectbox("Select player", options=names)
         row = players[players["name"] == sel_name].iloc[0]
