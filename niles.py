@@ -725,9 +725,11 @@ def render_header():
     role = st.session_state.auth.get("role", "Guest")
     name = st.session_state.auth.get("name", "User")
 
-    # === Top header row (Logo + Title + Logout) ===
-    col1, col2 = st.columns([6, 1])
-    with col1:
+    # === Top Header Row ===
+    col_logo, col_spacer, col_refresh, col_logout = st.columns([6, 6, 1, 1])
+
+    # Left: Logo + Title
+    with col_logo:
         st.markdown(f"""
         <div style="display:flex; align-items:center; gap:8px; margin:0; padding:4px;">
             <img src="{LOGO_URL}" style="width:140px; height:auto;">
@@ -736,11 +738,17 @@ def render_header():
         </div>
         """, unsafe_allow_html=True)
 
-    with col2:
-        if st.button("Logout", key="logout_btn"):
+    # Right: Refresh button
+    with col_refresh:
+        if st.button("🔄", key="refresh_btn"):
+            st.rerun()
+
+    # Right: Logout button
+    with col_logout:
+        if st.button("🚪 Logout", key="logout_btn"):
             logout()
 
-    # === User info row ===
+    # === User Info ===
     st.markdown(
         f"<div class='secondary-heading' style='font-size:14px; margin:6px 0;'>"
         f"Role: <b>{role.upper()}</b> | User: <b>{name}</b></div>",
@@ -749,11 +757,13 @@ def render_header():
 
 
 
+
+
 # -------------------------------
 # INTRO PAGE (before login)
 # -------------------------------
 def intro_page():
-    # Remove all default Streamlit padding/margin
+    # Remove default Streamlit padding/margin
     st.markdown("""
     <style>
         .block-container {
@@ -763,16 +773,30 @@ def intro_page():
         .main .block-container {
             padding: 0 !important;
         }
-        header, .stToolbar {display: none !important;} /* Hide Streamlit's header bar */
+        header, .stToolbar {display: none !important;}
     </style>
     """, unsafe_allow_html=True)
 
     # =======================
-    # Animated Intro Content
+    # Custom Fonts
     # =======================
-    st.markdown(f"""
+    st.markdown("""
     <style>
-        .intro-container {{
+        @font-face {
+            font-family: 'SUPER EXP BLACK OBLIQUE';
+            src: url('https://fonts.cdnfonts.com/s/92235/Super%20Expanded%20Black%20Oblique.woff') format('woff');
+        }
+        @font-face {
+            font-family: 'SUPER EXP OBLIQUE';
+            src: url('https://fonts.cdnfonts.com/s/92235/Super%20Expanded%20Oblique.woff') format('woff');
+        }
+        @font-face {
+            font-family: 'Wide Medium';
+            src: url('https://fonts.cdnfonts.com/s/13550/Wide%20Medium.woff') format('woff');
+        }
+
+        /* Container */
+        .intro-container {
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -781,64 +805,83 @@ def intro_page():
             text-align: center;
             background: linear-gradient(135deg, #0A1128, #111827);
             overflow: hidden;
-        }}
+        }
 
-        .intro-logo {{
+        /* Logo */
+        .intro-logo {
             width: 300px;
             animation: fadeInScale 2s ease forwards;
-        }}
+        }
 
-        .intro-title {{
+        /* Main Header */
+        .intro-title {
             font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
-            font-size: 40px;
+            font-size: 44px;
             font-weight: 900;
             color: white;
             margin-top: 12px;
             text-transform: uppercase;
             opacity: 0;
             animation: slideUp 1.5s ease forwards 1.2s;
-        }}
+        }
 
-        .intro-subtitle {{
+        /* Sub Header */
+        .intro-subtitle {
             font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
-            font-size: 18px;
+            font-size: 20px;
             color: #34D399;
             margin-top: 6px;
             opacity: 0;
             animation: fadeIn 1.2s ease forwards 2.5s;
-        }}
+        }
+
+        /* Supportive text */
+        .intro-support {
+            font-family: 'Wide Medium', sans-serif !important;
+            font-size: 16px;
+            color: #9CA3AF;
+            margin-top: 10px;
+            opacity: 0;
+            animation: fadeIn 1.2s ease forwards 3s;
+        }
 
         /* Animations */
-        @keyframes fadeInScale {{
-            from {{ opacity: 0; transform: scale(0.8); }}
-            to {{ opacity: 1; transform: scale(1); }}
-        }}
-        @keyframes slideUp {{
-            from {{ opacity: 0; transform: translateY(40px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
-        }}
-        @keyframes fadeIn {{
-            from {{ opacity: 0; }}
-            to {{ opacity: 1; }}
-        }}
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
 
-        /* Mobile tweaks */
-        @media (max-width:600px){{
-            .intro-logo {{ max-width: 140px !important; }}
-            .intro-title {{ font-size: 22px !important; }}
-            .intro-subtitle {{ font-size: 14px !important; }}
-        }}
+        /* Mobile */
+        @media (max-width:600px){
+            .intro-logo { max-width: 140px !important; }
+            .intro-title { font-size: 28px !important; }
+            .intro-subtitle { font-size: 16px !important; }
+            .intro-support { font-size: 14px !important; }
+        }
     </style>
+    """, unsafe_allow_html=True)
 
+    # =======================
+    # Animated Content
+    # =======================
+    st.markdown(f"""
     <div class="intro-container">
         <img src="{LOGO_URL}" class="intro-logo"/>
         <div class="intro-title">NILE ESPORTS HUB</div>
         <div class="intro-subtitle">One Club • One Heartbeat 🖤💚</div>
+        
     </div>
     """, unsafe_allow_html=True)
 
-
-    # Buttons (closer to subtitle)
+    # Buttons
     st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
     if st.button("🚀 Enter the Hub", use_container_width=True):
         st.session_state.page = "login"
@@ -849,7 +892,6 @@ def intro_page():
         st.session_state.page = "fan_public_only"
         st.balloons()
         st.rerun()
-
 
 
 
@@ -933,6 +975,22 @@ def safe_int(val, default=0):
         return int(val)
     except Exception:
         return default
+
+
+import plotly.express as px
+import streamlit as st
+from datetime import date
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+from datetime import date
+
+import streamlit as st
+import pandas as pd
+from datetime import date
+import plotly.express as px
+
 def page_dashboard():
     matches = read_csv_safe(MATCHES_FILE)
     stats = read_csv_safe(PLAYER_STATS_FILE)
@@ -946,92 +1004,160 @@ def page_dashboard():
         past_matches = pd.DataFrame()
         upcoming_matches = pd.DataFrame()
 
-    col1, col2 = st.columns(2)
-    with col1:
-        
-        st.markdown("<h2 class='main-heading'>Last Match</h2>", unsafe_allow_html=True)
-
-        if not past_matches.empty:
-            lm = past_matches.iloc[0]
-            st.metric(label=f"vs {lm['opponent']} on {lm['date']}",
-                      value=f"{safe_int(lm.get('our_score'))}-{safe_int(lm.get('their_score'))}",
-                      delta=lm['result'])
-            st.write(lm.get("notes", ""))
-        else:
-            st.info("No past matches yet.")
-
-    with col2:
-        
-        st.markdown("<h2 class='main-heading'>Next Match</h2>", unsafe_allow_html=True)
-        if not upcoming_matches.empty:
-            nm = upcoming_matches.iloc[0]
-            days_left = (nm["date"] - date.today()).days
-            st.metric(label=f"vs {nm['opponent']} on {nm['date']}",
-                      value=f"{max(days_left,0)} days")
-            st.write(nm.get("notes", ""))
-        else:
-            st.info("No upcoming matches scheduled.")
-
-    st.divider()
-
-    # Show full past/upcoming lists
-    st.markdown("<h2 class='main-heading'>📋 Match Results</h2>", unsafe_allow_html=True)
-
+    # ===================== LAST MATCH CARD =====================
+    st.markdown("<h2 class='main-heading'>Last Match</h2>", unsafe_allow_html=True)
     if not past_matches.empty:
-        st.dataframe(past_matches.reset_index(drop=True),width=300)
+        lm = past_matches.iloc[0]
+        st.markdown(f"""
+        <div style='
+            background: #4CAF50;
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        '>
+            <h3 style='margin:0;'>vs {lm['opponent']}</h3>
+            <h2 style='margin:10px 0;'>{lm.get('our_score', 0)} - {lm.get('their_score', 0)}</h2>
+            <p style='margin:0;'><b>{lm.get('result', '')}</b></p>
+            <p style='margin:0;'>{lm.get('date', '')}</p>
+            <p style='margin:0;'>{lm.get('notes', '')}</p>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.caption("No results yet.")
+        st.info("No past matches yet.")
 
-    
+    # ===================== UPCOMING MATCHES CARDS (SIDE-BY-SIDE) =====================
+    # ===================== UPCOMING MATCHES CARDS (COMPACT SIDE-BY-SIDE) =====================
     st.markdown("<h2 class='main-heading'>📅 Upcoming Matches</h2>", unsafe_allow_html=True)
     if not upcoming_matches.empty:
-        st.dataframe(upcoming_matches.reset_index(drop=True),width=300)
+       next_matches = upcoming_matches.head(3)  # 🔥 Show only next 3
+       cols = st.columns(len(next_matches))
+
+    for idx, (_, row) in enumerate(next_matches.iterrows()):
+        days_left = (row["date"] - date.today()).days
+        with cols[idx]:
+            st.markdown(f"""
+            <div style='
+                background: #1E88E5;
+                color: white;
+                padding: 12px;
+                border-radius: 12px;
+                margin: 5px;
+                text-align: center;
+                font-size: 14px;
+            '>
+                <h4 style='margin:4px 0; font-size:16px;'>vs {row['opponent']}</h4>
+                <p style='margin:2px 0; font-size:13px;'>📅 {row['date']}</p>
+                <p style='margin:2px 0; font-size:13px;'>{row.get('notes', '')}</p>
+                <div style='
+                    font-size: 18px;
+                    font-weight: bold;
+                    margin-top: 6px;
+                '>{max(days_left, 0)} Days</div>
+            </div>
+            """, unsafe_allow_html=True)
     else:
-        st.caption("No upcoming fixtures.")
+     st.caption("No upcoming fixtures.")
+
 
     st.divider()
-    
-    st.markdown("<h2 class='main-heading'>Leaderboards</h2>", unsafe_allow_html=True)
+
+    # ===================== LEADERBOARDS WITH APP-THEMED UI =====================
+    st.markdown("<h2 class='main-heading'>🏆 Leaderboards</h2>", unsafe_allow_html=True)
+
     if stats.empty:
-        st.info("No player stats yet.")
+     st.info("No player stats yet.")
     else:
-        agg = stats.groupby("player_name").agg(
-            goals=("goals","sum"),
-            assists=("assists","sum"),
-            avg_rating=("rating","mean"),
-            yellow=("yellow_cards","sum"),
-            red=("red_cards","sum"),
-            matches=("match_id","count")
-        ).reset_index()
+    # Aggregate stats
+       agg = stats.groupby("player_name").agg(
+        goals=("goals", "sum"),
+        assists=("assists", "sum"),
+        avg_rating=("rating", "mean"),
+        yellow=("yellow_cards", "sum"),
+        red=("red_cards", "sum"),
+        matches=("match_id", "count")
+    ).reset_index()
 
-        c1, c2 = st.columns(2)
-        with c1:
-            st.caption("Top Scorers")
-            st.plotly_chart(
-                px.bar(
-                    agg.sort_values("goals", ascending=False).head(10),
-                    x="player_name", y="goals"
-                ),
-                use_container_width=True,
-                config={"staticPlot": True}  # disable interactivity
-            )
-        with c2:
-            st.caption("Top Assists")
-            st.plotly_chart(
-                px.bar(
-                    agg.sort_values("assists", ascending=False).head(10),
-                    x="player_name", y="assists"
-                ),
-                use_container_width=True,
-                config={"staticPlot": True}  # disable interactivity
-            )
+    # ---- Top 10 Players ----
+    top_scorers = agg.sort_values("goals", ascending=False).head(10)
+    top_assists = agg.sort_values("assists", ascending=False).head(10)
+    top_rating = agg[agg["matches"] >= 3].sort_values("avg_rating", ascending=False).head(10)
 
-        # Best Average Rating with Rank
-        
-        st.markdown("<h2 class='main-heading'>Best Average Rating (min 3 matches)</h2>", unsafe_allow_html=True)
-        best = agg[agg["matches"] >= 3].sort_values("avg_rating", ascending=False)
-        best.insert(0, "Rank", best["avg_rating"].rank(method="min", ascending=False).astype(int))
-        st.dataframe(best, use_container_width=True)
+    # Theme colors
+    scorer_color = "#1E88E5"   # Nile Blue
+    assist_color = "#43A047"   # Green accent
+    rating_color = "#E53935"   # Red accent
+    card_bg = "#0C182E"        # Dark app background
+    text_color = "#FFFFFF"
+
+    col1, col2, col3 = st.columns(3)
+
+    # ========== Top Scorers ==========
+    with col1:
+        st.markdown(f"<div style='text-align:center; font-size:22px; font-weight:bold; color:{scorer_color};'>⚽ Top Scorers</div>", unsafe_allow_html=True)
+        for idx, row in top_scorers.iterrows():
+            st.markdown(f"""
+            <div style='
+                background: {card_bg};
+                color: {text_color};
+                padding: 10px;
+                border-radius: 12px;
+                margin: 6px 0;
+                border: 1px solid {scorer_color};
+                display: flex;
+                justify-content: space-between;
+                font-size: 14px;
+            '>
+                <span>{idx+1}. {row['player_name']}</span>
+                <span style='font-weight:bold;'>{int(row['goals'])} Goals</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # ========== Top Assists ==========
+    with col2:
+        st.markdown(f"<div style='text-align:center; font-size:22px; font-weight:bold; color:{assist_color};'>🎯 Top Assists</div>", unsafe_allow_html=True)
+        for idx, row in top_assists.iterrows():
+            st.markdown(f"""
+            <div style='
+                background: {card_bg};
+                color: {text_color};
+                padding: 10px;
+                border-radius: 12px;
+                margin: 6px 0;
+                border: 1px solid {assist_color};
+                display: flex;
+                justify-content: space-between;
+                font-size: 14px;
+            '>
+                <span>{idx+1}. {row['player_name']}</span>
+                <span style='font-weight:bold;'>{int(row['assists'])} Assists</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # ========== Top Rating ==========
+    with col3:
+        st.markdown(f"<div style='text-align:center; font-size:22px; font-weight:bold; color:{rating_color};'>⭐ Top Rating</div>", unsafe_allow_html=True)
+        for idx, row in top_rating.iterrows():
+            st.markdown(f"""
+            <div style='
+                background: {card_bg};
+                color: {text_color};
+                padding: 10px;
+                border-radius: 12px;
+                margin: 6px 0;
+                border: 1px solid {rating_color};
+                display: flex;
+                justify-content: space-between;
+                font-size: 14px;
+            '>
+                <span>{idx+1}. {row['player_name']}</span>
+                <span style='font-weight:bold;'>{row['avg_rating']:.2f}</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+
+
 
 
 
@@ -1039,11 +1165,9 @@ def page_dashboard():
 # ADMIN PAGES (Matches, Stats, Fan Wall, Reports, PLAYERS CRUD)
 # -------------------------------
 def admin_matches_page():
-    
     st.markdown("<h2 class='main-heading'>⚽ Matches</h2>", unsafe_allow_html=True)
 
     tab1, tab2, tab3 = st.tabs(["➕ Add Upcoming", "✅ Add Result", "📋 All Matches"])
-
     matches = read_csv_safe(MATCHES_FILE)
 
     # ---------------- TAB 1: Add Upcoming Match ----------------
@@ -1104,10 +1228,19 @@ def admin_matches_page():
 
             if submit_res:
                 res = calc_result(int(our), int(their))
+
+                # 🔥 Force INT for scores
                 matches.loc[matches["match_id"] == int(mid),
                             ["our_score", "their_score", "result", "notes"]] = [
                     int(our), int(their), res, notes2
                 ]
+
+                # 🔥 Ensure integer columns before saving
+                if "our_score" in matches.columns:
+                    matches["our_score"] = pd.to_numeric(matches["our_score"], errors="coerce").astype("Int64")
+                if "their_score" in matches.columns:
+                    matches["their_score"] = pd.to_numeric(matches["their_score"], errors="coerce").astype("Int64")
+
                 write_csv_safe(matches, MATCHES_FILE)
                 st.success("Result saved ✅")
                 st.rerun()
@@ -1129,6 +1262,7 @@ def admin_matches_page():
                 sb.table("matches").delete().eq("match_id", int(del_mid)).execute()
                 st.success("Match and stats deleted ✅")
                 st.rerun()
+
 
 
 
@@ -1366,10 +1500,10 @@ def admin_players_crud_page():
 # TRAINING: Admin/Manager/Player
 # -------------------------------
 def admin_training_sessions_page():
-    
     st.markdown("<h2 class='main-heading'>🏋️ Create / Manage Training Sessions</h2>", unsafe_allow_html=True)
     sessions = read_csv_safe(TRAINING_SESSIONS_FILE)
 
+    # ===================== CREATE NEW SESSION =====================
     with st.form("create_session"):
         c1, c2, c3 = st.columns([1, 1, 2])
         with c1:
@@ -1395,33 +1529,62 @@ def admin_training_sessions_page():
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         sessions = pd.concat([sessions, pd.DataFrame([new])], ignore_index=True)
+
+        # 🔥 Drop computed columns like dt before saving
+        if "dt" in sessions.columns:
+            sessions = sessions.drop(columns=["dt"])
+
         write_csv_safe(sessions, TRAINING_SESSIONS_FILE)
-        st.success("Training session created.")
+        st.success("✅ Training session created.")
 
     st.divider()
+
+    # ===================== SHOW ALL SESSIONS =====================
     if sessions.empty:
         st.info("No training sessions yet.")
         return
 
-    st.caption("Upcoming & Past Sessions")
+    st.caption("📅 Upcoming & Past Sessions")
     try:
         sessions["dt"] = pd.to_datetime(sessions["date"] + " " + sessions["time"])
     except Exception:
         sessions["dt"] = pd.to_datetime(sessions["date"], errors="coerce")
-    st.dataframe(sessions.drop(columns=["dt"]).sort_values(["date", "time"]), use_container_width=True)
 
+    st.dataframe(
+        sessions.drop(columns=["dt"]).sort_values(["date", "time"]),
+        use_container_width=True
+    )
+
+    # ===================== DELETE A SESSION =====================
     del_id = st.text_input("Delete session by session_id")
     if st.button("Delete Session"):
         if del_id.isdigit():
-            before = len(sessions)
-            sessions = sessions[sessions["session_id"] != int(del_id)]
-            write_csv_safe(sessions, TRAINING_SESSIONS_FILE)
-            att = read_csv_safe(TRAINING_ATTEND_FILE)
-            att = att[att["session_id"] != int(del_id)] if not att.empty else att
-            write_csv_safe(att, TRAINING_ATTEND_FILE)
-            st.success(f"Deleted {before - len(sessions)} session(s) & related attendance.")
+            sid = int(del_id)
+
+            try:
+                sb = _supabase_client()
+                sb.table("training_sessions").delete().eq("session_id", sid).execute()
+                sb.table("training_attendance").delete().eq("session_id", sid).execute()
+
+                # Remove locally
+                sessions = sessions[sessions["session_id"] != sid]
+                if "dt" in sessions.columns:
+                    sessions = sessions.drop(columns=["dt"])
+
+                write_csv_safe(sessions, TRAINING_SESSIONS_FILE)
+
+                att = read_csv_safe(TRAINING_ATTEND_FILE)
+                if not att.empty:
+                    att = att[att["session_id"] != sid]
+                    write_csv_safe(att, TRAINING_ATTEND_FILE)
+
+                st.success(f"✅ Deleted session {sid} and related attendance records.")
+            except Exception as e:
+                st.error(f"❌ Failed to delete session {sid}: {e}")
         else:
-            st.warning("Enter a valid numeric session_id.")
+            st.warning("⚠️ Enter a valid numeric session_id.")
+
+
 
 def _attendance_color(val: str):
     if str(val).lower() == "yes":
@@ -2979,7 +3142,6 @@ if __name__ == "__main__":
 ## TEXT  =>WIDE MID
 
 ## BUTTONS SKY BLUE
-
 
 
 
