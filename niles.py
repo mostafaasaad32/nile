@@ -2831,163 +2831,109 @@ def tab_nav(pages: dict, default: str):
 # -------------------------------
 # ADMIN APP
 # -------------------------------
-# ========================================
-# UNIVERSAL NAVIGATION SYSTEM
-# ========================================
-
-# Define all your page sets per role
-ADMIN_PAGES = {
-    "🏠": {"label": "Dashboard", "func": page_dashboard},
-    "⚽": {"label": "Matches", "func": admin_matches_page},
-    "📊": {"label": "Stats", "func": admin_player_stats_page},
-    "📸": {"label": "Upload", "func": admin_upload_player_stats_page},
-    "👤": {"label": "Players", "func": admin_players_crud_page},
-    "📝": {"label": "Training", "func": admin_training_sessions_page},
-    "📋": {"label": "Attendance", "func": admin_training_attendance_all},
-    "💬": {"label": "Fan Wall", "func": admin_fanwall_moderation},
-    "📄": {"label": "Reports", "func": admin_reports_page},
-    "⭐": {"label": "Best XI", "func": page_best_xi},
-    "⚠️": {"label": "Danger", "func": admin_delete_all_data},
-}
-
-MANAGER_PAGES = {
-    "🏠": {"label": "Dashboard", "func": page_dashboard},
-    "📄": {"label": "Tactics", "func": manager_tactics_text_page},
-    "📈": {"label": "Board", "func": manager_tactics_board_page},
-    "📋": {"label": "Attendance", "func": manager_training_attendance_overview},
-    "⭐": {"label": "Best XI", "func": page_best_xi},
-}
-
-PLAYER_PAGES = {
-    "🏠": {"label": "Dashboard", "func": page_dashboard},
-    "📊": {"label": "My Stats", "func": player_my_stats_page},
-    "📸": {"label": "Upload", "func": player_upload_stats_page},
-    "📋": {"label": "Attendance", "func": lambda: player_training_attendance_page(
-        st.session_state.auth.get("name", "Player")
-    )},
-    "📄": {"label": "Tactics", "func": player_tactics_text_page},
-    "📈": {"label": "Board", "func": player_tactics_board_page},
-    "⭐": {"label": "Best XI", "func": page_best_xi},
-}
-
-FAN_PAGES = {
-    "🏠": {"label": "Dashboard", "func": page_dashboard},
-    "💬": {"label": "Fan Wall", "func": fan_public_page},
-}
-
-
-# ========================================
-# STATE INITIALIZATION
-# ========================================
-if "current_page" not in st.session_state:
-    st.session_state.current_page = "🏠"  # default first page
-
-
-# ========================================
-# BOTTOM NAVBAR COMPONENT
-# ========================================
-def bottom_navbar(pages: dict):
-    """Bottom navigation bar styled like a real mobile app."""
-    st.markdown(
-        """
-        <style>
-        /* Container for the bottom bar */
-        .bottom-bar {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            height: 70px; background: #111827;
-            border-top: 1px solid #333;
-            display: flex; justify-content: space-around; align-items: center;
-            z-index: 9999; font-family: 'Arial', sans-serif;
-        }
-
-        /* Center content */
-        .nav-container {
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-        }
-
-        /* Circle button style */
-        .stButton>button {
-            background: none !important; border: none !important;
-            color: #9CA3AF !important; font-size: 24px !important;
-            border-radius: 50% !important;
-            width: 48px; height: 48px;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.2s ease-in-out;
-        }
-
-        /* Hover effect */
-        .stButton>button:hover {
-            background: rgba(255,255,255,0.1) !important;
-            color: white !important;
-            transform: scale(1.1);
-        }
-
-        /* Active page highlight */
-        .active-btn {
-            color: #10B981 !important;
-            font-weight: bold;
-        }
-
-        /* Label below icon */
-        .nav-label {
-            color: #9CA3AF; font-size: 11px; margin-top: -4px;
-        }
-
-        .active-label {
-            color: #10B981;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # Create equal-width columns for each page
-    cols = st.columns(len(pages))
-    for i, (icon, data) in enumerate(pages.items()):
-        is_active = st.session_state.current_page == icon
-        label_class = "active-label" if is_active else "nav-label"
-        btn_class = "active-btn" if is_active else ""
-
-        with cols[i]:
-            st.markdown('<div class="nav-container">', unsafe_allow_html=True)
-            if st.button(icon, key=f"nav_{icon}", help=data["label"]):
-                st.session_state.current_page = icon
-                st.experimental_rerun()
-            st.markdown(
-                f'<div class="{label_class}">{data["label"]}</div>',
-                unsafe_allow_html=True
-            )
-            st.markdown('</div>', unsafe_allow_html=True)
-
-
-def render_app(pages: dict):
-    """Render the currently selected page and navbar."""
-    render_header()
-    icon = st.session_state.current_page
-    pages[icon]["func"]()
-    bottom_navbar(pages)
-
-
-# ========================================
-# ROLE-BASED APP RUNNERS
-# ========================================
 def run_admin():
-    render_app(ADMIN_PAGES)
+     render_header() 
+     tabs = [ "🏠 Dashboard", "⚽ Matches", "📊 Player Stats", "📸 Upload Player Stats", "👤 Players", "📝 Training Sessions", "📋 Attendance", "💬 Fan Wall", "📄 Reports", "⭐ Best XI", "⚠️ Danger Zone" ] 
+     pages = { "🏠 Dashboard": page_dashboard, "⚽ Matches": admin_matches_page, "📊 Player Stats": admin_player_stats_page, "📸 Upload Player Stats": admin_upload_player_stats_page, "👤 Players": admin_players_crud_page, "📝 Training Sessions": admin_training_sessions_page, "📋 Attendance": admin_training_attendance_all, "💬 Fan Wall": admin_fanwall_moderation, "📄 Reports": admin_reports_page, "⭐ Best XI": page_best_xi, "⚠️ Danger Zone": admin_delete_all_data }
+     selected_tab = st.tabs(tabs) 
+     for i, tab_name in enumerate(tabs): 
+         with selected_tab[i]: pages[tab_name]()
 
+
+
+
+# -------------------------------
+# MANAGER APP
+# -------------------------------
 def run_manager():
-    render_app(MANAGER_PAGES)
+    render_header()
 
+    tabs = [
+        "🏠 Dashboard",
+        "📄 Tactics",
+        "📈 Board",
+        "📋 Attendance",
+        "⭐ Best XI",
+    ]
+
+    pages = {
+        "🏠 Dashboard": page_dashboard,
+        "📄 Tactics": manager_tactics_text_page,
+        "📈 Board": manager_tactics_board_page,
+        "📋 Attendance": manager_training_attendance_overview,
+        "⭐ Best XI": page_best_xi,
+    }
+
+    selected_tabs = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tabs[i]:
+            pages[tab_name]()
+
+
+
+# -------------------------------
+# PLAYER APP
+# -------------------------------
 def run_player():
-    render_app(PLAYER_PAGES)
+    render_header()
 
+    tabs = [
+        "🏠 Dashboard",
+        "📊 My Stats",
+        "📸 Upload My Stats",   # ✅ new tab
+        "📋 Attendance",
+        "📄 Tactics",
+        "📈 Board",
+        "⭐ Best XI",
+    ]
+
+    pages = {
+        "🏠 Dashboard": page_dashboard,
+        "📊 My Stats": player_my_stats_page,
+        "📸 Upload My Stats": player_upload_stats_page,  # ✅ new page
+        "📋 Attendance": lambda: player_training_attendance_page(st.session_state.auth.get("name", "Player")),
+        "📄 Tactics": player_tactics_text_page,
+        "📈 Board": player_tactics_board_page,
+        "⭐ Best XI": page_best_xi,
+    }
+
+    selected_tabs = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tabs[i]:
+            page_func = pages.get(tab_name)
+            if page_func is not None and callable(page_func):
+                page_func()
+            else:
+                st.warning(f"⚠️ Page '{tab_name}' is not available.")
+
+
+
+# -------------------------------
+# FAN APP
+# -------------------------------
 def run_fan():
-    render_app(FAN_PAGES)
+    render_header()
+
+    tabs = [
+        "🏠 Dashboard",
+        "💬 Fan Wall",
+    ]
+
+    pages = {
+        "🏠 Dashboard": page_dashboard,
+        "💬 Fan Wall": fan_public_page,
+    }
+
+    selected_tabs = st.tabs(tabs)
+    for i, tab_name in enumerate(tabs):
+        with selected_tabs[i]:
+            pages[tab_name]()
 
 
-# ========================================
+
+# -------------------------------
 # MAIN
-# ========================================
+# -------------------------------
 def main():
     init_session()
 
@@ -3013,7 +2959,6 @@ def main():
         run_fan()
     else:
         logout()
-
 
 
 if __name__ == "__main__":
