@@ -1669,15 +1669,17 @@ def admin_upload_player_stats_page():
             # Match extracted names to players list
             merged = df.merge(players_df, left_on="player_name", right_on="name", how="left")
 
-            # Warn about unknown players
+            # 🚨 Check for unknown players
             unknown = merged[merged["player_id"].isna()]
             if not unknown.empty:
-                st.warning(f"⚠️ These players are not in the squad list: {unknown['player_name'].tolist()}")
+                st.error(f"❌ These players are not in the squad list: {unknown['player_name'].tolist()}")
+                st.warning("⚠️ No stats have been saved. Please fix player names before retrying.")
+                return  # 🔥 Stop execution here, nothing gets saved
 
-            # Only keep rows with valid player IDs
+            # ✅ Only valid players proceed
             valid_rows = merged.dropna(subset=["player_id"])
 
-            # Insert/update each row in Supabase
+            # Save stats to Supabase
             for _, row in valid_rows.iterrows():
                 try:
                     # Check if stats for this player and match already exist
@@ -2738,32 +2740,6 @@ def page_best_xi():
     st.dataframe(sel_df.head(11), use_container_width=True,height=300)
 
 
-def admin_delete_all_data():
-    st.subheader("⚠ Danger Zone – Delete All Data")
-    st.warning("This will permanently delete ALL players, matches, stats, tactics, training sessions, attendance, and fan wall data.")
-
-    if st.checkbox("I understand this action cannot be undone"):
-        if st.button("🗑 Delete Everything", type="primary"):
-            try:
-                # List of all CSV files
-                files = [
-                    PLAYERS_FILE,
-                    MATCHES_FILE,
-                    PLAYER_STATS_FILE,
-                    TACTICS_FILE,
-                    TACTICS_POS_FILE,
-                    AVAIL_FILE,
-                    TRAINING_SESSIONS_FILE,
-                    TRAINING_ATTEND_FILE,
-                    FANWALL_FILE
-                ]
-                for f in files:
-                    if os.path.exists(f):
-                        os.remove(f)
-                ensure_csvs()  # recreate empty CSVs
-                st.success("✅ All data deleted and reset to empty state.")
-            except Exception as e:
-                st.error(f"Error while deleting: {e}")
 
 
 
@@ -2833,8 +2809,8 @@ def tab_nav(pages: dict, default: str):
 # -------------------------------
 def run_admin():
      render_header() 
-     tabs = [ "🏠 Dashboard", "⚽ Matches", "📊 Player Stats", "📸 Upload Player Stats", "👤 Players", "📝 Training Sessions", "📋 Attendance", "💬 Fan Wall", "📄 Reports", "⭐ Best XI", "⚠️ Danger Zone" ] 
-     pages = { "🏠 Dashboard": page_dashboard, "⚽ Matches": admin_matches_page, "📊 Player Stats": admin_player_stats_page, "📸 Upload Player Stats": admin_upload_player_stats_page, "👤 Players": admin_players_crud_page, "📝 Training Sessions": admin_training_sessions_page, "📋 Attendance": admin_training_attendance_all, "💬 Fan Wall": admin_fanwall_moderation, "📄 Reports": admin_reports_page, "⭐ Best XI": page_best_xi, "⚠️ Danger Zone": admin_delete_all_data }
+     tabs = [ "🏠 Dashboard", "⚽ Matches", "📊 Player Stats", "📸 Upload Player Stats", "👤 Players", "📝 Training Sessions", "📋 Attendance", "💬 Fan Wall", "📄 Reports", "⭐ Best XI"] 
+     pages = { "🏠 Dashboard": page_dashboard, "⚽ Matches": admin_matches_page, "📊 Player Stats": admin_player_stats_page, "📸 Upload Player Stats": admin_upload_player_stats_page, "👤 Players": admin_players_crud_page, "📝 Training Sessions": admin_training_sessions_page, "📋 Attendance": admin_training_attendance_all, "💬 Fan Wall": admin_fanwall_moderation, "📄 Reports": admin_reports_page, "⭐ Best XI": page_best_xi }
      selected_tab = st.tabs(tabs) 
      for i, tab_name in enumerate(tabs): 
          with selected_tab[i]: pages[tab_name]()
@@ -2848,26 +2824,37 @@ def run_admin():
 def run_manager():
     render_header()
 
-    tabs = [
+    # Main Tabs
+    main_tabs = st.tabs([
         "🏠 Dashboard",
         "📄 Tactics",
-        "📈 Board",
         "📋 Attendance",
         "⭐ Best XI",
-    ]
+    ])
 
-    pages = {
-        "🏠 Dashboard": page_dashboard,
-        "📄 Tactics": manager_tactics_text_page,
-        "📈 Board": manager_tactics_board_page,
-        "📋 Attendance": manager_training_attendance_overview,
-        "⭐ Best XI": page_best_xi,
-    }
+    # Main Tab: Dashboard
+    with main_tabs[0]:
+        page_dashboard()
 
-    selected_tabs = st.tabs(tabs)
-    for i, tab_name in enumerate(tabs):
-        with selected_tabs[i]:
-            pages[tab_name]()
+    # Main Tab: Tactics (With Sub-Tabs)
+    with main_tabs[1]:
+        st.subheader("Tactics")
+        tactics_tabs = st.tabs(["📝 Text View", "📈 Board View"])
+
+        with tactics_tabs[0]:
+            manager_tactics_text_page()
+
+        with tactics_tabs[1]:
+            manager_tactics_board_page()
+
+    # Main Tab: Attendance
+    with main_tabs[2]:
+        manager_training_attendance_overview()
+
+    # Main Tab: Best XI
+    with main_tabs[3]:
+        page_best_xi()
+
 
 
 
@@ -2877,34 +2864,42 @@ def run_manager():
 def run_player():
     render_header()
 
-    tabs = [
+    main_tabs = st.tabs([
         "🏠 Dashboard",
-        "📊 My Stats",
-        "📸 Upload My Stats",   # ✅ new tab
+        "📊 Stats",
         "📋 Attendance",
         "📄 Tactics",
-        "📈 Board",
         "⭐ Best XI",
-    ]
+    ])
 
-    pages = {
-        "🏠 Dashboard": page_dashboard,
-        "📊 My Stats": player_my_stats_page,
-        "📸 Upload My Stats": player_upload_stats_page,  # ✅ new page
-        "📋 Attendance": lambda: player_training_attendance_page(st.session_state.auth.get("name", "Player")),
-        "📄 Tactics": player_tactics_text_page,
-        "📈 Board": player_tactics_board_page,
-        "⭐ Best XI": page_best_xi,
-    }
+    # Dashboard
+    with main_tabs[0]:
+        page_dashboard()
 
-    selected_tabs = st.tabs(tabs)
-    for i, tab_name in enumerate(tabs):
-        with selected_tabs[i]:
-            page_func = pages.get(tab_name)
-            if page_func is not None and callable(page_func):
-                page_func()
-            else:
-                st.warning(f"⚠️ Page '{tab_name}' is not available.")
+    # Stats (Upload + My Stats as sub-tabs)
+    with main_tabs[1]:
+        stats_tabs = st.tabs(["📊 My Stats", "📸 Upload Stats"])
+        with stats_tabs[0]:
+            player_my_stats_page()
+        with stats_tabs[1]:
+            player_upload_stats_page()
+
+    # Attendance
+    with main_tabs[2]:
+        player_training_attendance_page(st.session_state.auth.get("name", "Player"))
+
+    # Tactics
+    with main_tabs[3]:
+        tactics_tabs = st.tabs(["📝 Text View", "📈 Board View"])
+        with tactics_tabs[0]:
+            player_tactics_text_page()
+        with tactics_tabs[1]:
+            player_tactics_board_page()
+
+    # Best XI
+    with main_tabs[4]:
+        page_best_xi()
+
 
 
 
