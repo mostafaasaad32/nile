@@ -25,66 +25,12 @@ import httpx
 from postgrest.exceptions import APIError
 import google.generativeai as genai
 import io 
-# -------------------------------
-# CONFIG (set once, top-level)
-# -------------------------------
+
+
+
 # -------------------------------
 # PAGE CONFIG (mobile-first)
 # -------------------------------
-
-st.markdown("""
-<style>
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
-a[href="https://streamlit.io"] {display: none !important;}
-.viewerBadge_container__1QSob {display: none !important;}
-[data-testid="stToolbar"] {visibility: hidden !important;}
-</style>
-""", unsafe_allow_html=True)
-
-# Hide Streamlit Branding and Controls
-HIDE_STREAMLIT_UI = """
-<style>
-/* Hide the top menu, footer, and watermark */
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
-
-/* Hide viewer badges, toolbar, and deploy button */
-.viewerBadge_container__1QSob {display: none !important;}
-[data-testid="stToolbar"] {visibility: hidden !important;}
-.stDeployButton {display: none !important;}
-.stAppDeployButton {display: none !important;}
-
-/* Optional: Hide "Made with Streamlit" watermark completely */
-a[href="https://streamlit.io"] {visibility: hidden !important; display: none !important;}
-</style>
-"""
-st.markdown(HIDE_STREAMLIT_UI, unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-/* Remove Streamlit default padding/margin */
-.block-container {
-    padding: 0 !important;
-    margin: 0 !important;
-    max-width: 100% !important;
-    width: 100% !important;
-}
-
-/* Make all columns stack naturally on small screens */
-.css-ocqkz7, .css-1kyxreq, .stColumn {
-    flex: 1 1 100% !important;
-    width: 100% !important;
-}
-
-/* Force buttons and inputs to span full width */
-.stButton > button, .stTextInput, .stSelectbox, .stTextArea {
-    width: 100% !important;
-}
-</style>
-""", unsafe_allow_html=True)
 LOGO_URL = "https://github.com/mostafaasaad32/nile/raw/master/images/Artboard_1.png"
 
 st.set_page_config(
@@ -102,27 +48,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.markdown("""
-<style>
-/* 🔒 Hide Streamlit's fullscreen icon on widgets */
-button[title="View fullscreen"] {
-    display: none !important;
-}
-
-/* 🔒 Hide "Made with Streamlit" watermark inside widgets */
-[data-testid="stDecoration"] {
-    display: none !important;
-}
-
-/* 🔒 Hide extra toolbars */
-[data-testid="stToolbar"], .viewerBadge_container__1QSob {
-    display: none !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # ===================================
-# CLEAN FINAL THEME + FONT STYLES
+# CLEAN COMBINED GLOBAL CSS
 # ===================================
 GLOBAL_CSS = """
 <style>
@@ -134,10 +61,16 @@ GLOBAL_CSS = """
   visibility: hidden !important;
 }
 
-/* 🚫 Kill Streamlit 1.48.1 widget overlay + fullscreen */
+/* ====== HIDE WATERMARKS & FULLSCREEN ====== */
+a[href="https://streamlit.io"],
 div[data-testid="stDecoration"],
 div[data-testid="stDecorationContainer"],
-section[data-testid="stToolbar"] {
+section[data-testid="stToolbar"],
+[data-testid="StyledFullScreenButton"],
+[data-testid="StyledToolbar"],
+.stDecoration, .stToolbar,
+button[title="View fullscreen"],
+div[title="View fullscreen"] {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
@@ -146,16 +79,18 @@ section[data-testid="stToolbar"] {
     pointer-events: none !important;
     overflow: hidden !important;
 }
-button[title="View fullscreen"],
-div[title="View fullscreen"] {
-    display: none !important;
-    visibility: hidden !important;
+
+/* ====== LAYOUT RESET ====== */
+.block-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-bottom: 90px !important; /* space for mobile navbar */
 }
-div[data-testid="stDecoration"] p,
-div[data-testid="stDecoration"] span {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
+.css-ocqkz7, .css-1kyxreq, .stColumn {
+    flex: 1 1 100% !important;
+    width: 100% !important;
 }
 
 /* ====== FORCE FULL-WIDTH INPUTS & BUTTONS ====== */
@@ -167,7 +102,7 @@ div[data-testid="stDecoration"] span {
     display: block !important;
 }
 
-/* Buttons styling */
+/* ====== BUTTON STYLE ====== */
 .stButton > button {
   font-family: 'WIDE MEDIUM', sans-serif !important;
   font-weight: 500 !important;
@@ -181,7 +116,7 @@ div[data-testid="stDecoration"] span {
   padding: 10px 16px !important;
   box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
   transition: 0.2s ease-in-out !important;
-  min-height: 44px !important; /* 👈 thumb-friendly */
+  min-height: 44px !important;
 }
 .stButton > button:hover {
   opacity: 0.9 !important;
@@ -232,6 +167,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   letter-spacing: 1.5px;
   color: #ffffff !important;
   font-size: 32px !important;
+  margin: 0 !important;
 }
 .app-subtitle {
   font-family: 'WIDE MEDIUM', sans-serif !important;
@@ -318,7 +254,16 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 }
 .navbar a.active { color: #10B981; font-weight: bold; }
 .navbar a:hover { color: white; }
-.block-container { padding-bottom: 90px !important; }
+
+/* ====== HEADER CONTAINER ====== */
+.header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: 8px;
+}
 
 /* ====== MOBILE RESPONSIVE ====== */
 @media (max-width: 600px) {
@@ -329,28 +274,24 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   .glass { padding: 8px !important; border-radius: 12px !important; }
   .stDataFrame { font-size: 12px !important; }
   .stPlotlyChart, .stAltairChart { height: auto !important; min-height: 280px !important; }
+  .header-container img { width: 80px !important; }
+  .app-title { font-size: 16px !important; }
 }
 
 /* ====== EXTRA MOBILE LAYOUT FIXES ====== */
-
-/* 🔹 Slight zoom-out on small screens */
 @media (max-width: 768px) {
   body, .block-container, [data-testid="stAppViewContainer"] {
     zoom: 0.9;
     -moz-transform: scale(0.9);
     -moz-transform-origin: 0 0;
   }
-}
-
-/* 🔹 Tabs wrap into multiple rows on mobile */
-@media (max-width: 768px) {
   .stTabs [role="tablist"] {
     flex-wrap: wrap !important;
     justify-content: space-around !important;
     gap: 4px !important;
   }
   .stTabs [role="tab"] {
-    flex: 1 1 45% !important;   /* roughly 2 tabs per row */
+    flex: 1 1 45% !important;
     margin: 2px !important;
     font-size: 0.85rem !important;
     padding: 6px 4px !important;
@@ -359,39 +300,12 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 </style>
 """
 
-
-
-
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-/* 🚫 Remove Streamlit widget toolbar (appears on focus) */
-[data-testid="stDecoration"],
-[data-testid="StyledFullScreenButton"],
-[data-testid="StyledToolbar"],
-button[title="View fullscreen"],
-.stDecoration,
-.stToolbar {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-
 
 # =======================================
 # NILES APP (with Supabase integration)
 # =======================================
 
-
-
-# -------------------------------
-# CONFIG
-# -------------------------------
 
 
 DATA_DIR = "data"
@@ -759,21 +673,26 @@ def render_header():
     role = st.session_state.auth.get("role", "Guest")
     name = st.session_state.auth.get("name", "User")
 
-    col1, col2 = st.columns([4, 1])
+    # === Top header row (Logo + Title + Logout) ===
+    col1, col2 = st.columns([6, 1])
     with col1:
-      st.markdown(f"""
-<div style="display:flex; align-items:center; gap:5px;">
-    <img src="{LOGO_URL}" style="width:180px; height:auto;">
-    <div class="app-title">Nile Esports Hub</div>
-    <span style="color:#ff4b4b; font-weight:bold;">Live</span>
-</div>
-""", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="display:flex; align-items:center; gap:8px; margin:0; padding:0;">
+            <img src="{LOGO_URL}" style="width:140px; height:auto;">
+            <div style="font-size:28px; font-weight:900; font-family:'SUPER EXP BLACK OBLIQUE', sans-serif; color:white;">
+                NILE ESPORTS HUB
+            </div>
+            <span style="color:#ff4b4b; font-weight:bold; font-size:22px;">LIVE</span>
+        </div>
+        """, unsafe_allow_html=True)
+
     with col2:
-        if st.button("Logout"):
+        if st.button("Logout", key="logout_btn"):
             logout()
 
+    # === User info row ===
     st.markdown(
-        f"<div style='font-size:14px; color:#ddd; margin:8px 0;'>"
+        f"<div style='font-size:14px; color:#ddd; margin:6px 0;'>"
         f"Role: <b>{role.upper()}</b> | User: <b>{name}</b></div>",
         unsafe_allow_html=True
     )
