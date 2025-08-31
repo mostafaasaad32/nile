@@ -86,7 +86,7 @@ div[title="View fullscreen"] {
     margin: 0 !important;
     max-width: 100% !important;
     width: 100% !important;
-    padding-bottom: 100px !important; /* 👈 safe space for bottom navbar */
+    padding-bottom: 100px !important; /* safe space for bottom navbar */
 }
 .css-ocqkz7, .css-1kyxreq, .stColumn {
     flex: 1 1 100% !important;
@@ -165,7 +165,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   align-items: center;
   justify-content: flex-start;
   margin: 0 !important;
-  padding: 2px 8px !important;  /* 👈 reduced top padding */
+  padding: 2px 8px !important;  /* reduced top padding */
   gap: 8px;
 }
 
@@ -188,7 +188,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 }
 
 /* ====== MAIN & SECONDARY HEADINGS ====== */
-.main-heading, .stTabs [role="tab"][aria-selected="true"], .stSubheader {
+.main-heading, .stSubheader {
   font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
   font-weight: 900 !important;
   font-style: oblique !important;
@@ -196,7 +196,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   color: #ffffff !important;
   text-transform: uppercase !important;
 }
-.secondary-heading, .stTabs [role="tab"] {
+.secondary-heading {
   font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
   font-weight: 700 !important;
   font-style: oblique !important;
@@ -264,6 +264,52 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 .navbar a.active { color: #10B981; font-weight: bold; }
 .navbar a:hover { color: white; }
 
+/* ====== FLAT TABS STYLE (No Rectangular Background) ====== */
+.stTabs [role="tablist"] {
+    display: flex !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    white-space: nowrap !important;
+    background: transparent !important;
+    border-bottom: 2px solid #1E40AF !important;
+    margin-bottom: 12px !important;
+}
+.stTabs [role="tablist"]::-webkit-scrollbar {
+    display: none !important;
+}
+
+/* Tab text only */
+.stTabs [role="tab"] {
+    flex: 0 0 auto !important;
+    text-align: center !important;
+    padding: 8px 14px !important;
+    margin: 0 2px !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    border: none !important;
+    font-family: 'WIDE MEDIUM', sans-serif !important;
+    font-stretch: expanded !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #FFFFFF !important;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer !important;
+}
+
+/* Active tab underline */
+.stTabs [role="tab"][aria-selected="true"] {
+    color: #3B82F6 !important;
+    border-bottom: 3px solid #3B82F6 !important;
+    font-weight: 800 !important;
+}
+
+/* Hover */
+.stTabs [role="tab"]:hover {
+    color: #BFDBFE !important;
+}
+
 /* ====== MOBILE RESPONSIVE ====== */
 @media (max-width: 600px) {
   .block-container { padding: 0.25rem !important; max-width: 100% !important; }
@@ -280,67 +326,14 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 /* ====== EXTRA MOBILE FIXES ====== */
 @media (max-width: 768px) {
   body, .block-container, [data-testid="stAppViewContainer"] {
-    zoom: 0.95; /* 👈 consistent mobile scaling */
+    zoom: 0.95; /* consistent mobile scaling */
     -moz-transform: scale(0.95);
     -moz-transform-origin: 0 0;
   }
-  .stTabs [role="tablist"] {
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-  .stTabs [role="tablist"]::-webkit-scrollbar { display: none; }
-
-  /* ====== FLAT TABS STYLE (No Rectangular Background) ====== */
-.stTabs [role="tablist"] {
-    display: flex !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-    white-space: nowrap !important;
-    background: transparent !important;
-    border-bottom: 2px solid #1E40AF !important; /* bottom line */
-    margin-bottom: 12px !important;
-}
-.stTabs [role="tablist"]::-webkit-scrollbar {
-    display: none !important;
-}
-
-/* Tab text only */
-.stTabs [role="tab"] {
-    flex: 0 0 auto !important;
-    text-align: center !important;
-    padding: 8px 14px !important;
-    margin: 0 2px !important;
-    background: transparent !important;   /* 👈 no background */
-    border-radius: 0 !important;          /* 👈 no box */
-    border: none !important;
-    font-family: 'WIDE MEDIUM', sans-serif !important;
-    font-stretch: expanded !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    color: #FFFFFF !important;            /* 👈 white text */
-    transition: all 0.2s ease-in-out;
-    cursor: pointer !important;
-}
-
-/* Active tab: underline highlight only */
-.stTabs [role="tab"][aria-selected="true"] {
-    color: #3B82F6 !important;            /* blue highlight */
-    border-bottom: 3px solid #3B82F6 !important;
-    font-weight: 800 !important;
-}
-
-/* Hover: subtle lighter white-blue */
-.stTabs [role="tab"]:hover {
-    color: #BFDBFE !important;
-}
-
 }
 </style>
 """
+
 
 
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
