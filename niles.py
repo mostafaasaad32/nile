@@ -282,7 +282,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 @media (max-width: 768px) {
   body, .block-container, [data-testid="stAppViewContainer"] {
     zoom: 1;
-    -moz-transform: scale(1);
+    -moz-transform: scale(0.8);
     -moz-transform-origin: 0 0;
   }
   .stTabs [role="tablist"] {
