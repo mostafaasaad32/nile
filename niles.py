@@ -86,7 +86,7 @@ div[title="View fullscreen"] {
     margin: 0 !important;
     max-width: 100% !important;
     width: 100% !important;
-    padding-bottom: 100px !important; /* safe space for bottom navbar */
+    padding-bottom: 100px !important; /* 👈 safe space for bottom navbar */
 }
 .css-ocqkz7, .css-1kyxreq, .stColumn {
     flex: 1 1 100% !important;
@@ -165,7 +165,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   align-items: center;
   justify-content: flex-start;
   margin: 0 !important;
-  padding: 2px 8px !important;  /* reduced gap */
+  padding: 2px 8px !important;  /* 👈 reduced top padding */
   gap: 8px;
 }
 
@@ -180,17 +180,15 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   margin: 0 !important;
 }
 .app-subtitle {
-  font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
+  font-family: 'WIDE MEDIUM', sans-serif !important;
   font-weight: 500 !important;
   color: var(--text-secondary) !important;
   font-size: 16px !important;
   letter-spacing: 1px !important;
 }
 
-/* ====== MAIN & SUB HEADINGS ====== */
-h1, h2, h3,
-.main-heading,
-.stSubheader {
+/* ====== MAIN & SECONDARY HEADINGS ====== */
+.main-heading, .stTabs [role="tab"][aria-selected="true"], .stSubheader {
   font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
   font-weight: 900 !important;
   font-style: oblique !important;
@@ -198,8 +196,7 @@ h1, h2, h3,
   color: #ffffff !important;
   text-transform: uppercase !important;
 }
-h4, h5, h6,
-.secondary-heading {
+.secondary-heading, .stTabs [role="tab"] {
   font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
   font-weight: 700 !important;
   font-style: oblique !important;
@@ -223,46 +220,21 @@ h4, h5, h6,
   font-size: 20px !important;
 }
 
-/* ====== TABLES (Responsive + Glass Style) ====== */
+/* ====== TABLES ====== */
 [data-testid="stDataFrame"] {
   display: block !important;
-  width: 100% !important;
-  max-width: 100% !important;
   overflow-x: auto !important;
-  overflow-y: auto !important;
-  border-radius: 12px !important;
-  border: 1px solid var(--glass-border) !important;
-  background: var(--glass-bg) !important;
+  white-space: nowrap !important;
+  max-width: 100% !important;
   font-size: 13px !important;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.25) !important;
-}
-[data-testid="stDataFrame"] table {
-  color: #E5E7EB !important;
-  font-family: 'WIDE MEDIUM', sans-serif !important;
-}
-[data-testid="stDataFrame"] th {
-  background: #1E3A8A !important;
-  color: #FFFFFF !important;
-  font-weight: 700 !important;
-  font-size: 13px !important;
-  text-transform: uppercase !important;
-  padding: 6px 8px !important;
-}
-[data-testid="stDataFrame"] td {
-  padding: 6px 8px !important;
-  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
 }
 
-/* ====== PLOTS (Responsive + Consistent Height) ====== */
+/* ====== PLOTS & IMAGES ====== */
 .stPlotlyChart, .stAltairChart, .stVegaLiteChart, .stPydeckChart, .stImage {
-  width: 100% !important;
   max-width: 100% !important;
+  width: 100% !important;
   height: auto !important;
-  min-height: 280px !important;
-  border-radius: 12px !important;
-  background: var(--glass-bg) !important;
-  padding: 8px !important;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.25) !important;
+  overflow-x: auto !important;
 }
 
 /* ====== NAVBAR (Mobile Bottom Navigation Fixed) ====== */
@@ -292,46 +264,6 @@ h4, h5, h6,
 .navbar a.active { color: #10B981; font-weight: bold; }
 .navbar a:hover { color: white; }
 
-/* ====== FLAT SCROLLABLE TABS ====== */
-.stTabs [role="tablist"] {
-    display: flex !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-    white-space: nowrap !important;
-    background: transparent !important;
-    border-bottom: 2px solid #1E40AF !important;
-    margin-bottom: 12px !important;
-}
-.stTabs [role="tablist"]::-webkit-scrollbar {
-    display: none !important;
-}
-.stTabs [role="tab"] {
-    flex: 0 0 auto !important;
-    text-align: center !important;
-    padding: 8px 14px !important;
-    margin: 0 2px !important;
-    background: transparent !important;
-    border-radius: 0 !important;
-    border: none !important;
-    font-family: 'WIDE MEDIUM', sans-serif !important;
-    font-stretch: expanded !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    color: #FFFFFF !important;
-    transition: all 0.2s ease-in-out;
-    cursor: pointer !important;
-}
-.stTabs [role="tab"][aria-selected="true"] {
-    color: #3B82F6 !important;
-    border-bottom: 3px solid #3B82F6 !important;
-    font-weight: 800 !important;
-}
-.stTabs [role="tab"]:hover {
-    color: #BFDBFE !important;
-}
-
 /* ====== MOBILE RESPONSIVE ====== */
 @media (max-width: 600px) {
   .block-container { padding: 0.25rem !important; max-width: 100% !important; }
@@ -348,14 +280,67 @@ h4, h5, h6,
 /* ====== EXTRA MOBILE FIXES ====== */
 @media (max-width: 768px) {
   body, .block-container, [data-testid="stAppViewContainer"] {
-    zoom: 0.95;
+    zoom: 0.95; /* 👈 consistent mobile scaling */
     -moz-transform: scale(0.95);
     -moz-transform-origin: 0 0;
   }
+  .stTabs [role="tablist"] {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .stTabs [role="tablist"]::-webkit-scrollbar { display: none; }
+
+  /* ====== FLAT TABS STYLE (No Rectangular Background) ====== */
+.stTabs [role="tablist"] {
+    display: flex !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    white-space: nowrap !important;
+    background: transparent !important;
+    border-bottom: 2px solid #1E40AF !important; /* bottom line */
+    margin-bottom: 12px !important;
+}
+.stTabs [role="tablist"]::-webkit-scrollbar {
+    display: none !important;
+}
+
+/* Tab text only */
+.stTabs [role="tab"] {
+    flex: 0 0 auto !important;
+    text-align: center !important;
+    padding: 8px 14px !important;
+    margin: 0 2px !important;
+    background: transparent !important;   /* 👈 no background */
+    border-radius: 0 !important;          /* 👈 no box */
+    border: none !important;
+    font-family: 'WIDE MEDIUM', sans-serif !important;
+    font-stretch: expanded !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #FFFFFF !important;            /* 👈 white text */
+    transition: all 0.2s ease-in-out;
+    cursor: pointer !important;
+}
+
+/* Active tab: underline highlight only */
+.stTabs [role="tab"][aria-selected="true"] {
+    color: #3B82F6 !important;            /* blue highlight */
+    border-bottom: 3px solid #3B82F6 !important;
+    font-weight: 800 !important;
+}
+
+/* Hover: subtle lighter white-blue */
+.stTabs [role="tab"]:hover {
+    color: #BFDBFE !important;
+}
+
 }
 </style>
 """
-
 
 
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
@@ -984,14 +969,14 @@ def page_dashboard():
     st.markdown("<h2 class='main-heading'>📋 Match Results</h2>", unsafe_allow_html=True)
 
     if not past_matches.empty:
-        st.dataframe(past_matches.reset_index(drop=True), use_container_width=True)
+        st.dataframe(past_matches.reset_index(drop=True), use_container_width=True,width=200)
     else:
         st.caption("No results yet.")
 
     
     st.markdown("<h2 class='main-heading'>📅 Upcoming Matches</h2>", unsafe_allow_html=True)
     if not upcoming_matches.empty:
-        st.dataframe(upcoming_matches.reset_index(drop=True), use_container_width=True)
+        st.dataframe(upcoming_matches.reset_index(drop=True), use_container_width=True,width=200)
     else:
         st.caption("No upcoming fixtures.")
 
