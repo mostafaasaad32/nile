@@ -297,41 +297,56 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
     padding: 6px 4px !important;
   }
 }
-/* ====== TURN TABS INTO NAVBAR STYLE ====== */
+/* ====== SCROLLABLE HORIZONTAL TABS ====== */
 .stTabs [role="tablist"] {
     display: flex !important;
-    justify-content: space-around !important;
-    background: #111827 !important;   /* dark bar background */
+    flex-wrap: nowrap !important;       /* 👈 keep on one line */
+    overflow-x: auto !important;        /* 👈 horizontal scroll */
+    overflow-y: hidden !important;
+    scrollbar-width: thin !important;   /* Firefox */
+    -ms-overflow-style: none !important; /* IE/Edge */
+    white-space: nowrap !important;
+    background: #111827 !important;
     border-bottom: 2px solid #2563EB !important;
     padding: 0 !important;
     margin-bottom: 12px !important;
 }
 
+/* Hide scrollbar but keep scrollability */
+.stTabs [role="tablist"]::-webkit-scrollbar {
+    display: none !important;
+}
+
+/* Style individual tabs */
 .stTabs [role="tab"] {
-    flex: 1 !important;
+    flex: 0 0 auto !important;          /* 👈 don’t stretch */
     text-align: center !important;
-    padding: 10px 0 !important;
+    padding: 10px 16px !important;
     margin: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
     font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
     font-size: 14px !important;
     font-weight: 700 !important;
-    color: #9CA3AF !important;   /* gray inactive */
+    color: #9CA3AF !important;
     border: none !important;
     transition: all 0.2s ease-in-out;
+    cursor: pointer !important;
 }
 
+/* Active tab */
 .stTabs [role="tab"][aria-selected="true"] {
-    color: #10B981 !important;   /* green active */
+    color: #10B981 !important;
     border-bottom: 3px solid #10B981 !important;
     background: transparent !important;
     font-weight: 900 !important;
 }
 
+/* Hover effect */
 .stTabs [role="tab"]:hover {
     color: white !important;
 }
+
 
 </style>
 """
