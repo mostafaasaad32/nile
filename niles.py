@@ -280,7 +280,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 /* ====== EXTRA MOBILE FIXES ====== */
 @media (max-width: 768px) {
   body, .block-container, [data-testid="stAppViewContainer"] {
-    zoom: 0.95; /* 👈 consistent mobile scaling */
+    zoom: 1; /* 👈 consistent mobile scaling */
     -moz-transform: scale(0.95);
     -moz-transform-origin: 0 0;
   }
