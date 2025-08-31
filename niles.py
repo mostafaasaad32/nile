@@ -86,7 +86,7 @@ div[title="View fullscreen"] {
     margin: 0 !important;
     max-width: 100% !important;
     width: 100% !important;
-    padding-bottom: 90px !important; /* space for mobile navbar */
+    padding-bottom: 100px !important; /* 👈 safe space for bottom navbar */
 }
 .css-ocqkz7, .css-1kyxreq, .stColumn {
     flex: 1 1 100% !important;
@@ -159,6 +159,16 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   padding: 16px;
 }
 
+/* ====== HEADER CONTAINER ====== */
+.header-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 0 !important;
+  padding: 2px 8px !important;  /* 👈 reduced top padding */
+  gap: 8px;
+}
+
 /* ====== TITLES ====== */
 .app-title {
   font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
@@ -166,15 +176,14 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   font-style: oblique !important;
   letter-spacing: 1.5px;
   color: #ffffff !important;
-  font-size: 32px !important;
+  font-size: 28px !important;
   margin: 0 !important;
 }
 .app-subtitle {
   font-family: 'WIDE MEDIUM', sans-serif !important;
   font-weight: 500 !important;
-  font-stretch: expanded !important;
   color: var(--text-secondary) !important;
-  font-size: 18px !important;
+  font-size: 16px !important;
   letter-spacing: 1px !important;
 }
 
@@ -247,7 +256,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
     flex: 1;
     text-align: center;
     color: #9CA3AF;
-    font-size: 22px;
+    font-size: 20px;
     text-decoration: none;
     padding: 6px 0;
     transition: all 0.2s ease-in-out;
@@ -255,130 +264,51 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 .navbar a.active { color: #10B981; font-weight: bold; }
 .navbar a:hover { color: white; }
 
-/* ====== HEADER CONTAINER ====== */
-.header-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0 !important;
-  padding: 4px !important;
-  gap: 8px;
-}
-
 /* ====== MOBILE RESPONSIVE ====== */
 @media (max-width: 600px) {
-  .block-container { padding: 0.5rem !important; max-width: 100% !important; }
+  .block-container { padding: 0.25rem !important; max-width: 100% !important; }
   h1, h2, h3, .app-title, .main-heading { font-size: 18px !important; }
   .app-subtitle, p, div, span { font-size: 13px !important; }
   .stButton > button { font-size: 14px !important; padding: 8px 12px !important; width: 100% !important; }
   .glass { padding: 8px !important; border-radius: 12px !important; }
   .stDataFrame { font-size: 12px !important; }
-  .stPlotlyChart, .stAltairChart { height: auto !important; min-height: 280px !important; }
+  .stPlotlyChart, .stAltairChart { height: auto !important; min-height: 260px !important; }
   .header-container img { width: 80px !important; }
   .app-title { font-size: 16px !important; }
 }
 
-/* ====== EXTRA MOBILE LAYOUT FIXES ====== */
+/* ====== EXTRA MOBILE FIXES ====== */
 @media (max-width: 768px) {
   body, .block-container, [data-testid="stAppViewContainer"] {
-    zoom: 0.1;
-    -moz-transform: scale(1.2);
+    zoom: 0.95; /* 👈 consistent mobile scaling */
+    -moz-transform: scale(0.95);
     -moz-transform-origin: 0 0;
   }
   .stTabs [role="tablist"] {
-    flex-wrap: wrap !important;
-    justify-content: space-around !important;
-    gap: 4px !important;
-  }
-  .stTabs [role="tab"] {
-    flex: 1 1 45% !important;
-    margin: 2px !important;
-    font-size: 0.85rem !important;
-    padding: 6px 4px !important;
-  }
-}
-/* ====== SCROLLABLE HORIZONTAL TABS (Dark Blue + White Text) ====== */
-.stTabs [role="tablist"] {
-    display: flex !important;
     flex-wrap: nowrap !important;
     overflow-x: auto !important;
-    overflow-y: hidden !important;
-    scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-    white-space: nowrap !important;
-    background: linear-gradient(90deg, #0A1128, #1E3A8A) !important; /* navy → deep blue */
-    border-bottom: 2px solid #1E40AF !important;
-    padding: 0 !important;
-    margin-bottom: 12px !important;
-}
-.stTabs [role="tablist"]::-webkit-scrollbar {
-    display: none !important;
-}
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .stTabs [role="tablist"]::-webkit-scrollbar { display: none; }
 
-/* Tabs text (all white, expanded font) */
-.stTabs [role="tab"] {
-    flex: 0 0 auto !important;
-    text-align: center !important;
-    padding: 10px 16px !important;
-    margin: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    font-family: 'WIDE MEDIUM', sans-serif !important;  /* 👈 expanded font */
-    font-stretch: expanded !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    color: #FFFFFF !important;  /* 👈 always white text */
-    border: none !important;
-    transition: all 0.2s ease-in-out;
-    cursor: pointer !important;
-}
-
-/* Active tab */
-.stTabs [role="tab"][aria-selected="true"] {
-    color: #FFFFFF !important;
-    border-bottom: 3px solid #3B82F6 !important; /* cyan underline */
+  .stTabs [role="tab"] {
+    flex: 0 0 auto;
+    margin: 0 2px !important;
+    font-size: 0.85rem !important;
+    padding: 6px 10px !important;
+    background: #1E3A8A !important;
+    color: #fff !important;
+  }
+  .stTabs [role="tab"][aria-selected="true"] {
+    background: #2563EB !important;
+    color: #fff !important;
     font-weight: 800 !important;
+  }
 }
-
-/* Hover */
-.stTabs [role="tab"]:hover {
-    color: #BFDBFE !important; /* slightly lighter hover white-blue */
-}
-/* ====== HEADERS FONT CONTROL ====== */
-
-/* Main headers (big / strong) */
-h1, h2, h3,
-.main-heading,
-.stTabs [role="tab"][aria-selected="true"],
-.stSubheader {
-  font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
-  font-weight: 900 !important;
-  font-style: oblique !important;
-  letter-spacing: 1.2px !important;
-  color: #ffffff !important;
-  text-transform: uppercase !important;
-}
-
-/* Subheaders (medium weight) */
-h4, h5, h6,
-.secondary-heading,
-.stTabs [role="tab"]:not([aria-selected="true"]) {
-  font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
-  font-weight: 700 !important;
-  font-style: oblique !important;
-  letter-spacing: 1px !important;
-  color: var(--text-secondary) !important;
-}
-/* Prevent last fields from being cut off under navbar */
-.block-container,
-[data-testid="stAppViewContainer"],
-[data-testid="stMain"] {
-  padding-bottom: 100px !important;  /* 👈 at least equal to navbar height */
-  box-sizing: border-box !important;
-}
-
 </style>
 """
+
 
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
