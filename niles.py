@@ -279,7 +279,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 }
 
 /* ====== EXTRA MOBILE LAYOUT FIXES ====== */
-@media (max-width: 1000px) {
+@media (max-width: 768px) {
   body, .block-container, [data-testid="stAppViewContainer"] {
     zoom: 1;
     -moz-transform: scale(0.7);
@@ -368,6 +368,13 @@ h4, h5, h6,
   font-style: oblique !important;
   letter-spacing: 1px !important;
   color: var(--text-secondary) !important;
+}
+/* Prevent last fields from being cut off under navbar */
+.block-container,
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"] {
+  padding-bottom: 100px !important;  /* 👈 at least equal to navbar height */
+  box-sizing: border-box !important;
 }
 
 </style>
