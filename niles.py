@@ -508,32 +508,36 @@ def read_csv_safe(path: str, retries: int = 3, delay: float = 1.0) -> pd.DataFra
 def write_csv_safe(df: pd.DataFrame, path: str):
     """
     Safe Supabase writer:
-    - Validates schema before writing.
-    - Attempts UPSERT first, deletes stale rows only on success.
-    - Logs full Supabase errors.
-    - Falls back to local CSV if Supabase write fails.
+    - Skips auto-generated 'id' columns (e.g., training_attendance)
+    - Validates schema without spamming warnings for expected auto IDs
+    - Inserts/Upserts cleanly into Supabase
+    - Falls back to local CSV if Supabase write fails
     """
     sb = _supabase_client()
     table = _table_for_path(path)
 
-    # 🔍 Check expected schema
+    # === Adjust expected schema to ignore 'id' for certain tables ===
     expected_cols = EXPECTED_COLUMNS.get(table, [])
+    ignore_missing = {"training_attendance", "fan_wall", "tactics", "tactics_positions", "availability"}
+    expected_cols = [c for c in expected_cols if not (c == "id" and table in ignore_missing)]
+
+    # === Check schema ===
     missing_cols = [c for c in expected_cols if c not in df.columns]
     if missing_cols:
         st.warning(f"⚠️ Missing columns for {table}: {missing_cols}")
 
-    # 🚫 Drop auto-generated ID columns
+    # === Drop auto-generated IDs ===
     auto_ids = {
         "player_stats": ["id"], "tactics": ["id"], "tactics_positions": ["id"],
         "availability": ["id"], "training_attendance": ["id"], "fan_wall": ["id"],
     }
     safe_df = df.drop(columns=[c for c in auto_ids.get(table, []) if c in df.columns], errors="ignore")
 
-    # 📅 Format date columns
+    # === Format dates ===
     if "date" in safe_df.columns:
         safe_df["date"] = pd.to_datetime(safe_df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
 
-    # 🔢 Numeric conversions
+    # === Type conversions for player_stats ===
     try:
         if table == "player_stats":
             int_cols = [
@@ -554,14 +558,14 @@ def write_csv_safe(df: pd.DataFrame, path: str):
     except Exception as conv_err:
         st.warning(f"⚠️ Column conversion error: {conv_err}")
 
-    # 🔄 Convert to rows
+    # === Convert to dict rows ===
     rows = _df_to_rows(safe_df)
     if not rows:
         st.info(f"ℹ️ No rows to save for {table}")
         return
 
     try:
-        # 🚀 UPSERT rows in chunks
+        # === UPSERT in chunks ===
         CHUNK = 500
         for i in range(0, len(rows), CHUNK):
             res = sb.table(table).upsert(rows[i:i+CHUNK]).execute()
@@ -569,7 +573,7 @@ def write_csv_safe(df: pd.DataFrame, path: str):
                 raise Exception(res.error)
         st.success(f"✅ Saved {len(rows)} rows to Supabase table '{table}'")
 
-        # 🧹 Clean up stale rows only if UPSERT succeeded
+        # === Cleanup old rows (delete stale) ===
         try:
             if table == "players":
                 ids = [r["player_id"] for r in rows if r.get("player_id") is not None]
@@ -583,12 +587,13 @@ def write_csv_safe(df: pd.DataFrame, path: str):
             elif table == "player_stats":
                 sb.table(table).delete().neq("match_id", -1).execute()
             elif table in ["tactics", "tactics_positions", "availability", "training_attendance", "fan_wall"]:
-                sb.table(table).delete().neq("id", -1).execute()
+                # No cleanup based on id (let Supabase keep history)
+                pass
         except Exception as delete_err:
             st.warning(f"⚠️ Cleanup issue in {table}: {delete_err}")
 
     except Exception as e:
-        # ❌ If Supabase fails, fallback to CSV
+        # === Fallback to local CSV ===
         st.error(f"❌ Failed to save {table} to Supabase: {e}")
         try:
             df.to_csv(path, index=False)
@@ -1636,67 +1641,87 @@ def manager_training_attendance_overview():
         )
 
 def player_training_attendance_page(player_name: str):
+    """Page for players to mark and view their training attendance."""
     st.subheader("🏋️ Training Attendance (My Response)")
+
+    # Load training sessions
     sessions = read_csv_safe(TRAINING_SESSIONS_FILE)
     if sessions.empty:
         st.info("No training sessions scheduled yet.")
         return
 
-    # upcoming only
+    # Parse datetime for filtering upcoming
     try:
-        sessions["dt"] = pd.to_datetime(sessions["date"] + " " + sessions["time"])
+        sessions["dt"] = pd.to_datetime(sessions["date"].astype(str) + " " + sessions["time"].astype(str), errors="coerce")
     except Exception:
         sessions["dt"] = pd.to_datetime(sessions["date"], errors="coerce")
-    upcoming = sessions[sessions["dt"] >= pd.Timestamp(date.today())].sort_values(["date","time"])
+
+    # Filter upcoming sessions
+    upcoming = sessions[sessions["dt"] >= pd.Timestamp(date.today())].sort_values(["date", "time"])
     if upcoming.empty:
         st.info("No upcoming training sessions.")
         return
 
+    # Load attendance table
     att = read_csv_safe(TRAINING_ATTEND_FILE)
+    if att.empty:
+        att = pd.DataFrame(columns=["session_id", "date", "player_name", "status", "timestamp"])
 
     st.caption("Select your attendance for each upcoming session:")
+
+    # Display each upcoming session
     for _, row in upcoming.iterrows():
         sid = int(row["session_id"])
         key = f"att_{sid}"
-        # existing choice
-        existing = None
-        if not att.empty:
-            q = att[(att["session_id"]==sid) & (att["player_name"].str.lower()==player_name.lower())]
-            if not q.empty:
-                existing = q.iloc[0]["status"]
-        col1, col2, col3 = st.columns([2,2,1])
+
+        # Get existing choice
+        mask = (att["session_id"] == sid) & (att["player_name"].str.lower() == player_name.lower())
+        existing_choice = att.loc[mask, "status"].iloc[0] if mask.any() else None
+
+        col1, col2, col3 = st.columns([2, 2, 1])
         with col1:
-            st.write(f"**{row['date']} {row['time']} – {row['title']}**  @ {row['location']}")
+            st.markdown(f"**{row['date']} {row['time']} – {row['title']}**  @ {row['location']}")
         with col2:
-            choice = st.radio("Attend?", ["Yes","No"], horizontal=True, index=(["Yes","No"].index(existing) if existing in ["Yes","No"] else 0), key=key)
+            choice = st.radio(
+                "Attend?",
+                ["Yes", "No"],
+                horizontal=True,
+                index=(["Yes", "No"].index(existing_choice) if existing_choice in ["Yes", "No"] else 0),
+                key=key
+            )
         with col3:
             if st.button("Save", key=f"save_{sid}"):
-                if att.empty:
-                    att = pd.DataFrame(columns=["session_id","date","player_name","status","timestamp"])
-                mask = (att["session_id"]==sid) & (att["player_name"].str.lower()==player_name.lower())
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                # Update or add attendance
                 if mask.any():
-                    att.loc[mask, ["status","timestamp","date"]] = [choice, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), row["date"]]
+                    att.loc[mask, ["status", "timestamp", "date"]] = [choice, timestamp, row["date"]]
                 else:
-                    att = pd.concat([att, pd.DataFrame([{
+                    new_entry = {
                         "session_id": sid,
                         "date": row["date"],
                         "player_name": player_name,
                         "status": choice,
-                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    }])], ignore_index=True)
+                        "timestamp": timestamp
+                    }
+                    att = pd.concat([att, pd.DataFrame([new_entry])], ignore_index=True)
+
                 write_csv_safe(att, TRAINING_ATTEND_FILE)
-                st.success("Saved ✅")
+                st.success("✅ Saved attendance")
                 st.rerun()
 
     st.divider()
     st.subheader("📊 My Attendance Stats")
-    mine = att[att["player_name"].str.lower()==player_name.lower()]
+
+    # Show attendance stats for this player
+    mine = att[att["player_name"].str.lower() == player_name.lower()]
     if mine.empty:
-        st.info("No responses yet.")
+        st.info("No attendance records yet.")
     else:
-        pct = round((mine["status"].str.lower()=="yes").mean()*100, 1)
-        st.metric("Attendance %", pct)
-        st.dataframe(mine.sort_values(["date","timestamp"], ascending=False), use_container_width=True)
+        pct = round((mine["status"].str.lower() == "yes").mean() * 100, 1)
+        st.metric("Attendance %", f"{pct}%")
+        st.dataframe(mine.sort_values(["date", "timestamp"], ascending=False), use_container_width=True)
+
 
 def admin_training_attendance_all():
     
