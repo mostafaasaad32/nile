@@ -261,8 +261,8 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   align-items: center;
   justify-content: space-between;
   margin: 0 !important;
-  padding: 0 !important;
-  gap: 3px;
+  padding: 4px !important;
+  gap: 8px;
 }
 
 /* ====== MOBILE RESPONSIVE ====== */
@@ -757,7 +757,7 @@ def render_header():
     col1, col2 = st.columns([6, 1])
     with col1:
         st.markdown(f"""
-        <div style="display:flex; align-items:center; gap:8px; margin:0; padding:0;">
+        <div style="display:flex; align-items:center; gap:8px; margin:0; padding:4px;">
             <img src="{LOGO_URL}" style="width:140px; height:auto;">
             <div class="app-title">NILE ESPORTS HUB</div>
             <span style="color:#ff4b4b; font-weight:bold; font-size:22px;">LIVE</span>
