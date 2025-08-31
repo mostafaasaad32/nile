@@ -1,0 +1,3 @@
+id,match_id,player_name,position,goals,assists,rating,yellow_cards,red_cards,player_id,shots,shot_accuracy,passes,pass_accuracy,dribbles,dribble_success,tackles,tackle_success,offsides,fouls_committed,possession_won,possession_lost,minutes_played,distance_covered,distance_sprinted
+279.0,1756121149898,zima,GK,0,0,7.5,0,0,16,0,0.0,3,100.0,2,100.0,0,0.0,0,0,1,0,92,4.0,0.3
+,1756121149898,zima,GK,0,0,7.5,,,16,0,0.0,3,100.0,2,100.0,0,0.0,0,0,1,0,92,4.0,0.3

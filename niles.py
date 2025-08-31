@@ -181,6 +181,7 @@ div[data-testid="stDecoration"] span {
   padding: 10px 16px !important;
   box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
   transition: 0.2s ease-in-out !important;
+  min-height: 44px !important; /* 👈 thumb-friendly */
 }
 .stButton > button:hover {
   opacity: 0.9 !important;
@@ -329,8 +330,35 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   .stDataFrame { font-size: 12px !important; }
   .stPlotlyChart, .stAltairChart { height: auto !important; min-height: 280px !important; }
 }
+
+/* ====== EXTRA MOBILE LAYOUT FIXES ====== */
+
+/* 🔹 Slight zoom-out on small screens */
+@media (max-width: 768px) {
+  body, .block-container, [data-testid="stAppViewContainer"] {
+    zoom: 0.9;
+    -moz-transform: scale(0.9);
+    -moz-transform-origin: 0 0;
+  }
+}
+
+/* 🔹 Tabs wrap into multiple rows on mobile */
+@media (max-width: 768px) {
+  .stTabs [role="tablist"] {
+    flex-wrap: wrap !important;
+    justify-content: space-around !important;
+    gap: 4px !important;
+  }
+  .stTabs [role="tab"] {
+    flex: 1 1 45% !important;   /* roughly 2 tabs per row */
+    margin: 2px !important;
+    font-size: 0.85rem !important;
+    padding: 6px 4px !important;
+  }
+}
 </style>
 """
+
 
 
 
@@ -512,72 +540,97 @@ def read_csv_safe(path: str, retries: int = 3, delay: float = 1.0) -> pd.DataFra
 
 
 def write_csv_safe(df: pd.DataFrame, path: str):
-    """Safely write a dataframe to Supabase.
-       - Deletes missing rows based on primary keys
-       - Skips auto-increment IDs where needed
-       - Ensures correct types before upsert
+    """
+    Safe Supabase writer:
+    - Validates schema before writing.
+    - Attempts UPSERT first, deletes stale rows only on success.
+    - Logs full Supabase errors.
+    - Falls back to local CSV if Supabase write fails.
     """
     sb = _supabase_client()
     table = _table_for_path(path)
 
-    auto_ids = {
-        "player_stats": ["id"],
-        "tactics": ["id"],
-        "tactics_positions": ["id"],
-        "availability": ["id"],
-        "training_attendance": ["id"],
-        "fan_wall": ["id"],
-    }
-    cols_to_skip = auto_ids.get(table, [])
-    safe_df = df.drop(columns=[c for c in cols_to_skip if c in df.columns], errors="ignore")
+    # 🔍 Check expected schema
+    expected_cols = EXPECTED_COLUMNS.get(table, [])
+    missing_cols = [c for c in expected_cols if c not in df.columns]
+    if missing_cols:
+        st.warning(f"⚠️ Missing columns for {table}: {missing_cols}")
 
-    # 🔧 Ensure proper date type
+    # 🚫 Drop auto-generated ID columns
+    auto_ids = {
+        "player_stats": ["id"], "tactics": ["id"], "tactics_positions": ["id"],
+        "availability": ["id"], "training_attendance": ["id"], "fan_wall": ["id"],
+    }
+    safe_df = df.drop(columns=[c for c in auto_ids.get(table, []) if c in df.columns], errors="ignore")
+
+    # 📅 Format date columns
     if "date" in safe_df.columns:
         safe_df["date"] = pd.to_datetime(safe_df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
 
-    # 🔧 Force integer columns to real ints
-    int_columns = {
-        "players": ["player_id"],
-        "matches": ["match_id", "our_score", "their_score"],
-        "player_stats": ["match_id", "goals", "assists", "yellow_cards", "red_cards"],
-        "tactics_positions": ["x", "y"],
-        "training_sessions": ["session_id"],
-        "training_attendance": ["session_id"],
-    }
-    if table in int_columns:
-        for col in int_columns[table]:
-            if col in safe_df.columns:
-                safe_df[col] = pd.to_numeric(safe_df[col], errors="coerce").dropna().astype("Int64")
-                safe_df[col] = safe_df[col].astype(object).where(safe_df[col].notnull(), None)
+    # 🔢 Numeric conversions
+    try:
+        if table == "player_stats":
+            int_cols = [
+                "match_id","goals","assists","shots","passes","dribbles","tackles",
+                "offsides","fouls_committed","possession_won","possession_lost",
+                "minutes_played","yellow_cards","red_cards","player_id"
+            ]
+            float_cols = [
+                "rating","shot_accuracy","pass_accuracy","dribble_success",
+                "tackle_success","distance_covered","distance_sprinted"
+            ]
+            for col in int_cols:
+                if col in safe_df.columns:
+                    safe_df[col] = pd.to_numeric(safe_df[col], errors="coerce").fillna(0).astype("Int64")
+            for col in float_cols:
+                if col in safe_df.columns:
+                    safe_df[col] = pd.to_numeric(safe_df[col], errors="coerce").astype(float)
+    except Exception as conv_err:
+        st.warning(f"⚠️ Column conversion error: {conv_err}")
 
-    # Convert to rows
+    # 🔄 Convert to rows
     rows = _df_to_rows(safe_df)
     if not rows:
+        st.info(f"ℹ️ No rows to save for {table}")
         return
 
-    # DELETE strategy (same as before, per table type)
-    if table == "players":
-        current_ids = [r["player_id"] for r in rows if r.get("player_id") is not None]
-        sb.table(table).delete().not_.in_("player_id", current_ids).execute()
+    try:
+        # 🚀 UPSERT rows in chunks
+        CHUNK = 500
+        for i in range(0, len(rows), CHUNK):
+            res = sb.table(table).upsert(rows[i:i+CHUNK]).execute()
+            if getattr(res, "error", None):
+                raise Exception(res.error)
+        st.success(f"✅ Saved {len(rows)} rows to Supabase table '{table}'")
 
-    elif table == "matches":
-        current_ids = [r["match_id"] for r in rows if r.get("match_id") is not None]
-        sb.table(table).delete().not_.in_("match_id", current_ids).execute()
+        # 🧹 Clean up stale rows only if UPSERT succeeded
+        try:
+            if table == "players":
+                ids = [r["player_id"] for r in rows if r.get("player_id") is not None]
+                sb.table(table).delete().not_.in_("player_id", ids).execute()
+            elif table == "matches":
+                ids = [r["match_id"] for r in rows if r.get("match_id") is not None]
+                sb.table(table).delete().not_.in_("match_id", ids).execute()
+            elif table == "training_sessions":
+                ids = [r["session_id"] for r in rows if r.get("session_id") is not None]
+                sb.table(table).delete().not_.in_("session_id", ids).execute()
+            elif table == "player_stats":
+                sb.table(table).delete().neq("match_id", -1).execute()
+            elif table in ["tactics", "tactics_positions", "availability", "training_attendance", "fan_wall"]:
+                sb.table(table).delete().neq("id", -1).execute()
+        except Exception as delete_err:
+            st.warning(f"⚠️ Cleanup issue in {table}: {delete_err}")
 
-    elif table == "training_sessions":
-        current_ids = [r["session_id"] for r in rows if r.get("session_id") is not None]
-        sb.table(table).delete().not_.in_("session_id", current_ids).execute()
+    except Exception as e:
+        # ❌ If Supabase fails, fallback to CSV
+        st.error(f"❌ Failed to save {table} to Supabase: {e}")
+        try:
+            df.to_csv(path, index=False)
+            st.warning(f"💾 Saved locally to {path} instead.")
+        except Exception as csv_err:
+            st.error(f"❌ Could not save CSV backup: {csv_err}")
 
-    elif table == "player_stats":
-        sb.table(table).delete().neq("match_id", -1).execute()
 
-    elif table in ["tactics", "tactics_positions", "availability", "training_attendance", "fan_wall"]:
-        sb.table(table).delete().neq("id", -1).execute()
-
-    # UPSERT in chunks
-    CHUNK = 500
-    for i in range(0, len(rows), CHUNK):
-        sb.table(table).upsert(rows[i:i+CHUNK]).execute()
 
 
 # -------------------------------
@@ -734,34 +787,86 @@ def intro_page():
     st.markdown("""
     <style>
         .block-container {
-            padding-top: 0rem !important;
-            padding-bottom: 0rem !important;
-            margin-top: 0rem !important;
+            padding: 0 !important;
+            margin: 0 !important;
         }
         .main .block-container {
-            padding-top: 0rem !important;
+            padding: 0 !important;
         }
         header, .stToolbar {display: none !important;} /* Hide Streamlit's header bar */
     </style>
     """, unsafe_allow_html=True)
 
-    # Intro Content
+    # =======================
+    # Animated Intro Content
+    # =======================
     st.markdown(f"""
-    <div style='display:flex;flex-direction:column;align-items:center;text-align:center;margin:0;padding:0;'>
-        <img src='{LOGO_URL}'
-             style='width:350px;height:auto;margin:0;padding:0;animation:fadeIn 1.5s ease-in-out;'>
-        <h1 class="app-title" style='margin:2px 0 0 0;padding:0;'>Nile Esports Hub</h1>
-        <p class="app-subtitle" style='margin:0;padding:0;'>One Club • One Heartbeat 🖤💚</p>
-    </div>
     <style>
-        @keyframes fadeIn {{ from {{opacity:0;}} to {{opacity:1;}} }}
+        .intro-container {{
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+            background: linear-gradient(135deg, #0A1128, #111827);
+            overflow: hidden;
+        }}
+
+        .intro-logo {{
+            width: 300px;
+            animation: fadeInScale 2s ease forwards;
+        }}
+
+        .intro-title {{
+            font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
+            font-size: 40px;
+            font-weight: 900;
+            color: white;
+            margin-top: 12px;
+            text-transform: uppercase;
+            opacity: 0;
+            animation: slideUp 1.5s ease forwards 1.2s;
+        }}
+
+        .intro-subtitle {{
+            font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
+            font-size: 18px;
+            color: #34D399;
+            margin-top: 6px;
+            opacity: 0;
+            animation: fadeIn 1.2s ease forwards 2.5s;
+        }}
+
+        /* Animations */
+        @keyframes fadeInScale {{
+            from {{ opacity: 0; transform: scale(0.8); }}
+            to {{ opacity: 1; transform: scale(1); }}
+        }}
+        @keyframes slideUp {{
+            from {{ opacity: 0; transform: translateY(40px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        @keyframes fadeIn {{
+            from {{ opacity: 0; }}
+            to {{ opacity: 1; }}
+        }}
+
+        /* Mobile tweaks */
         @media (max-width:600px){{
-            img {{ max-width:140px !important; }}
-            .app-title {{ font-size:22px !important; }}
-            .app-subtitle {{ font-size:14px !important; }}
+            .intro-logo {{ max-width: 140px !important; }}
+            .intro-title {{ font-size: 22px !important; }}
+            .intro-subtitle {{ font-size: 14px !important; }}
         }}
     </style>
+
+    <div class="intro-container">
+        <img src="{LOGO_URL}" class="intro-logo"/>
+        <div class="intro-title">NILE ESPORTS HUB</div>
+        <div class="intro-subtitle">One Club • One Heartbeat 🖤💚</div>
+    </div>
     """, unsafe_allow_html=True)
+
 
     # Buttons (closer to subtitle)
     st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
@@ -1063,34 +1168,109 @@ def admin_matches_page():
 
 
 def admin_player_stats_page():
-    
-    st.markdown("<h2 class='main-heading'>📊 Player Stats</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 class='main-heading'>📊 Player Stats Moderation</h2>", unsafe_allow_html=True)
 
-    stats = _supabase_client().table("player_stats").select("*").execute()
+    sb = _supabase_client()
+    stats = sb.table("player_stats").select("*").execute()
     df = pd.DataFrame(stats.data) if stats.data else pd.DataFrame()
 
     if df.empty:
         st.info("No player stats available yet.")
         return
 
-    st.dataframe(df)
+    # === Join matches for readability ===
+    matches = sb.table("matches").select("*").execute()
+    matches_df = pd.DataFrame(matches.data) if matches.data else pd.DataFrame()
 
-    # Select a row to delete
-    selected = st.selectbox(
-        "Select stat row to delete",
-        df.apply(lambda r: f"ID {r['id']} - {r['player_name']} (Match {r['match_id']})", axis=1)
+    if not matches_df.empty and "match_id" in df.columns:
+        match_labels = matches_df.set_index("match_id").apply(
+            lambda r: f"{r['date']} vs {r['opponent']}", axis=1, result_type="reduce"
+        )
+        df = df.merge(match_labels.rename("match_name"),
+                      left_on="match_id", right_index=True, how="left")
+    else:
+        df["match_name"] = df["match_id"].astype(str)
+
+    # === Filters ===
+    players = sorted(df["player_name"].unique())
+    selected_player = st.selectbox("Filter by Player", ["All"] + players)
+
+    matches = sorted(df["match_name"].unique())
+    selected_match = st.selectbox("Filter by Match", ["All"] + matches)
+
+    filtered = df.copy()
+    if selected_player != "All":
+        filtered = filtered[filtered["player_name"] == selected_player]
+    if selected_match != "All":
+        filtered = filtered[filtered["match_name"] == selected_match]
+
+    # === Editable Table ===
+    st.markdown("### ✏️ Edit Stats")
+    edited = st.data_editor(
+        filtered,
+        use_container_width=True,
+        num_rows="dynamic",
+        key="admin_stats_editor"
     )
 
-    if st.button("🗑️ Delete Selected Stat"):
-        row_id = int(selected.split(" ")[1])  # extract ID
+    if st.button("💾 Save Changes"):
         try:
-            _supabase_client().table("player_stats").delete().eq("id", row_id).execute()
-            st.success("✅ Stat deleted")
+            for _, row in edited.iterrows():
+                row_dict = row.to_dict()
 
-            # ⚡️ Force refresh so UI updates (even if last row was deleted)
+                # 🔧 Remove non-DB helper columns
+                row_dict.pop("match_name", None)
+
+                # 🔧 Ensure correct integer types
+                int_fields = ["id", "player_id", "match_id", "goals", "assists",
+                              "yellow_cards", "red_cards", "shots", "passes",
+                              "dribbles", "tackles", "offsides", "fouls_committed",
+                              "possession_won", "possession_lost", "minutes_played"]
+                for f in int_fields:
+                    if f in row_dict and pd.notna(row_dict[f]):
+                        row_dict[f] = int(row_dict[f])
+
+                row_id = row_dict.get("id")
+                if row_id is not None:
+                    sb.table("player_stats").update(row_dict).eq("id", row_id).execute()
+
+            st.success("✅ Stats updated successfully!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"❌ Failed to update stats: {e}")
+
+
+
+    # === Delete Single Row ===
+    st.divider()
+    st.markdown("### 🗑️ Delete Individual Stat")
+    selected = st.selectbox(
+        "Select stat row to delete",
+        df.apply(lambda r: f"ID {r['id']} - {r['player_name']} ({r['match_name']})", axis=1)
+    )
+    if st.button("Delete Selected Stat"):
+        row_id = int(selected.split(" ")[1])
+        try:
+            sb.table("player_stats").delete().eq("id", row_id).execute()
+            st.success("✅ Stat deleted")
             st.rerun()
         except Exception as e:
             st.error(f"❌ Failed to delete stat: {e}")
+
+    # === Delete ALL Stats for Player ===
+    st.divider()
+    st.markdown("### 🗑️ Delete ALL Stats for a Player")
+    if players:
+        player_to_wipe = st.selectbox("Select Player to wipe all stats", players)
+        if st.button("Delete All Stats for Selected Player"):
+            try:
+                sb.table("player_stats").delete().eq("player_name", player_to_wipe).execute()
+                st.success(f"✅ All stats for {player_to_wipe} deleted")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Failed to delete stats for {player_to_wipe}: {e}")
+
+
 
 def delete_player_and_stats(player_id: int, player_name: str):
     """Delete a player and all their stats from Supabase + local CSV fallback."""
@@ -1878,99 +2058,72 @@ def manager_tactics_board_page():
 # -------------------------------
 # PLAYER PAGES
 # -------------------------------
-def player_my_stats_page(player_name: str):
+def player_my_stats_page():
+    # ===== Ensure current player =====
+    current_name = st.session_state.auth.get("name", "").strip()
+    if not current_name:
+        st.error("❌ You must be logged in to view your stats.")
+        return
+
     # ====== Global Theme & Fonts ======
     st.markdown("""
     <style>
-    /* Importing custom-like fonts (fallback: Montserrat) */
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
-
     html, body, [class*="css"] {
         background: linear-gradient(160deg, #0C182E 40%, #000000 100%);
         color: #FFFFFF;
     }
-
-    /* Font Classes */
-    .super-head {
-        font-family: 'Montserrat', sans-serif;
-        font-weight: 900;
-        font-style: oblique;
-        font-size: 40px;
-        color: #00C0FA;
-        text-align: center;
-    }
-    .sub-head {
-        font-family: 'Montserrat', sans-serif;
-        font-weight: 700;
-        font-style: oblique;
-        font-size: 28px;
-        color: #00C0FA;
-    }
-    .text-mid {
-        font-family: 'Montserrat', sans-serif;
-        font-weight: 500;
-        font-size: 16px;
-        color: #FFFFFF;
-    }
-
-    /* Cards */
-    .card, .metric-card, .chart-card {
+    .super-head { font-family:'Montserrat'; font-weight:900; font-style:oblique; font-size:40px; color:#00C0FA; text-align:center; }
+    .sub-head { font-family:'Montserrat'; font-weight:700; font-style:oblique; font-size:28px; color:#00C0FA; }
+    .text-mid { font-family:'Montserrat'; font-weight:500; font-size:16px; color:#FFFFFF; }
+    .card,.metric-card,.chart-card {
         background: rgba(255,255,255,0.06);
         border: 1px solid rgba(255,255,255,0.15);
         border-radius: 20px;
         padding: 20px;
         box-shadow: 0 8px 20px rgba(0,0,0,0.4);
     }
-
-    /* Metric Grid */
-    .metric-grid, .chart-grid {
+    .metric-grid,.chart-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 20px;
-        margin-bottom: 30px;
+        grid-template-columns: repeat(auto-fit, minmax(220px,1fr));
+        gap: 20px; margin-bottom: 30px;
     }
-    .metric-value {
-        font-size: 28px;
-        font-weight: 700;
-        color: #015EEA;
-    }
-    .metric-label {
-        font-size: 14px;
-        color: #FFFFFF;
-    }
-
-    /* Buttons */
-    .stButton>button {
-        background-color: #015EEA;
-        color: white;
-        font-weight: bold;
-        border-radius: 12px;
-        padding: 8px 16px;
-        border: none;
-        transition: 0.3s;
-    }
-    .stButton>button:hover {
-        background-color: #00C0FA;
-        transform: scale(1.05);
-    }
+    .metric-value { font-size:28px; font-weight:700; color:#015EEA; }
+    .metric-label { font-size:14px; color:#FFFFFF; }
     </style>
     """, unsafe_allow_html=True)
 
-    # ===== Player Info =====
     st.markdown("<h1 class='super-head'>📊 My Performance Dashboard</h1>", unsafe_allow_html=True)
 
+    # ===== Player Record =====
     players = read_csv_safe(PLAYERS_FILE)
-    player = players[players["name"].str.lower() == player_name.lower()].iloc[0]
+    player = players[players["name"].str.lower() == current_name.lower()]
+    if player.empty:
+        st.error("❌ Player profile not found.")
+        return
+    player = player.iloc[0]
 
     stats = read_csv_safe(PLAYER_STATS_FILE)
+    matches = read_csv_safe(MATCHES_FILE)
+
     if stats.empty:
         st.info("No stats yet.")
         return
 
-    mine = stats[stats["player_name"].str.lower() == player_name.lower()]
+    # Only this player's stats
+    mine = stats[stats["player_name"].str.lower() == current_name.lower()]
     if mine.empty:
         st.info("No stats recorded for you yet.")
         return
+
+    # ===== Join with Matches for readable match names =====
+    if not matches.empty and "match_id" in mine.columns:
+        match_labels = matches.set_index("match_id").apply(
+            lambda r: f"{r['date']} vs {r['opponent']}", axis=1
+        )
+        mine = mine.merge(match_labels.rename("match_name"), left_on="match_id", right_index=True, how="left")
+    else:
+        mine["match_name"] = mine["match_id"].astype(str)
 
     # ===== Hero Card =====
     st.markdown(f"""
@@ -1982,18 +2135,24 @@ def player_my_stats_page(player_name: str):
     </div>
     """, unsafe_allow_html=True)
 
-    # ===== Summary Metrics =====
+    # ===== KPI Cards =====
     matches_played = len(mine)
-    goals = int(mine["goals"].sum())
-    assists = int(mine["assists"].sum())
     avg_rating = round(mine["rating"].mean(), 2) if not mine["rating"].isna().all() else "N/A"
+    avg_shots = round(mine["shots"].mean(), 1) if "shots" in mine else "N/A"
+    avg_pass_acc = f"{round(mine['pass_accuracy'].mean(),1)}%" if "pass_accuracy" in mine else "N/A"
+    avg_dribble_succ = f"{round(mine['dribble_success'].mean(),1)}%" if "dribble_success" in mine else "N/A"
+    avg_tackles = round(mine["tackles"].mean(), 1) if "tackles" in mine else "N/A"
+    avg_distance = round(mine["distance_covered"].mean(), 1) if "distance_covered" in mine else "N/A"
 
     st.markdown(f"""
     <div class="metric-grid">
         <div class="metric-card"><div class="metric-value">{matches_played}</div><div class="metric-label">Matches</div></div>
-        <div class="metric-card"><div class="metric-value">{goals}</div><div class="metric-label">Goals</div></div>
-        <div class="metric-card"><div class="metric-value">{assists}</div><div class="metric-label">Assists</div></div>
         <div class="metric-card"><div class="metric-value">{avg_rating}</div><div class="metric-label">Avg Rating</div></div>
+        <div class="metric-card"><div class="metric-value">{avg_shots}</div><div class="metric-label">Avg Shots</div></div>
+        <div class="metric-card"><div class="metric-value">{avg_pass_acc}</div><div class="metric-label">Pass Accuracy</div></div>
+        <div class="metric-card"><div class="metric-value">{avg_dribble_succ}</div><div class="metric-label">Dribble Success</div></div>
+        <div class="metric-card"><div class="metric-value">{avg_tackles}</div><div class="metric-label">Avg Tackles</div></div>
+        <div class="metric-card"><div class="metric-value">{avg_distance} km</div><div class="metric-label">Distance Covered</div></div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2001,23 +2160,226 @@ def player_my_stats_page(player_name: str):
     st.markdown("<h2 class='sub-head'>📈 Performance Tracker</h2>", unsafe_allow_html=True)
     mine = mine.sort_values("match_id")
 
-    fig1 = px.bar(mine, x="match_id", y=["goals", "assists"], barmode="group",
-                  title="⚽ Goals & 🎯 Assists per Match", color_discrete_sequence=["#015EEA", "#00C0FA"])
-    mine["cum_goals"], mine["cum_assists"] = mine["goals"].cumsum(), mine["assists"].cumsum()
-    fig2 = px.line(mine, x="match_id", y=["cum_goals", "cum_assists"], markers=True,
-                   title="📊 Cumulative Goals & Assists", color_discrete_sequence=["#015EEA", "#00C0FA"])
-    fig3 = px.bar(mine, x="match_id", y=["yellow_cards", "red_cards"], barmode="stack",
-                  title="🟨🟥 Cards per Match", color_discrete_sequence=["#FFD700", "#FF0000"])
-    fig4 = px.line(mine, x="match_id", y="rating", markers=True,
-                   title="⭐ Ratings Over Matches", color_discrete_sequence=["#00C0FA"])
-    fig4.update_yaxes(range=[0, 10])
+    fig1 = px.bar(mine, x="match_name", y=["shots", "passes"], barmode="group",
+                  title="🔫 Shots & 🎯 Passes per Match", color_discrete_sequence=["#015EEA", "#00C0FA"])
+    fig2 = px.bar(mine, x="match_name", y=["dribbles", "tackles"], barmode="group",
+                  title="⚡ Dribbles & 🛡️ Tackles per Match", color_discrete_sequence=["#00C0FA", "#FF5733"])
+    fig3 = px.bar(mine, x="match_name", y=["possession_won", "possession_lost"], barmode="group",
+                  title="📊 Possession Won vs Lost", color_discrete_sequence=["#28A745", "#DC3545"])
+    fig4 = px.line(mine, x="match_name", y=["distance_covered","distance_sprinted"], markers=True,
+                   title="🏃 Distance Covered & Sprinted", color_discrete_sequence=["#00C0FA", "#015EEA"])
+    fig5 = px.line(mine, x="match_name", y="rating", markers=True,
+                   title="⭐ Ratings Over Matches", color_discrete_sequence=["#FFD700"])
+    fig5.update_yaxes(range=[0, 10])
 
     st.markdown("<div class='chart-grid'>", unsafe_allow_html=True)
-    for fig in [fig1, fig2, fig3, fig4]:
+    for fig in [fig1, fig2, fig3, fig4, fig5]:
         st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
         st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
         st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
+    # ===== Detailed Stats Table =====
+    st.markdown("<h2 class='sub-head'>📋 Detailed Stats per Match</h2>", unsafe_allow_html=True)
+    exclude = ["id","goals","assists"]
+    table_cols = [c for c in mine.columns if c not in exclude]
+    st.dataframe(mine[table_cols].reset_index(drop=True), use_container_width=True)
+
+
+
+
+import re
+import json
+
+
+def extract_stats_from_image(image_bytes: bytes):
+    """
+    Send image bytes to Gemini and return parsed JSON (dict) or None on failure.
+    This function is robust to code fences and extra text in Gemini response.
+    """
+    try:
+        model = _gemini_client()
+        img = {"mime_type": "image/png", "data": image_bytes}
+
+        # Prompt: ask for JSON only (tweak keys as you want)
+        prompt = """
+        You are a precise data extractor. Return ONLY valid JSON, no explanations.
+        Extract the following keys for the PLAYER shown (if a key is missing return null):
+        ["player_name","position","rating","match_id",
+         "goals","assists",
+         "shots","shot_accuracy","passes","pass_accuracy",
+         "dribbles","dribble_success","tackles","tackle_success",
+         "offsides","fouls_committed","possession_won","possession_lost",
+         "minutes_played","distance_covered","distance_sprinted",
+         "yellow_cards","red_cards"]
+        """
+
+        resp = model.generate_content([prompt, img])
+        raw_text = resp.text.strip()
+
+        # Remove markdown fences if present
+        if raw_text.startswith("```"):
+            raw_text = re.sub(r"^```[a-zA-Z]*\n", "", raw_text)
+            raw_text = re.sub(r"\n```$", "", raw_text)
+
+        # Try direct JSON load
+        try:
+            parsed = json.loads(raw_text)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            # Try to extract first JSON object in text as fallback
+            m = re.search(r"(\{.*\})", raw_text, flags=re.DOTALL)
+            if m:
+                try:
+                    parsed = json.loads(m.group(1))
+                    if isinstance(parsed, dict):
+                        return parsed
+                except Exception:
+                    pass
+
+        # If we reach here, parsing failed
+        st.error("❌ Could not parse JSON from AI response. See raw output below for debugging.")
+        st.code(raw_text)
+        return None
+
+    except Exception as e:
+        st.error(f"❌ Error calling extraction model: {e}")
+        return None
+
+
+def get_player_id_by_name(name: str):
+    """Return player_id (int) for a given player name, or None if not found."""
+    name = (name or "").strip()
+    if not name:
+        return None
+    sb = _supabase_client()
+    try:
+        res = sb.table("players").select("player_id").eq("name", name).execute()
+        rows = res.data or []
+        if rows:
+            return int(rows[0].get("player_id"))
+    except Exception:
+        # fallback to local CSV
+        players = read_csv_safe(PLAYERS_FILE)
+        if not players.empty:
+            sel = players[players["name"].str.lower() == name.lower()]
+            if not sel.empty:
+                return int(sel.iloc[0]["player_id"])
+    return None
+
+
+import re
+import json
+import pandas as pd
+import streamlit as st
+
+
+
+def player_upload_stats_page():
+    st.markdown("<h2 class='main-heading'>📸 Upload My Stats</h2>", unsafe_allow_html=True)
+
+    current_name = st.session_state.auth.get("name", "").strip()
+    if not current_name:
+        st.error("❌ You must be logged in to upload stats.")
+        return
+
+    # Let player pick a match (defaults to most recent)
+    matches = read_csv_safe(MATCHES_FILE)
+    match_id_choice = None
+    if not matches.empty:
+        matches_sorted = matches.sort_values("date", ascending=False)
+        labels = [f"{r['date']} – {r['opponent']}" for _, r in matches_sorted.iterrows()]
+        label_to_id = {labels[i]: int(matches_sorted.iloc[i]["match_id"]) for i in range(len(labels))}
+        chosen_label = st.selectbox("Link to match", ["(auto) Latest match"] + labels)
+        if chosen_label != "(auto) Latest match":
+            match_id_choice = label_to_id[chosen_label]
+        else:
+            match_id_choice = int(matches_sorted.iloc[0]["match_id"]) if not matches_sorted.empty else None
+
+    uploaded = st.file_uploader("Upload your match stats image", type=["png", "jpg", "jpeg"])
+    if not uploaded:
+        return
+
+    st.image(uploaded, caption="Preview", use_container_width=True)
+
+    if st.button("📤 Extract & Save Stats"):
+        try:
+            img_bytes = uploaded.read()
+            parsed = extract_stats_from_image(img_bytes)
+            if not parsed:
+                return
+
+            # Validate player identity
+            parsed_name = (parsed.get("player_name") or "").strip()
+            if parsed_name.lower() != current_name.lower():
+                st.error("❌ Player name in uploaded stats does not match your account. Contact admin.")
+                return
+
+            # Get player_id
+            player_id = get_player_id_by_name(current_name)
+            if player_id is None:
+                st.error("❌ Player not found in roster. Contact admin.")
+                return
+
+            # Determine match_id
+            parsed_match_id = None
+            try:
+                if parsed.get("match_id"):
+                    parsed_match_id = int(float(parsed["match_id"]))
+            except Exception:
+                pass
+
+            match_id = parsed_match_id or match_id_choice
+            if match_id is None:
+                st.error("❌ No match found to attach stats to. Please ask admin to create a match first.")
+                return
+
+            # Prepare record
+            record = {"player_name": current_name, "player_id": player_id, "match_id": int(match_id)}
+            allowed_keys = [
+                "position","rating","goals","assists","shots","shot_accuracy","passes","pass_accuracy",
+                "dribbles","dribble_success","tackles","tackle_success","offsides","fouls_committed",
+                "possession_won","possession_lost","minutes_played","distance_covered","distance_sprinted",
+                "yellow_cards","red_cards"
+            ]
+            for k in allowed_keys:
+                if k in parsed:
+                    record[k] = parsed[k]
+
+            # Call UPSERT function
+            sb = _supabase_client()
+            sb.rpc("upsert_player_stats", {
+                "p_match_id": record["match_id"],
+                "p_player_name": record["player_name"],
+                "p_position": record.get("position") or "N/A",
+                "p_goals": record.get("goals") or 0,
+                "p_assists": record.get("assists") or 0,
+                "p_rating": record.get("rating") or 0.0,
+                "p_yellow_cards": record.get("yellow_cards") or 0,
+                "p_red_cards": record.get("red_cards") or 0,
+                "p_shots": record.get("shots") or 0,
+                "p_passes": record.get("passes") or 0,
+                "p_dribbles": record.get("dribbles") or 0,
+                "p_tackles": record.get("tackles") or 0,
+                "p_offsides": record.get("offsides") or 0,
+                "p_fouls_committed": record.get("fouls_committed") or 0,
+                "p_possession_won": record.get("possession_won") or 0,
+                "p_possession_lost": record.get("possession_lost") or 0,
+                "p_minutes_played": record.get("minutes_played") or 0,
+                "p_shot_accuracy": record.get("shot_accuracy") or 0.0,
+                "p_pass_accuracy": record.get("pass_accuracy") or 0.0,
+                "p_dribble_success": record.get("dribble_success") or 0.0,
+                "p_tackle_success": record.get("tackle_success") or 0.0,
+                "p_distance_covered": record.get("distance_covered") or 0.0,
+                "p_distance_sprinted": record.get("distance_sprinted") or 0.0,
+                "p_player_id": record["player_id"],
+            }).execute()
+
+            st.success("✅ Stats uploaded successfully!")
+
+        except Exception as e:
+            st.error(f"❌ Error while processing stats: {e}")
 
 
 
@@ -2554,6 +2916,7 @@ def run_player():
     tabs = [
         "🏠 Dashboard",
         "📊 My Stats",
+        "📸 Upload My Stats",   # ✅ new tab
         "📋 Attendance",
         "📄 Tactics",
         "📈 Board",
@@ -2562,7 +2925,8 @@ def run_player():
 
     pages = {
         "🏠 Dashboard": page_dashboard,
-        "📊 My Stats": lambda: player_my_stats_page(st.session_state.auth.get("name", "Player")),
+        "📊 My Stats": player_my_stats_page,
+        "📸 Upload My Stats": player_upload_stats_page,  # ✅ new page
         "📋 Attendance": lambda: player_training_attendance_page(st.session_state.auth.get("name", "Player")),
         "📄 Tactics": player_tactics_text_page,
         "📈 Board": player_tactics_board_page,
@@ -2572,8 +2936,11 @@ def run_player():
     selected_tabs = st.tabs(tabs)
     for i, tab_name in enumerate(tabs):
         with selected_tabs[i]:
-            pages[tab_name]()
-
+            page_func = pages.get(tab_name)
+            if page_func is not None and callable(page_func):
+                page_func()
+            else:
+                st.warning(f"⚠️ Page '{tab_name}' is not available.")
 
 
 
