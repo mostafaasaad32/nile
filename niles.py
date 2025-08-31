@@ -969,14 +969,14 @@ def page_dashboard():
     st.markdown("<h2 class='main-heading'>📋 Match Results</h2>", unsafe_allow_html=True)
 
     if not past_matches.empty:
-        st.dataframe(past_matches.reset_index(drop=True),width=300)
+        st.dataframe(past_matches.reset_index(drop=True),width=400)
     else:
         st.caption("No results yet.")
 
     
     st.markdown("<h2 class='main-heading'>📅 Upcoming Matches</h2>", unsafe_allow_html=True)
     if not upcoming_matches.empty:
-        st.dataframe(upcoming_matches.reset_index(drop=True),width=300)
+        st.dataframe(upcoming_matches.reset_index(drop=True),width=400)
     else:
         st.caption("No upcoming fixtures.")
 
