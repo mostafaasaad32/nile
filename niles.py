@@ -36,7 +36,7 @@ LOGO_URL = "https://github.com/mostafaasaad32/nile/raw/master/images/Artboard_1.
 st.set_page_config(
     page_title="Nile SC Manager",
     page_icon="⚽",
-    layout="wide",   # ✅ full width
+    layout="centered",   # ✅ full width
     initial_sidebar_state="collapsed"
 )
 
