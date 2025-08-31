@@ -165,7 +165,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   align-items: center;
   justify-content: flex-start;
   margin: 0 !important;
-  padding: 2px 8px !important;  /* reduced top padding */
+  padding: 2px 8px !important;  /* reduced gap */
   gap: 8px;
 }
 
@@ -180,15 +180,17 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   margin: 0 !important;
 }
 .app-subtitle {
-  font-family: 'WIDE MEDIUM', sans-serif !important;
+  font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
   font-weight: 500 !important;
   color: var(--text-secondary) !important;
   font-size: 16px !important;
   letter-spacing: 1px !important;
 }
 
-/* ====== MAIN & SECONDARY HEADINGS ====== */
-.main-heading, .stSubheader {
+/* ====== MAIN & SUB HEADINGS ====== */
+h1, h2, h3,
+.main-heading,
+.stSubheader {
   font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
   font-weight: 900 !important;
   font-style: oblique !important;
@@ -196,6 +198,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   color: #ffffff !important;
   text-transform: uppercase !important;
 }
+h4, h5, h6,
 .secondary-heading {
   font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
   font-weight: 700 !important;
@@ -220,21 +223,46 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   font-size: 20px !important;
 }
 
-/* ====== TABLES ====== */
+/* ====== TABLES (Responsive + Glass Style) ====== */
 [data-testid="stDataFrame"] {
   display: block !important;
-  overflow-x: auto !important;
-  white-space: nowrap !important;
+  width: 100% !important;
   max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  border-radius: 12px !important;
+  border: 1px solid var(--glass-border) !important;
+  background: var(--glass-bg) !important;
   font-size: 13px !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25) !important;
+}
+[data-testid="stDataFrame"] table {
+  color: #E5E7EB !important;
+  font-family: 'WIDE MEDIUM', sans-serif !important;
+}
+[data-testid="stDataFrame"] th {
+  background: #1E3A8A !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  text-transform: uppercase !important;
+  padding: 6px 8px !important;
+}
+[data-testid="stDataFrame"] td {
+  padding: 6px 8px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
 }
 
-/* ====== PLOTS & IMAGES ====== */
+/* ====== PLOTS (Responsive + Consistent Height) ====== */
 .stPlotlyChart, .stAltairChart, .stVegaLiteChart, .stPydeckChart, .stImage {
-  max-width: 100% !important;
   width: 100% !important;
+  max-width: 100% !important;
   height: auto !important;
-  overflow-x: auto !important;
+  min-height: 280px !important;
+  border-radius: 12px !important;
+  background: var(--glass-bg) !important;
+  padding: 8px !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25) !important;
 }
 
 /* ====== NAVBAR (Mobile Bottom Navigation Fixed) ====== */
@@ -264,7 +292,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 .navbar a.active { color: #10B981; font-weight: bold; }
 .navbar a:hover { color: white; }
 
-/* ====== FLAT TABS STYLE (No Rectangular Background) ====== */
+/* ====== FLAT SCROLLABLE TABS ====== */
 .stTabs [role="tablist"] {
     display: flex !important;
     overflow-x: auto !important;
@@ -279,8 +307,6 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 .stTabs [role="tablist"]::-webkit-scrollbar {
     display: none !important;
 }
-
-/* Tab text only */
 .stTabs [role="tab"] {
     flex: 0 0 auto !important;
     text-align: center !important;
@@ -297,15 +323,11 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
     transition: all 0.2s ease-in-out;
     cursor: pointer !important;
 }
-
-/* Active tab underline */
 .stTabs [role="tab"][aria-selected="true"] {
     color: #3B82F6 !important;
     border-bottom: 3px solid #3B82F6 !important;
     font-weight: 800 !important;
 }
-
-/* Hover */
 .stTabs [role="tab"]:hover {
     color: #BFDBFE !important;
 }
@@ -326,7 +348,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 /* ====== EXTRA MOBILE FIXES ====== */
 @media (max-width: 768px) {
   body, .block-container, [data-testid="stAppViewContainer"] {
-    zoom: 0.95; /* consistent mobile scaling */
+    zoom: 0.95;
     -moz-transform: scale(0.95);
     -moz-transform-origin: 0 0;
   }
