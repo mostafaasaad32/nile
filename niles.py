@@ -297,6 +297,42 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
     padding: 6px 4px !important;
   }
 }
+/* ====== TURN TABS INTO NAVBAR STYLE ====== */
+.stTabs [role="tablist"] {
+    display: flex !important;
+    justify-content: space-around !important;
+    background: #111827 !important;   /* dark bar background */
+    border-bottom: 2px solid #2563EB !important;
+    padding: 0 !important;
+    margin-bottom: 12px !important;
+}
+
+.stTabs [role="tab"] {
+    flex: 1 !important;
+    text-align: center !important;
+    padding: 10px 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #9CA3AF !important;   /* gray inactive */
+    border: none !important;
+    transition: all 0.2s ease-in-out;
+}
+
+.stTabs [role="tab"][aria-selected="true"] {
+    color: #10B981 !important;   /* green active */
+    border-bottom: 3px solid #10B981 !important;
+    background: transparent !important;
+    font-weight: 900 !important;
+}
+
+.stTabs [role="tab"]:hover {
+    color: white !important;
+}
+
 </style>
 """
 
