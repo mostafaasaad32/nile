@@ -347,6 +347,13 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
     color: white !important;
 }
 
+/* Prevent last fields from being cut off under navbar */
+.block-container,
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"] {
+  padding-bottom: 100px !important;  /* 👈 at least equal to navbar height */
+  box-sizing: border-box !important;
+}
 
 </style>
 """
