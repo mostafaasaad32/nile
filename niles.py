@@ -774,7 +774,7 @@ def intro_page():
     """, unsafe_allow_html=True)
 
     # =======================
-    # Custom Fonts + Styles
+    # Custom Fonts
     # =======================
     st.markdown("""
     <style>
@@ -809,54 +809,36 @@ def intro_page():
             animation: fadeInScale 2s ease forwards;
         }
 
-        /* Main Title */
+        /* Main Header */
         .intro-title {
             font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
-            font-size: 48px;
+            font-size: 44px;
             font-weight: 900;
-            text-transform: uppercase;
-            background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
-            background-size: 300%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: white;
             margin-top: 12px;
-            animation: slideUp 1.5s ease forwards 1.2s, gradientMove 6s ease infinite;
+            text-transform: uppercase;
+            opacity: 0;
+            animation: slideUp 1.5s ease forwards 1.2s;
         }
 
-        /* Subtitle */
+        /* Sub Header */
         .intro-subtitle {
             font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
-            font-size: 22px;
-            font-weight: 700;
-            background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
-            background-size: 300%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-top: 8px;
-            animation: fadeIn 1.2s ease forwards 2.5s, gradientMove 6s ease infinite;
+            font-size: 20px;
+            color: #34D399;
+            margin-top: 6px;
+            opacity: 0;
+            animation: fadeIn 1.2s ease forwards 2.5s;
         }
 
-        /* Buttons */
-        .stButton > button {
+        /* Supportive text */
+        .intro-support {
             font-family: 'Wide Medium', sans-serif !important;
-            font-size: 16px !important;
-            font-weight: 600 !important;
-            letter-spacing: 0.8px;
-            background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
-            background-size: 300%;
-            color: #FFFFFF !important; /* White text */
-            border: none;
-            border-radius: 10px;
-            padding: 12px 24px;
-            margin-top: 14px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            transition: all 0.25s ease-in-out;
-            animation: gradientMove 6s ease infinite;
-        }
-        .stButton > button:hover {
-            transform: translateY(-2px);
-            opacity: 0.95;
-            box-shadow: 0 0 10px #00C0FA, 0 0 20px #015EEA, 0 0 30px #FFFFFF;
+            font-size: 16px;
+            color: #9CA3AF;
+            margin-top: 10px;
+            opacity: 0;
+            animation: fadeIn 1.2s ease forwards 3s;
         }
 
         /* Animations */
@@ -872,17 +854,13 @@ def intro_page():
             from { opacity: 0; }
             to { opacity: 1; }
         }
-        @keyframes gradientMove {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
 
         /* Mobile */
         @media (max-width:600px){
-            .intro-logo { max-width: 160px !important; }
+            .intro-logo { max-width: 140px !important; }
             .intro-title { font-size: 28px !important; }
             .intro-subtitle { font-size: 16px !important; }
+            .intro-support { font-size: 14px !important; }
         }
     </style>
     """, unsafe_allow_html=True)
@@ -899,6 +877,7 @@ def intro_page():
     """, unsafe_allow_html=True)
 
     # Buttons
+    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
     if st.button("🚀 Enter the Hub", use_container_width=True):
         st.session_state.page = "login"
         st.rerun()
@@ -908,7 +887,6 @@ def intro_page():
         st.session_state.page = "fan_public_only"
         st.balloons()
         st.rerun()
-
 
 
 
