@@ -86,7 +86,7 @@ div[title="View fullscreen"] {
     margin: 0 !important;
     max-width: 100% !important;
     width: 100% !important;
-    padding-bottom: 100px !important; /* safe space for navbar */
+    padding-bottom: 20px !important; /* safe space for navbar */
 }
 .css-ocqkz7, .css-1kyxreq, .stColumn {
     flex: 1 1 100% !important;
@@ -759,7 +759,7 @@ def render_header():
 # INTRO PAGE (before login)
 # -------------------------------
 def intro_page():
-    # Remove default Streamlit padding/margin
+    # Remove Streamlit default padding/margin
     st.markdown("""
     <style>
         .block-container {
@@ -770,75 +770,56 @@ def intro_page():
             padding: 0 !important;
         }
         header, .stToolbar {display: none !important;}
-    </style>
-    """, unsafe_allow_html=True)
-
-    # =======================
-    # Custom Fonts
-    # =======================
-    st.markdown("""
-    <style>
-        @font-face {
-            font-family: 'SUPER EXP BLACK OBLIQUE';
-            src: url('https://fonts.cdnfonts.com/s/92235/Super%20Expanded%20Black%20Oblique.woff') format('woff');
-        }
-        @font-face {
-            font-family: 'SUPER EXP OBLIQUE';
-            src: url('https://fonts.cdnfonts.com/s/92235/Super%20Expanded%20Oblique.woff') format('woff');
-        }
-        @font-face {
-            font-family: 'Wide Medium';
-            src: url('https://fonts.cdnfonts.com/s/13550/Wide%20Medium.woff') format('woff');
-        }
 
         /* Container */
         .intro-container {
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
-            height: 100vh;
+            min-height: auto;
             text-align: center;
             background: linear-gradient(135deg, #0A1128, #111827);
-            overflow: hidden;
+            padding: 40px 0;
         }
 
         /* Logo */
         .intro-logo {
-            width: 300px;
+            width: 350px;
             animation: fadeInScale 2s ease forwards;
         }
 
-        /* Main Header */
+        /* Title with gradient + animation */
         .intro-title {
             font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
-            font-size: 44px;
+            font-size: 36px;
             font-weight: 900;
-            color: white;
-            margin-top: 12px;
             text-transform: uppercase;
+            background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-top: 16px;
             opacity: 0;
-            animation: slideUp 1.5s ease forwards 1.2s;
+            animation: slideUp 1.5s ease forwards 1s;
         }
 
-        /* Sub Header */
+        /* Subtitle with gradient + animation */
         .intro-subtitle {
             font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
-            font-size: 20px;
-            color: #34D399;
-            margin-top: 6px;
+            font-size: 18px;
+            background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-top: 8px;
             opacity: 0;
-            animation: fadeIn 1.2s ease forwards 2.5s;
+            animation: fadeIn 1.2s ease forwards 2s;
         }
 
-        /* Supportive text */
-        .intro-support {
-            font-family: 'Wide Medium', sans-serif !important;
-            font-size: 16px;
-            color: #9CA3AF;
-            margin-top: 10px;
-            opacity: 0;
-            animation: fadeIn 1.2s ease forwards 3s;
+        /* Button wrapper */
+        .button-wrapper {
+            margin-top: 20px;
+            width: 80%;
+            max-width: 300px;
         }
 
         /* Animations */
@@ -847,7 +828,7 @@ def intro_page():
             to { opacity: 1; transform: scale(1); }
         }
         @keyframes slideUp {
-            from { opacity: 0; transform: translateY(40px); }
+            from { opacity: 0; transform: translateY(30px); }
             to { opacity: 1; transform: translateY(0); }
         }
         @keyframes fadeIn {
@@ -857,36 +838,42 @@ def intro_page():
 
         /* Mobile */
         @media (max-width:600px){
-            .intro-logo { max-width: 140px !important; }
-            .intro-title { font-size: 28px !important; }
-            .intro-subtitle { font-size: 16px !important; }
-            .intro-support { font-size: 14px !important; }
+            .intro-logo { max-width: 120px !important; }
+            .intro-title { font-size: 24px !important; }
+            .intro-subtitle { font-size: 14px !important; }
         }
     </style>
     """, unsafe_allow_html=True)
 
     # =======================
-    # Animated Content
+    # Content with Streamlit container
     # =======================
-    st.markdown(f"""
-    <div class="intro-container">
-        <img src="{LOGO_URL}" class="intro-logo"/>
-        <div class="intro-title">NILE ESPORTS HUB</div>
-        <div class="intro-subtitle">One Club • One Heartbeat 🖤💚</div>
-    </div>
-    """, unsafe_allow_html=True)
+    with st.container():
+        st.markdown(f"""
+        <div class="intro-container">
+            <img src="{LOGO_URL}" class="intro-logo"/>
+            <div class="intro-title">NILE ESPORTS HUB</div>
+            <div class="intro-subtitle">One Club • One Heartbeat 🖤💚</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # Buttons
-    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
-    if st.button("🚀 Enter the Hub", use_container_width=True):
-        st.session_state.page = "login"
-        st.rerun()
+        # Buttons (stay as Streamlit native buttons)
+        st.markdown("<div class='button-wrapper'>", unsafe_allow_html=True)
 
-    if st.button("👀 View Public Fan Wall", use_container_width=True):
-        save_login("fan", "Guest")
-        st.session_state.page = "fan_public_only"
-        st.balloons()
-        st.rerun()
+        if st.button("🚀 Enter the Hub", use_container_width=True):
+            st.session_state.page = "login"
+            st.rerun()
+
+        if st.button("👀 View Public Fan Wall", use_container_width=True):
+            save_login("fan", "Guest")
+            st.session_state.page = "fan_public_only"
+            st.balloons()
+            st.rerun()
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+
+
 
 
 
