@@ -780,12 +780,12 @@ def intro_page():
             min-height: auto;
             text-align: center;
             background: linear-gradient(135deg, #0A1128, #111827);
-            padding: 100px 0;
+            padding: 10px 0;
         }
 
         /* Logo */
         .intro-logo {
-            width: 500px;
+            width: 350px;
             animation: fadeInScale 2s ease forwards;
         }
 
@@ -798,7 +798,7 @@ def intro_page():
             background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-top: 16px;
+            margin-top: 1px;
             opacity: 0;
             animation: slideUp 1.5s ease forwards 1s;
         }
@@ -806,7 +806,7 @@ def intro_page():
         /* Subtitle with gradient + animation */
         .intro-subtitle {
             font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
-            font-size: 32x;
+            font-size: 32px;
             background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -820,6 +820,25 @@ def intro_page():
             margin-top: 20px;
             width: 80%;
             max-width: 300px;
+        }
+
+        /* Override Streamlit buttons only for intro page */
+        .intro-container .stButton > button {
+            background: linear-gradient(135deg, #0A1128, #111827) !important;
+            color: white !important;
+            border: 1px solid #1F2937 !important;
+            border-radius: 10px !important;
+            font-family: 'Wide Medium', sans-serif !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            padding: 12px 20px !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+            transition: all 0.2s ease-in-out;
+        }
+        .intro-container .stButton > button:hover {
+            transform: translateY(-2px);
+            opacity: 0.95;
+            border: 1px solid #374151 !important;
         }
 
         /* Animations */
@@ -857,7 +876,7 @@ def intro_page():
         </div>
         """, unsafe_allow_html=True)
 
-        # Buttons (stay as Streamlit native buttons)
+        # Buttons
         st.markdown("<div class='button-wrapper'>", unsafe_allow_html=True)
 
         if st.button("🚀 Enter the Hub", use_container_width=True):
