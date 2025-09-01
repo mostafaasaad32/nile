@@ -881,10 +881,10 @@ def intro_page():
         /* Mobile */
         @media (max-width:600px){
             .intro-container { padding-top: 6vh; }
-            .intro-logo { width: 150px; }
-            .intro-title { font-size: 26px; }
-            .intro-subtitle { font-size: 15px; }
-            .intro-buttons { width: 90%; margin-top: 16px; }
+            .intro-logo { width: 450px; }
+            .intro-title { font-size: 48px; }
+            .intro-subtitle { font-size: 32px; }
+            .intro-buttons { width: 90%; margin-top: 0px; }
         }
     </style>
     """, unsafe_allow_html=True)
