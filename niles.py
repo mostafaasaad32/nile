@@ -817,9 +817,9 @@ def intro_page():
 
         /* Button wrapper */
         .button-wrapper {
-            margin-top: 20px;
-            width: 80%;
-            max-width: 300px;
+            margin-top: 30px;
+            width: 50%;
+            max-width: 250px;
         }
 
         /* Override Streamlit buttons only for intro page */
