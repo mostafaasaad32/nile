@@ -816,7 +816,7 @@ def intro_page():
             background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-top: 12px;
+            margin-top: 7px;
         }
 
         /* Subtitle */
@@ -827,7 +827,7 @@ def intro_page():
             background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-top: 6px;
+            margin-top: 3px;
         }
 
         /* Buttons wrapper */
@@ -835,7 +835,7 @@ def intro_page():
             display: flex;
             flex-direction: column;
             gap: 12px;
-            margin-top: 22px;
+            margin-top: 10px;
             width: 80%;
             max-width: 320px;
         }
@@ -881,10 +881,10 @@ def intro_page():
         /* Mobile */
         @media (max-width:600px){
             .intro-container { padding-top: 6vh; }
-            .intro-logo { width: 450px; }
-            .intro-title { font-size: 48px; }
-            .intro-subtitle { font-size: 32px; }
-            .intro-buttons { width: 90%; margin-top: 0px; }
+            .intro-logo { width: 150px; }
+            .intro-title { font-size: 26px; }
+            .intro-subtitle { font-size: 15px; }
+            .intro-buttons { width: 90%; margin-top: 16px; }
         }
     </style>
     """, unsafe_allow_html=True)
