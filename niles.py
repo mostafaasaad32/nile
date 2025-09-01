@@ -834,8 +834,8 @@ def intro_page():
         .intro-buttons {
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            margin-top: -50px;
+            
+            
             width: 80%;
             max-width: 320px;
         }
