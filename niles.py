@@ -86,7 +86,7 @@ div[title="View fullscreen"] {
     margin: 0 !important;
     max-width: 100% !important;
     width: 100% !important;
-    padding-bottom: 100px !important; /* 👈 safe space for bottom navbar */
+    padding-bottom: 100px !important; /* safe space for navbar */
 }
 .css-ocqkz7, .css-1kyxreq, .stColumn {
     flex: 1 1 100% !important;
@@ -102,25 +102,35 @@ div[title="View fullscreen"] {
     display: block !important;
 }
 
-/* ====== BUTTON STYLE ====== */
+/* ====== BUTTON STYLE (SOLID GLASSY GRADIENT) ====== */
 .stButton > button {
   font-family: 'WIDE MEDIUM', sans-serif !important;
-  font-weight: 500 !important;
-  font-stretch: expanded;
+  font-weight: 600 !important;
   font-size: 16px !important;
   letter-spacing: 0.5px;
-  background: linear-gradient(90deg, var(--accent-green), var(--accent-blue)) !important;
-  color: white !important;
+
+  /* Solid gradient background */
+  background: linear-gradient(90deg, #00C0FA, #015EEA,#0C182E) !important;
+  color: #FFFFFF !important;
+
   border: none !important;
-  border-radius: 12px !important;
-  padding: 10px 16px !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
-  transition: 0.2s ease-in-out !important;
+  border-radius: 7px !important;
+  padding: 12px 20px !important;
   min-height: 44px !important;
+
+
+
+  transition: all 0.3s ease-in-out !important;
 }
+
 .stButton > button:hover {
-  opacity: 0.9 !important;
-  transform: translateY(-1px) !important;
+  transform: translateY(-2px) scale(1.02) !important;
+
+}
+
+.stButton > button:active {
+  transform: translateY(1px) scale(0.97) !important;
+  opacity: 0.95 !important;
 }
 
 /* ====== COLOR PALETTE ====== */
@@ -151,12 +161,26 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 
 /* ====== GLASS CARDS ====== */
 .glass {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
-  backdrop-filter: blur(10px);
+  background: linear-gradient(135deg,
+    rgba(0,192,250,0.12),
+    rgba(1,94,234,0.12),
+    rgba(255,255,255,0.08));
+  border: 2px solid transparent;
   border-radius: 18px;
+  border-image: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF) 1;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+
+  box-shadow: 0 6px 20px rgba(0,192,250,0.2),
+              0 0 16px rgba(1,94,234,0.2);
   padding: 16px;
+  transition: all 0.3s ease-in-out;
+}
+.glass:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(0,192,250,0.35),
+              0 0 20px rgba(1,94,234,0.35),
+              0 0 30px rgba(255,255,255,0.15);
 }
 
 /* ====== HEADER CONTAINER ====== */
@@ -165,7 +189,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   align-items: center;
   justify-content: flex-start;
   margin: 0 !important;
-  padding: 2px 8px !important;  /* 👈 reduced top padding */
+  padding: 2px 8px !important;
   gap: 8px;
 }
 
@@ -237,7 +261,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   overflow-x: auto !important;
 }
 
-/* ====== NAVBAR (Mobile Bottom Navigation Fixed) ====== */
+/* ====== NAVBAR ====== */
 .navbar {
     position: fixed;
     bottom: 0;
@@ -264,12 +288,39 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 .navbar a.active { color: #10B981; font-weight: bold; }
 .navbar a:hover { color: white; }
 
-/* ====== MOBILE RESPONSIVE ====== */
+/* ====== TABS (Gradient Underline) ====== */
+.stTabs [role="tablist"] {
+    border-bottom: 2px solid rgba(255,255,255,0.1) !important;
+    margin-bottom: 14px !important;
+}
+.stTabs [role="tab"] {
+    font-family: 'WIDE MEDIUM', sans-serif !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #FFFFFF !important;
+    padding: 8px 14px !important;
+    margin: 0 4px !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease-in-out;
+}
+.stTabs [role="tab"]:hover {
+    color: #BFDBFE !important;
+}
+.stTabs [role="tab"][aria-selected="true"] {
+    color: #FFFFFF !important;
+    font-weight: 800 !important;
+    border-bottom: 4px solid transparent !important;
+    border-image: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF) 1 !important;
+}
+
+/* ====== MOBILE ====== */
 @media (max-width: 600px) {
   .block-container { padding: 0.25rem !important; max-width: 100% !important; }
   h1, h2, h3, .app-title, .main-heading { font-size: 18px !important; }
   .app-subtitle, p, div, span { font-size: 13px !important; }
-  .stButton > button { font-size: 14px !important; padding: 8px 12px !important; width: 100% !important; }
+  .stButton > button { font-size: 14px !important; padding: 8px 12px !important; }
   .glass { padding: 8px !important; border-radius: 12px !important; }
   .stDataFrame { font-size: 12px !important; }
   .stPlotlyChart, .stAltairChart { height: auto !important; min-height: 260px !important; }
@@ -277,79 +328,19 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   .app-title { font-size: 16px !important; }
 }
 
-/* ====== EXTRA MOBILE FIXES ====== */
-@media (max-width: 768px) {
-  body, .block-container, [data-testid="stAppViewContainer"] {
-    zoom: 1; /* 👈 consistent mobile scaling */
-    -moz-transform: scale(0.95);
-    -moz-transform-origin: 0 0;
-  }
-  .stTabs [role="tablist"] {
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-  .stTabs [role="tablist"]::-webkit-scrollbar { display: none; }
-
-  /* ====== FLAT TABS STYLE (No Rectangular Background) ====== */
-.stTabs [role="tablist"] {
-    display: flex !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-    white-space: nowrap !important;
-    background: transparent !important;
-    border-bottom: 2px solid #1E40AF !important; /* bottom line */
-    margin-bottom: 12px !important;
-}
-.stTabs [role="tablist"]::-webkit-scrollbar {
-    display: none !important;
-}
-
-/* Tab text only */
-.stTabs [role="tab"] {
-    flex: 0 0 auto !important;
-    text-align: center !important;
-    padding: 8px 14px !important;
-    margin: 0 2px !important;
-    background: transparent !important;   /* 👈 no background */
-    border-radius: 0 !important;          /* 👈 no box */
-    border: none !important;
-    font-family: 'WIDE MEDIUM', sans-serif !important;
-    font-stretch: expanded !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    color: #FFFFFF !important;            /* 👈 white text */
-    transition: all 0.2s ease-in-out;
-    cursor: pointer !important;
-}
-
-/* Active tab: underline highlight only */
-.stTabs [role="tab"][aria-selected="true"] {
-    color: #3B82F6 !important;            /* blue highlight */
-    border-bottom: 3px solid #3B82F6 !important;
-    font-weight: 800 !important;
-}
-
-/* Hover: subtle lighter white-blue */
-.stTabs [role="tab"]:hover {
-    color: #BFDBFE !important;
-}
-
-}
-
-/* Prevent last fields from being cut off under navbar */
+/* Prevent last fields cut under navbar */
 .block-container,
 [data-testid="stAppViewContainer"],
 [data-testid="stMain"] {
-  padding-bottom: 100px !important;  /* 👈 at least equal to navbar height */
+  padding-bottom: 100px !important;
   box-sizing: border-box !important;
 }
-
 </style>
 """
+
+
+
+
 
 
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
@@ -783,7 +774,7 @@ def intro_page():
     """, unsafe_allow_html=True)
 
     # =======================
-    # Custom Fonts
+    # Custom Fonts + Styles
     # =======================
     st.markdown("""
     <style>
@@ -814,40 +805,58 @@ def intro_page():
 
         /* Logo */
         .intro-logo {
-            width: 300px;
+            width: 450px;
             animation: fadeInScale 2s ease forwards;
         }
 
-        /* Main Header */
+        /* Main Title */
         .intro-title {
             font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
-            font-size: 44px;
+            font-size: 48px;
             font-weight: 900;
-            color: white;
-            margin-top: 12px;
             text-transform: uppercase;
-            opacity: 0;
-            animation: slideUp 1.5s ease forwards 1.2s;
+            background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
+            background-size: 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-top: 12px;
+            animation: slideUp 1.5s ease forwards 1.2s, gradientMove 6s ease infinite;
         }
 
-        /* Sub Header */
+        /* Subtitle */
         .intro-subtitle {
             font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
-            font-size: 20px;
-            color: #34D399;
-            margin-top: 6px;
-            opacity: 0;
-            animation: fadeIn 1.2s ease forwards 2.5s;
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
+            background-size: 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-top: 8px;
+            animation: fadeIn 1.2s ease forwards 2.5s, gradientMove 6s ease infinite;
         }
 
-        /* Supportive text */
-        .intro-support {
+        /* Buttons */
+        .stButton > button {
             font-family: 'Wide Medium', sans-serif !important;
-            font-size: 16px;
-            color: #9CA3AF;
-            margin-top: 10px;
-            opacity: 0;
-            animation: fadeIn 1.2s ease forwards 3s;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.8px;
+            background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
+            background-size: 300%;
+            color: #FFFFFF !important; /* White text */
+            border: none;
+            border-radius: 10px;
+            padding: 12px 24px;
+            margin-top: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.25s ease-in-out;
+            animation: gradientMove 6s ease infinite;
+        }
+        .stButton > button:hover {
+            transform: translateY(-2px);
+            opacity: 0.95;
+            box-shadow: 0 0 10px #00C0FA, 0 0 20px #015EEA, 0 0 30px #FFFFFF;
         }
 
         /* Animations */
@@ -863,13 +872,17 @@ def intro_page():
             from { opacity: 0; }
             to { opacity: 1; }
         }
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
 
         /* Mobile */
         @media (max-width:600px){
-            .intro-logo { max-width: 140px !important; }
+            .intro-logo { max-width: 160px !important; }
             .intro-title { font-size: 28px !important; }
             .intro-subtitle { font-size: 16px !important; }
-            .intro-support { font-size: 14px !important; }
         }
     </style>
     """, unsafe_allow_html=True)
@@ -882,12 +895,10 @@ def intro_page():
         <img src="{LOGO_URL}" class="intro-logo"/>
         <div class="intro-title">NILE ESPORTS HUB</div>
         <div class="intro-subtitle">One Club • One Heartbeat 🖤💚</div>
-        
     </div>
     """, unsafe_allow_html=True)
 
     # Buttons
-    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
     if st.button("🚀 Enter the Hub", use_container_width=True):
         st.session_state.page = "login"
         st.rerun()
@@ -897,6 +908,10 @@ def intro_page():
         st.session_state.page = "fan_public_only"
         st.balloons()
         st.rerun()
+
+
+
+
 
 
 
