@@ -1032,136 +1032,132 @@ def page_dashboard():
     else:
         st.info("No past matches yet.")
 
-    # ===================== UPCOMING MATCHES CARDS (SIDE-BY-SIDE) =====================
-    # ===================== UPCOMING MATCHES CARDS (COMPACT SIDE-BY-SIDE) =====================
+    # ===================== UPCOMING MATCHES CARDS =====================
     st.markdown("<h2 class='main-heading'>📅 Upcoming Matches</h2>", unsafe_allow_html=True)
     if not upcoming_matches.empty:
-       next_matches = upcoming_matches.head(3)  # 🔥 Show only next 3
-       cols = st.columns(len(next_matches))
+        next_matches = upcoming_matches.head(3)  # 🔥 Show only next 3
+        cols = st.columns(len(next_matches))
 
-    for idx, (_, row) in enumerate(next_matches.iterrows()):
-        days_left = (row["date"] - date.today()).days
-        with cols[idx]:
-            st.markdown(f"""
-            <div style='
-                background: #1E88E5;
-                color: white;
-                padding: 12px;
-                border-radius: 12px;
-                margin: 5px;
-                text-align: center;
-                font-size: 14px;
-            '>
-                <h4 style='margin:4px 0; font-size:16px;'>vs {row['opponent']}</h4>
-                <p style='margin:2px 0; font-size:13px;'>📅 {row['date']}</p>
-                <p style='margin:2px 0; font-size:13px;'>{row.get('notes', '')}</p>
+        for idx, (_, row) in enumerate(next_matches.iterrows()):
+            days_left = (row["date"] - date.today()).days
+            with cols[idx]:
+                st.markdown(f"""
                 <div style='
-                    font-size: 18px;
-                    font-weight: bold;
-                    margin-top: 6px;
-                '>{max(days_left, 0)} Days</div>
-            </div>
-            """, unsafe_allow_html=True)
+                    background: #1E88E5;
+                    color: white;
+                    padding: 12px;
+                    border-radius: 12px;
+                    margin: 5px;
+                    text-align: center;
+                    font-size: 14px;
+                '>
+                    <h4 style='margin:4px 0; font-size:16px;'>vs {row['opponent']}</h4>
+                    <p style='margin:2px 0; font-size:13px;'>📅 {row['date']}</p>
+                    <p style='margin:2px 0; font-size:13px;'>{row.get('notes', '')}</p>
+                    <div style='
+                        font-size: 18px;
+                        font-weight: bold;
+                        margin-top: 6px;
+                    '>{max(days_left, 0)} Days</div>
+                </div>
+                """, unsafe_allow_html=True)
     else:
-     st.caption("No upcoming fixtures.")
-
+        st.caption("No upcoming fixtures.")
 
     st.divider()
 
-    # ===================== LEADERBOARDS WITH APP-THEMED UI =====================
+    # ===================== LEADERBOARDS =====================
     st.markdown("<h2 class='main-heading'>🏆 Leaderboards</h2>", unsafe_allow_html=True)
 
     if stats.empty:
-     st.info("No player stats yet.")
+        st.info("No player stats yet.")
     else:
-    # Aggregate stats
-       agg = stats.groupby("player_name").agg(
-        goals=("goals", "sum"),
-        assists=("assists", "sum"),
-        avg_rating=("rating", "mean"),
-        yellow=("yellow_cards", "sum"),
-        red=("red_cards", "sum"),
-        matches=("match_id", "count")
-    ).reset_index()
+        # Aggregate stats
+        agg = stats.groupby("player_name").agg(
+            goals=("goals", "sum"),
+            assists=("assists", "sum"),
+            avg_rating=("rating", "mean"),
+            yellow=("yellow_cards", "sum"),
+            red=("red_cards", "sum"),
+            matches=("match_id", "count")
+        ).reset_index()
 
-    # ---- Top 10 Players ----
-    top_scorers = agg.sort_values("goals", ascending=False).head(10)
-    top_assists = agg.sort_values("assists", ascending=False).head(10)
-    top_rating = agg[agg["matches"] >= 3].sort_values("avg_rating", ascending=False).head(10)
+        # ---- Top 10 Players ----
+        top_scorers = agg.sort_values("goals", ascending=False).head(10)
+        top_assists = agg.sort_values("assists", ascending=False).head(10)
+        top_rating = agg[agg["matches"] >= 3].sort_values("avg_rating", ascending=False).head(10)
 
-    # Theme colors
-    scorer_color = "#1E88E5"   # Nile Blue
-    assist_color = "#43A047"   # Green accent
-    rating_color = "#E53935"   # Red accent
-    card_bg = "#0C182E"        # Dark app background
-    text_color = "#FFFFFF"
+        # Theme colors
+        scorer_color = "#1E88E5"   # Nile Blue
+        assist_color = "#43A047"   # Green accent
+        rating_color = "#E53935"   # Red accent
+        card_bg = "#0C182E"        # Dark app background
+        text_color = "#FFFFFF"
 
-    col1, col2, col3 = st.columns(3)
+        col1, col2, col3 = st.columns(3)
 
-    # ========== Top Scorers ==========
-    with col1:
-        st.markdown(f"<div style='text-align:center; font-size:22px; font-weight:bold; color:{scorer_color};'>⚽ Top Scorers</div>", unsafe_allow_html=True)
-        for idx, row in top_scorers.iterrows():
-            st.markdown(f"""
-            <div style='
-                background: {card_bg};
-                color: {text_color};
-                padding: 10px;
-                border-radius: 12px;
-                margin: 6px 0;
-                border: 1px solid {scorer_color};
-                display: flex;
-                justify-content: space-between;
-                font-size: 14px;
-            '>
-                <span>{idx+1}. {row['player_name']}</span>
-                <span style='font-weight:bold;'>{int(row['goals'])} Goals</span>
-            </div>
-            """, unsafe_allow_html=True)
+        # ========== Top Scorers ==========
+        with col1:
+            st.markdown(f"<div style='text-align:center; font-size:22px; font-weight:bold; color:{scorer_color};'>⚽ Top Scorers</div>", unsafe_allow_html=True)
+            for idx, row in top_scorers.iterrows():
+                st.markdown(f"""
+                <div style='
+                    background: {card_bg};
+                    color: {text_color};
+                    padding: 10px;
+                    border-radius: 12px;
+                    margin: 6px 0;
+                    border: 1px solid {scorer_color};
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 14px;
+                '>
+                    <span>{idx+1}. {row['player_name']}</span>
+                    <span style='font-weight:bold;'>{int(row['goals'])} Goals</span>
+                </div>
+                """, unsafe_allow_html=True)
 
-    # ========== Top Assists ==========
-    with col2:
-        st.markdown(f"<div style='text-align:center; font-size:22px; font-weight:bold; color:{assist_color};'>🎯 Top Assists</div>", unsafe_allow_html=True)
-        for idx, row in top_assists.iterrows():
-            st.markdown(f"""
-            <div style='
-                background: {card_bg};
-                color: {text_color};
-                padding: 10px;
-                border-radius: 12px;
-                margin: 6px 0;
-                border: 1px solid {assist_color};
-                display: flex;
-                justify-content: space-between;
-                font-size: 14px;
-            '>
-                <span>{idx+1}. {row['player_name']}</span>
-                <span style='font-weight:bold;'>{int(row['assists'])} Assists</span>
-            </div>
-            """, unsafe_allow_html=True)
+        # ========== Top Assists ==========
+        with col2:
+            st.markdown(f"<div style='text-align:center; font-size:22px; font-weight:bold; color:{assist_color};'>🎯 Top Assists</div>", unsafe_allow_html=True)
+            for idx, row in top_assists.iterrows():
+                st.markdown(f"""
+                <div style='
+                    background: {card_bg};
+                    color: {text_color};
+                    padding: 10px;
+                    border-radius: 12px;
+                    margin: 6px 0;
+                    border: 1px solid {assist_color};
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 14px;
+                '>
+                    <span>{idx+1}. {row['player_name']}</span>
+                    <span style='font-weight:bold;'>{int(row['assists'])} Assists</span>
+                </div>
+                """, unsafe_allow_html=True)
 
-    # ========== Top Rating ==========
-    with col3:
-        st.markdown(f"<div style='text-align:center; font-size:22px; font-weight:bold; color:{rating_color};'>⭐ Top Rating</div>", unsafe_allow_html=True)
-        for idx, row in top_rating.iterrows():
-            st.markdown(f"""
-            <div style='
-                background: {card_bg};
-                color: {text_color};
-                padding: 10px;
-                border-radius: 12px;
-                margin: 6px 0;
-                border: 1px solid {rating_color};
-                display: flex;
-                justify-content: space-between;
-                font-size: 14px;
-            '>
-                <span>{idx+1}. {row['player_name']}</span>
-                <span style='font-weight:bold;'>{row['avg_rating']:.2f}</span>
-            </div>
-            """, unsafe_allow_html=True)
-
-
+        # ========== Top Rating ==========
+        with col3:
+            st.markdown(f"<div style='text-align:center; font-size:22px; font-weight:bold; color:{rating_color};'>⭐ Top Rating</div>", unsafe_allow_html=True)
+            for idx, row in top_rating.iterrows():
+                st.markdown(f"""
+                <div style='
+                    background: {card_bg};
+                    color: {text_color};
+                    padding: 10px;
+                    border-radius: 12px;
+                    margin: 6px 0;
+                    border: 1px solid {rating_color};
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 14px;
+                '>
+                    <span>{idx+1}. {row['player_name']}</span>
+                    <span style='font-weight:bold;'>{row['avg_rating']:.2f}</span>
+                </div>
+                """, unsafe_allow_html=True)
 
 
 
