@@ -816,7 +816,7 @@ def intro_page():
             background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-top: 7px;
+            margin-top: -10px;
         }
 
         /* Subtitle */
@@ -827,7 +827,7 @@ def intro_page():
             background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-top: 3px;
+            margin-top: -10px;
         }
 
         /* Buttons wrapper */
@@ -835,7 +835,7 @@ def intro_page():
             display: flex;
             flex-direction: column;
             gap: 12px;
-            margin-top: 10px;
+            margin-top: -50px;
             width: 80%;
             max-width: 320px;
         }
