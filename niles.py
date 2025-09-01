@@ -780,19 +780,19 @@ def intro_page():
             min-height: auto;
             text-align: center;
             background: linear-gradient(135deg, #0A1128, #111827);
-            padding: 40px 0;
+            padding: 100px 0;
         }
 
         /* Logo */
         .intro-logo {
-            width: 350px;
+            width: 500px;
             animation: fadeInScale 2s ease forwards;
         }
 
         /* Title with gradient + animation */
         .intro-title {
             font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
-            font-size: 36px;
+            font-size: 48px;
             font-weight: 900;
             text-transform: uppercase;
             background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
@@ -806,7 +806,7 @@ def intro_page():
         /* Subtitle with gradient + animation */
         .intro-subtitle {
             font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
-            font-size: 18px;
+            font-size: 32x;
             background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
