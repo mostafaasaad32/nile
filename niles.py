@@ -773,9 +773,7 @@ def intro_page():
     </style>
     """, unsafe_allow_html=True)
 
-    # =======================
-    # Custom Fonts + Styles
-    # =======================
+    # ======================= STYLES =======================
     st.markdown("""
     <style>
         @font-face {
@@ -795,68 +793,83 @@ def intro_page():
         .intro-container {
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            height: 100vh;
+            justify-content: flex-start;
+            min-height: 100vh;
+            padding-top: 8vh;
             text-align: center;
             background: linear-gradient(135deg, #0A1128, #111827);
-            overflow: hidden;
         }
 
         /* Logo */
         .intro-logo {
-            width: 450px;
+            width: 220px;
             animation: fadeInScale 2s ease forwards;
         }
 
         /* Main Title */
         .intro-title {
             font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
-            font-size: 48px;
+            font-size: 40px;
             font-weight: 900;
             text-transform: uppercase;
             background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
-            background-size: 300%;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-top: 12px;
-            animation: slideUp 1.5s ease forwards 1.2s, gradientMove 6s ease infinite;
         }
 
         /* Subtitle */
         .intro-subtitle {
             font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 700;
             background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
-            background-size: 300%;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-top: 8px;
-            animation: fadeIn 1.2s ease forwards 2.5s, gradientMove 6s ease infinite;
+            margin-top: 6px;
         }
 
-        /* Buttons */
+        /* Buttons wrapper */
+        .intro-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 22px;
+            width: 80%;
+            max-width: 320px;
+        }
+
+        /* Buttons style (glassy gradient) */
         .stButton > button {
             font-family: 'Wide Medium', sans-serif !important;
-            font-size: 16px !important;
             font-weight: 600 !important;
-            letter-spacing: 0.8px;
-            background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
-            background-size: 300%;
-            color: #FFFFFF !important; /* White text */
-            border: none;
-            border-radius: 10px;
-            padding: 12px 24px;
-            margin-top: 14px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            transition: all 0.25s ease-in-out;
-            animation: gradientMove 6s ease infinite;
+            font-size: 16px !important;
+            letter-spacing: 0.5px;
+
+            background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF) !important;
+            color: #FFFFFF !important;
+
+            border: none !important;
+            border-radius: 14px !important;
+            padding: 12px 20px !important;
+            min-height: 44px !important;
+
+            box-shadow: 0 6px 16px rgba(0,192,250,0.35),
+                        0 0 18px rgba(1,94,234,0.25),
+                        0 0 20px rgba(255,255,255,0.2) !important;
+
+            transition: all 0.3s ease-in-out !important;
         }
         .stButton > button:hover {
-            transform: translateY(-2px);
-            opacity: 0.95;
-            box-shadow: 0 0 10px #00C0FA, 0 0 20px #015EEA, 0 0 30px #FFFFFF;
+            transform: translateY(-2px) scale(1.02) !important;
+            box-shadow: 0 8px 22px rgba(0,192,250,0.55),
+                        0 0 22px rgba(1,94,234,0.45),
+                        0 0 30px rgba(255,255,255,0.25) !important;
+        }
+        .stButton > button:active {
+            transform: translateY(1px) scale(0.97) !important;
+            opacity: 0.95 !important;
         }
 
         /* Animations */
@@ -864,41 +877,28 @@ def intro_page():
             from { opacity: 0; transform: scale(0.8); }
             to { opacity: 1; transform: scale(1); }
         }
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(40px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        @keyframes gradientMove {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
 
         /* Mobile */
         @media (max-width:600px){
-            .intro-logo { max-width: 160px !important; }
-            .intro-title { font-size: 28px !important; }
-            .intro-subtitle { font-size: 16px !important; }
+            .intro-container { padding-top: 6vh; }
+            .intro-logo { width: 150px; }
+            .intro-title { font-size: 26px; }
+            .intro-subtitle { font-size: 15px; }
+            .intro-buttons { width: 90%; margin-top: 16px; }
         }
     </style>
     """, unsafe_allow_html=True)
 
-    # =======================
-    # Animated Content
-    # =======================
+    # ======================= CONTENT =======================
     st.markdown(f"""
     <div class="intro-container">
         <img src="{LOGO_URL}" class="intro-logo"/>
         <div class="intro-title">NILE ESPORTS HUB</div>
         <div class="intro-subtitle">One Club • One Heartbeat 🖤💚</div>
-    </div>
+        <div class="intro-buttons">
     """, unsafe_allow_html=True)
 
-    # Buttons
+    # Buttons (inside container)
     if st.button("🚀 Enter the Hub", use_container_width=True):
         st.session_state.page = "login"
         st.rerun()
@@ -909,6 +909,7 @@ def intro_page():
         st.balloons()
         st.rerun()
 
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
 
 
