@@ -773,89 +773,42 @@ def intro_page():
 
         /* Container */
         .intro-container {
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-            align-items: center;
-            min-height: auto;
-            text-align: center;
-            background: linear-gradient(135deg, #0A1128, #111827);
-            padding: 10px 0;
-        }
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* 👈 stack normally */
+    align-items: center;
+    min-height: auto;           /* 👈 was 100vh */
+    text-align: center;
+    background: linear-gradient(135deg, #0A1128, #111827);
+    padding: 40px 0;            /* top/bottom breathing room */
+}
 
-        /* Logo */
         .intro-logo {
-            width: 350px;
+            width: 200px;
             animation: fadeInScale 2s ease forwards;
         }
-
-        /* Title with gradient + animation */
         .intro-title {
             font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
-            font-size: 48px;
+            font-size: 36px;
             font-weight: 900;
+            color: white;
+            margin-top: 16px;
             text-transform: uppercase;
-            background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-top: 1px;
-            opacity: 0;
-            animation: slideUp 1.5s ease forwards 1s;
         }
-
-        /* Subtitle with gradient + animation */
         .intro-subtitle {
             font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
-            font-size: 32px;
-            background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            font-size: 18px;
+            color: #34D399;
             margin-top: 8px;
-            opacity: 0;
-            animation: fadeIn 1.2s ease forwards 2s;
         }
 
-        /* Button wrapper */
+        /* Button wrapper for spacing */
         .button-wrapper {
             margin-top: 20px;
             width: 80%;
             max-width: 300px;
         }
 
-        /* Override Streamlit buttons only for intro page */
-        .intro-container .stButton > button {
-            background: linear-gradient(135deg, #0A1128, #111827) !important;
-            color: white !important;
-            border: 1px solid #1F2937 !important;
-            border-radius: 10px !important;
-            font-family: 'Wide Medium', sans-serif !important;
-            font-size: 16px !important;
-            font-weight: 600 !important;
-            padding: 12px 20px !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-            transition: all 0.2s ease-in-out;
-        }
-        .intro-container .stButton > button:hover {
-            transform: translateY(-2px);
-            opacity: 0.95;
-            border: 1px solid #374151 !important;
-        }
-
-        /* Animations */
-        @keyframes fadeInScale {
-            from { opacity: 0; transform: scale(0.8); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        /* Mobile */
         @media (max-width:600px){
             .intro-logo { max-width: 120px !important; }
             .intro-title { font-size: 24px !important; }
@@ -876,7 +829,7 @@ def intro_page():
         </div>
         """, unsafe_allow_html=True)
 
-        # Buttons
+        # Buttons go here 👇 (inside same container, right after subtitle)
         st.markdown("<div class='button-wrapper'>", unsafe_allow_html=True)
 
         if st.button("🚀 Enter the Hub", use_container_width=True):
@@ -890,7 +843,6 @@ def intro_page():
             st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)
-
 
 
 
