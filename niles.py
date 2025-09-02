@@ -2897,20 +2897,80 @@ def player_my_stats_page():
 
     metrics = cumulative_metrics(df)
 
-    # === Radar Chart ===
+          # === Radar Chart with Numbers (fixed scatter) ===
+       
+
+# === Radar Chart with Numbers (non-overlapping labels) ===
+    # === Radar Chart with Numbers (numbers outside & clear) ===
     categories = list(metrics.keys())
     values = list(metrics.values())
 
-    fig = go.Figure()
+# Compute angles for each category
+    angles = np.linspace(0, 360, len(categories), endpoint=False)
+
+# Add a small padding so text goes outside the polygon
+    label_values = [v * 1.15 if v > 0 else 0.1 for v in values]
+
+    fig = go.Figure() 
+
+# Main radar shape
     fig.add_trace(go.Scatterpolar(
-        r=values, theta=categories, fill="toself",
-        name=current_name, line_color="#015EEA"
+    r=values,
+    theta=categories,
+    fill="toself",
+    name=current_name,
+    line_color="#015EEA"
+))
+
+# Smart text alignment based on angle
+    text_positions = []
+    for angle in angles:
+     if 80 < angle < 100:   # near top
+        text_positions.append("bottom center")
+     elif 260 < angle < 280:  # near bottom
+        text_positions.append("top center")
+     elif 0 <= angle < 80 or 280 <= angle <= 360:  # right side
+        text_positions.append("middle left")
+     else:  # left side
+        text_positions.append("middle right")
+
+    # Calculate outward positions for labels
+    max_val = max(values) if values else 1
+    label_values = [
+        v + (0.08 * max_val) if v > 0 else 0   # push 8% outward along axis
+        for v in values
+    ]
+
+    # Add number labels slightly outside polygon, aligned to each axis
+    fig.add_trace(go.Scatterpolar(
+        r=label_values,                   # 👈 outward offset
+        theta=categories,                 # 👈 stays on same axis
+        mode="text",
+        text=[str(v) for v in values],
+        textfont=dict(color="#015EEA", size=8, family="Arial Black"),
+        showlegend=False
     ))
 
+
+# Layout styling
     fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, gridcolor="#666")),
-        title=f"Radar Analysis – {current_name} (Cumulative Totals)"
-    )
+    polar=dict(
+        radialaxis=dict(
+            visible=True,
+            gridcolor="#666",
+            linecolor="#888",
+            tickfont=dict(color="#00C0FA", size=12),
+        ),
+        angularaxis=dict(
+            tickfont=dict(color="#FFFFFF", size=12)
+        )
+    ),
+    title=f"Radar Analysis – {current_name} (Cumulative Totals)",
+    title_font=dict(color="#00C0FA", size=18),
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)"
+)
+
     st.plotly_chart(fig, use_container_width=True)
 
     # === Styled Stats Table ===
