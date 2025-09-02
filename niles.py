@@ -1593,6 +1593,123 @@ def _attendance_color(val: str):
         return "background-color: lightcoral; color: white;"
     return ""
 
+
+def manager_radar_page():
+    st.markdown("<h1 class='super-head'>📊 Player Radar Analysis</h1>", unsafe_allow_html=True)
+
+    # Load stats
+    stats = read_csv_safe(PLAYER_STATS_FILE)
+    players = read_csv_safe(PLAYERS_FILE)
+
+    if stats.empty or players.empty:
+        st.info("⚠️ No stats or players available.")
+        return
+
+    # === Select One Player ===
+    player_names = players["name"].dropna().unique().tolist()
+    selected_player = st.selectbox("Select Player", player_names)
+
+    if not selected_player:
+        st.warning("⚠️ Please select a player.")
+        return
+
+    # === Cumulative Metrics Function ===
+    def cumulative_metrics(df):
+        metrics = {}
+
+        metrics["⚽ Goals"] = df["goals"].sum()
+        metrics["🎯 Assists"] = df["assists"].sum()
+        metrics["🔫 Shots"] = df["shots"].sum()
+        metrics["📨 Passes"] = df["passes"].sum()
+        metrics["🎯 Pass Accuracy %"] = (
+            round(((df["passes"] * df["pass_accuracy"] / 100).sum() / df["passes"].sum()) * 100, 1)
+            if df["passes"].sum() > 0 else 0
+        )
+        metrics["⚡ Dribbles"] = df["dribbles"].sum()
+        metrics["⚡ Dribble Success %"] = (
+            round(((df["dribbles"] * df["dribble_success"] / 100).sum() / df["dribbles"].sum()) * 100, 1)
+            if df["dribbles"].sum() > 0 else 0
+        )
+        metrics["🛡️ Tackles"] = df["tackles"].sum()
+        metrics["🛡️ Tackle Success %"] = (
+            round(((df["tackles"] * df["tackle_success"] / 100).sum() / df["tackles"].sum()) * 100, 1)
+            if df["tackles"].sum() > 0 else 0
+        )
+        metrics["💪 Possession Won"] = df["possession_won"].sum()
+        metrics["❌ Possession Lost"] = df["possession_lost"].sum()
+        metrics["🏃 Distance Covered (km)"] = round(df["distance_covered"].sum(), 1)
+        metrics["⭐ Avg Rating"] = round(df["rating"].mean(), 2) if "rating" in df else 0
+
+        return metrics
+
+    # === Collect Metrics for Selected Player ===
+    df = stats[stats["player_name"] == selected_player]
+    if df.empty:
+        st.warning("⚠️ No stats found for this player.")
+        return
+
+    metrics = cumulative_metrics(df)
+
+    # === Radar Chart ===
+    categories = list(metrics.keys())
+    values = list(metrics.values())
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=values, theta=categories, fill="toself",
+        name=selected_player, line_color="#015EEA"
+    ))
+
+    fig.update_layout(
+        polar=dict(radialaxis=dict(visible=True, gridcolor="#666")),
+        title=f"Radar Analysis – {selected_player} (Cumulative Totals)"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # === Styled Stats Table ===
+    st.markdown("### 📋 Detailed Cumulative Stats")
+
+    # Custom HTML table (instead of raw dataframe)
+    table_html = """
+    <style>
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .stats-table th, .stats-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .stats-table th {
+            background: rgba(0,192,250,0.2);
+            color: #00C0FA;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .stats-table td {
+            color: #FFFFFF;
+        }
+        .stats-table tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
+    </style>
+    <table class="stats-table">
+        <tr><th>Metric</th><th>Value</th></tr>
+    """
+    for metric, value in metrics.items():
+        table_html += f"<tr><td>{metric}</td><td>{value}</td></tr>"
+    table_html += "</table>"
+
+    st.markdown(table_html, unsafe_allow_html=True)
+
+
+
+
+
+
+
 def manager_training_attendance_overview():
     
     st.markdown("<h2 class='main-heading'>📋 Training Attendance – Session Overview</h2>", unsafe_allow_html=True)
@@ -2216,138 +2333,9 @@ def manager_tactics_board_page():
 # -------------------------------
 # PLAYER PAGES
 # -------------------------------
-def player_my_stats_page():
-    # ===== Ensure current player =====
-    current_name = st.session_state.auth.get("name", "").strip()
-    if not current_name:
-        st.error("❌ You must be logged in to view your stats.")
-        return
-
-    # ====== Global Theme & Fonts ======
-    st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
-    html, body, [class*="css"] {
-        background: linear-gradient(160deg, #0C182E 40%, #000000 100%);
-        color: #FFFFFF;
-    }
-    .super-head { font-family:'Montserrat'; font-weight:900; font-style:oblique; font-size:40px; color:#00C0FA; text-align:center; }
-    .sub-head { font-family:'Montserrat'; font-weight:700; font-style:oblique; font-size:28px; color:#00C0FA; }
-    .text-mid { font-family:'Montserrat'; font-weight:500; font-size:16px; color:#FFFFFF; }
-    .card,.metric-card,.chart-card {
-        background: rgba(255,255,255,0.06);
-        border: 1px solid rgba(255,255,255,0.15);
-        border-radius: 20px;
-        padding: 20px;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-    }
-    .metric-grid,.chart-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px,1fr));
-        gap: 20px; margin-bottom: 30px;
-    }
-    .metric-value { font-size:28px; font-weight:700; color:#015EEA; }
-    .metric-label { font-size:14px; color:#FFFFFF; }
-    </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<h1 class='super-head'>📊 My Performance Dashboard</h1>", unsafe_allow_html=True)
-
-    # ===== Player Record =====
-    players = read_csv_safe(PLAYERS_FILE)
-    player = players[players["name"].str.lower() == current_name.lower()]
-    if player.empty:
-        st.error("❌ Player profile not found.")
-        return
-    player = player.iloc[0]
-
-    stats = read_csv_safe(PLAYER_STATS_FILE)
-    matches = read_csv_safe(MATCHES_FILE)
-
-    if stats.empty:
-        st.info("No stats yet.")
-        return
-
-    # Only this player's stats
-    mine = stats[stats["player_name"].str.lower() == current_name.lower()]
-    if mine.empty:
-        st.info("No stats recorded for you yet.")
-        return
-
-    # ===== Join with Matches for readable match names =====
-    if not matches.empty and "match_id" in mine.columns:
-        match_labels = matches.set_index("match_id").apply(
-            lambda r: f"{r['date']} vs {r['opponent']}", axis=1
-        )
-        mine = mine.merge(match_labels.rename("match_name"), left_on="match_id", right_index=True, how="left")
-    else:
-        mine["match_name"] = mine["match_id"].astype(str)
-
-    # ===== Hero Card =====
-    st.markdown(f"""
-    <div style="text-align:center; margin-bottom:25px;">
-        <div class="card">
-            <h2 class="sub-head">{player['name']}</h2>
-            <p class="text-mid">Position: {player['position']}</p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ===== KPI Cards =====
-    matches_played = len(mine)
-    avg_rating = round(mine["rating"].mean(), 2) if not mine["rating"].isna().all() else "N/A"
-    avg_shots = round(mine["shots"].mean(), 1) if "shots" in mine else "N/A"
-    avg_pass_acc = f"{round(mine['pass_accuracy'].mean(),1)}%" if "pass_accuracy" in mine else "N/A"
-    avg_dribble_succ = f"{round(mine['dribble_success'].mean(),1)}%" if "dribble_success" in mine else "N/A"
-    avg_tackles = round(mine["tackles"].mean(), 1) if "tackles" in mine else "N/A"
-    avg_distance = round(mine["distance_covered"].mean(), 1) if "distance_covered" in mine else "N/A"
-
-    st.markdown(f"""
-    <div class="metric-grid">
-        <div class="metric-card"><div class="metric-value">{matches_played}</div><div class="metric-label">Matches</div></div>
-        <div class="metric-card"><div class="metric-value">{avg_rating}</div><div class="metric-label">Avg Rating</div></div>
-        <div class="metric-card"><div class="metric-value">{avg_shots}</div><div class="metric-label">Avg Shots</div></div>
-        <div class="metric-card"><div class="metric-value">{avg_pass_acc}</div><div class="metric-label">Pass Accuracy</div></div>
-        <div class="metric-card"><div class="metric-value">{avg_dribble_succ}</div><div class="metric-label">Dribble Success</div></div>
-        <div class="metric-card"><div class="metric-value">{avg_tackles}</div><div class="metric-label">Avg Tackles</div></div>
-        <div class="metric-card"><div class="metric-value">{avg_distance} km</div><div class="metric-label">Distance Covered</div></div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ===== Charts =====
-    st.markdown("<h2 class='sub-head'>📈 Performance Tracker</h2>", unsafe_allow_html=True)
-    mine = mine.sort_values("match_id")
-
-    fig1 = px.bar(mine, x="match_name", y=["shots", "passes"], barmode="group",
-                  title="🔫 Shots & 🎯 Passes per Match", color_discrete_sequence=["#015EEA", "#00C0FA"])
-    fig2 = px.bar(mine, x="match_name", y=["dribbles", "tackles"], barmode="group",
-                  title="⚡ Dribbles & 🛡️ Tackles per Match", color_discrete_sequence=["#00C0FA", "#FF5733"])
-    fig3 = px.bar(mine, x="match_name", y=["possession_won", "possession_lost"], barmode="group",
-                  title="📊 Possession Won vs Lost", color_discrete_sequence=["#28A745", "#DC3545"])
-    fig4 = px.line(mine, x="match_name", y=["distance_covered","distance_sprinted"], markers=True,
-                   title="🏃 Distance Covered & Sprinted", color_discrete_sequence=["#00C0FA", "#015EEA"])
-    fig5 = px.line(mine, x="match_name", y="rating", markers=True,
-                   title="⭐ Ratings Over Matches", color_discrete_sequence=["#FFD700"])
-    fig5.update_yaxes(range=[0, 10])
-
-    st.markdown("<div class='chart-grid'>", unsafe_allow_html=True)
-    for fig in [fig1, fig2, fig3, fig4, fig5]:
-        st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
-        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
-        st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ===== Detailed Stats Table =====
-    st.markdown("<h2 class='sub-head'>📋 Detailed Stats per Match</h2>", unsafe_allow_html=True)
-    exclude = ["id","goals","assists"]
-    table_cols = [c for c in mine.columns if c not in exclude]
-    st.dataframe(mine[table_cols].reset_index(drop=True), use_container_width=True)
 
 
 
-
-import re
-import json
 
 
 def extract_stats_from_image(image_bytes: bytes):
@@ -2792,8 +2780,175 @@ def player_tactics_board_page():
 
 
 
+import plotly.graph_objects as go
+
+def cumulative_metrics(df):
+    metrics = {}
+
+    # Totals
+    metrics["Shots"] = df["shots"].sum()
+    metrics["Passes"] = df["passes"].sum()
+    metrics["Dribbles"] = df["dribbles"].sum()
+    metrics["Tackles"] = df["tackles"].sum()
+    metrics["Goals"] = df["goals"].sum()
+    metrics["Assists"] = df["assists"].sum()
+    metrics["Possession Won"] = df["possession_won"].sum()
+    metrics["Possession Lost"] = df["possession_lost"].sum()
+    metrics["Distance Covered (km)"] = df["distance_covered"].sum()
+    
+    # Ratings → average is still meaningful
+    metrics["Rating"] = round(df["rating"].mean(), 2) if "rating" in df else 0
+
+    # Accurate passes
+    total_passes = df["passes"].sum()
+    success_passes = (df["passes"] * df["pass_accuracy"] / 100).sum()
+    metrics["Pass Accuracy %"] = round(success_passes / total_passes * 100, 1) if total_passes > 0 else 0
+
+    # Dribble success
+    total_dribbles = df["dribbles"].sum()
+    success_dribbles = (df["dribbles"] * df["dribble_success"] / 100).sum()
+    metrics["Dribble Success %"] = round(success_dribbles / total_dribbles * 100, 1) if total_dribbles > 0 else 0
+
+    # Tackles success
+    total_tackles = df["tackles"].sum()
+    success_tackles = (df["tackles"] * df["tackle_success"] / 100).sum()
+    metrics["Tackle Success %"] = round(success_tackles / total_tackles * 100, 1) if total_tackles > 0 else 0
+
+    return metrics
 
 
+
+import plotly.graph_objects as go
+
+def player_my_stats_page():
+    st.markdown("<h1 class='super-head'>📊 My Radar Analysis</h1>", unsafe_allow_html=True)
+
+    # ===== Ensure Current Player =====
+    current_name = st.session_state.auth.get("name", "").strip()
+    if not current_name:
+        st.error("❌ You must be logged in to view your radar stats.")
+        return
+
+    # ===== Load Stats & Matches =====
+    stats = read_csv_safe(PLAYER_STATS_FILE)
+    matches = read_csv_safe(MATCHES_FILE)   # 👈 new
+    if stats.empty or matches.empty:
+        st.info("⚠️ No stats or matches available.")
+        return
+
+    # === Merge to bring in result column ===
+    df = stats[stats["player_name"].str.lower() == current_name.lower()]
+    if df.empty:
+        st.warning("⚠️ No stats found for you.")
+        return
+
+    df = df.merge(matches[["match_id", "result"]], on="match_id", how="left")
+
+    # === Matches Played & Results ===
+    matches_played = df["match_id"].nunique()
+
+    wins = df[df["result"].str.lower().isin(["w", "win"]) ]["match_id"].nunique()
+    draws = df[df["result"].str.lower().isin(["d", "draw"]) ]["match_id"].nunique()
+    losses = df[df["result"].str.lower().isin(["l", "loss"]) ]["match_id"].nunique()
+
+    st.markdown(f"""
+    <div style="background: rgba(0,192,250,0.1); padding:15px; border-radius:10px; margin-bottom:20px; text-align:center;">
+        <h3 style="color:#00C0FA; margin:0;">📅 Season Summary</h3>
+        <p style="margin:5px 0; font-size:16px; color:white;">
+            Matches Played: <b>{matches_played}</b> |
+            ✅ Wins: <b>{wins}</b> |
+            🤝 Draws: <b>{draws}</b> |
+            ❌ Losses: <b>{losses}</b>
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ... keep your cumulative_metrics, radar chart, and styled table as before ...
+
+
+    # === Cumulative Metrics Function ===
+    def cumulative_metrics(df):
+        metrics = {}
+
+        metrics["⚽ Goals"] = df["goals"].sum()
+        metrics["🎯 Assists"] = df["assists"].sum()
+        metrics["🔫 Shots"] = df["shots"].sum()
+        metrics["📨 Passes"] = df["passes"].sum()
+        metrics["🎯 Pass Accuracy %"] = (
+            round(((df["passes"] * df["pass_accuracy"] / 100).sum() / df["passes"].sum()) * 100, 1)
+            if df["passes"].sum() > 0 else 0
+        )
+        metrics["⚡ Dribbles"] = df["dribbles"].sum()
+        metrics["⚡ Dribble Success %"] = (
+            round(((df["dribbles"] * df["dribble_success"] / 100).sum() / df["dribbles"].sum()) * 100, 1)
+            if df["dribbles"].sum() > 0 else 0
+        )
+        metrics["🛡️ Tackles"] = df["tackles"].sum()
+        metrics["🛡️ Tackle Success %"] = (
+            round(((df["tackles"] * df["tackle_success"] / 100).sum() / df["tackles"].sum()) * 100, 1)
+            if df["tackles"].sum() > 0 else 0
+        )
+        metrics["💪 Possession Won"] = df["possession_won"].sum()
+        metrics["❌ Possession Lost"] = df["possession_lost"].sum()
+        metrics["🏃 Distance Covered (km)"] = round(df["distance_covered"].sum(), 1)
+        metrics["⭐ Avg Rating"] = round(df["rating"].mean(), 2) if "rating" in df else 0
+
+        return metrics
+
+    metrics = cumulative_metrics(df)
+
+    # === Radar Chart ===
+    categories = list(metrics.keys())
+    values = list(metrics.values())
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=values, theta=categories, fill="toself",
+        name=current_name, line_color="#015EEA"
+    ))
+
+    fig.update_layout(
+        polar=dict(radialaxis=dict(visible=True, gridcolor="#666")),
+        title=f"Radar Analysis – {current_name} (Cumulative Totals)"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # === Styled Stats Table ===
+    st.markdown("### 📋 Detailed Cumulative Stats")
+
+    table_html = """
+    <style>
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .stats-table th, .stats-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .stats-table th {
+            background: rgba(0,192,250,0.2);
+            color: #00C0FA;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .stats-table td {
+            color: #FFFFFF;
+        }
+        .stats-table tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
+    </style>
+    <table class="stats-table">
+        <tr><th>Metric</th><th>Value</th></tr>
+    """
+    for metric, value in metrics.items():
+        table_html += f"<tr><td>{metric}</td><td>{value}</td></tr>"
+    table_html += "</table>"
+
+    st.markdown(table_html, unsafe_allow_html=True)
 
 
 
@@ -3022,6 +3177,7 @@ def run_manager():
         "📄 Tactics",
         "📋 Attendance",
         "⭐ Best XI",
+        "📊 Radar",   # 👈 Added Radar tab
     ])
 
     # Main Tab: Dashboard
@@ -3047,6 +3203,10 @@ def run_manager():
     with main_tabs[3]:
         page_best_xi()
 
+    # Main Tab: Radar
+    with main_tabs[4]:
+        manager_radar_page()
+
 
 
 
@@ -3062,6 +3222,7 @@ def run_player():
         "📋 Attendance",
         "📄 Tactics",
         "⭐ Best XI",
+           # 👈 Added Radar tab
     ])
 
     # Dashboard
@@ -3091,6 +3252,9 @@ def run_player():
     # Best XI
     with main_tabs[4]:
         page_best_xi()
+
+    # Radar
+ 
 
 
 
