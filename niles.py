@@ -549,6 +549,15 @@ def write_csv_safe(df: pd.DataFrame, path: str):
     except Exception as conv_err:
         st.warning(f"⚠️ Column conversion error: {conv_err}")
 
+    # === Type conversions for matches ===
+    try:
+        if table == "matches":
+            for col in ["match_id", "our_score", "their_score"]:
+                if col in safe_df.columns:
+                    safe_df[col] = pd.to_numeric(safe_df[col], errors="coerce").astype("Int64")
+    except Exception as conv_err:
+        st.warning(f"⚠️ Column conversion error in matches: {conv_err}")
+
     # === Convert to dict rows ===
     rows = _df_to_rows(safe_df)
     if not rows:
