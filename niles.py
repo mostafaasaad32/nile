@@ -332,7 +332,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 .block-container,
 [data-testid="stAppViewContainer"],
 [data-testid="stMain"] {
-  padding-bottom: 100px !important;
+  padding-bottom: 50px !important;
   box-sizing: border-box !important;
 }
 </style>
