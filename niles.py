@@ -338,11 +338,6 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 </style>
 """
 
-
-
-
-
-
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
 # =======================================
@@ -411,36 +406,6 @@ def _table_for_path(path: str) -> str:
 def _df_to_rows(df: pd.DataFrame):
     return json.loads(df.where(pd.notnull(df), None).to_json(orient="records"))
 
-def ensure_dirs():
-    os.makedirs(DATA_DIR, exist_ok=True)
-    os.makedirs(UPLOADS_DIR, exist_ok=True)
-
-def ensure_csvs():
-    if USE_SUPABASE:
-        return
-    if not os.path.exists(MATCHES_FILE):
-        pd.DataFrame(columns=["match_id","date","opponent","our_score","their_score","result","notes"]).to_csv(MATCHES_FILE, index=False)
-    if not os.path.exists(PLAYER_STATS_FILE):
-        pd.DataFrame(columns=["match_id","player_name","position","goals","assists","rating","yellow_cards","red_cards"]).to_csv(PLAYER_STATS_FILE, index=False)
-    if not os.path.exists(TACTICS_FILE):
-        pd.DataFrame(columns=["formation","roles","instructions","notes","image_path","updated_by","updated_at"]).to_csv(TACTICS_FILE, index=False)
-    if not os.path.exists(TACTICS_POS_FILE):
-        pd.DataFrame(columns=["formation","position","player_name","x","y","updated_by","updated_at"]).to_csv(TACTICS_POS_FILE, index=False)
-    if not os.path.exists(AVAIL_FILE):
-        pd.DataFrame(columns=["date","player_name","availability"]).to_csv(AVAIL_FILE, index=False)
-    if not os.path.exists(FANWALL_FILE):
-        pd.DataFrame(columns=["timestamp","user","message","approved"]).to_csv(FANWALL_FILE, index=False)
-    if not os.path.exists(PLAYERS_FILE):
-        seed = pd.DataFrame([
-            {"player_id":1, "name":"Player1", "position":"ST", "code":"PL-001", "active":True},
-            {"player_id":2, "name":"Player2", "position":"CM", "code":"PL-002", "active":True},
-            {"player_id":3, "name":"Player3", "position":"CB", "code":"PL-003", "active":True},
-        ])
-        seed.to_csv(PLAYERS_FILE, index=False)
-    if not os.path.exists(TRAINING_SESSIONS_FILE):
-        pd.DataFrame(columns=["session_id","date","time","title","location","notes","created_by","created_at"]).to_csv(TRAINING_SESSIONS_FILE, index=False)
-    if not os.path.exists(TRAINING_ATTEND_FILE):
-        pd.DataFrame(columns=["session_id","date","player_name","status","timestamp"]).to_csv(TRAINING_ATTEND_FILE, index=False)
 
 # Expected columns per table based on your schema
 EXPECTED_COLUMNS = {
@@ -492,9 +457,6 @@ def read_csv_safe(path: str, retries: int = 3, delay: float = 1.0) -> pd.DataFra
                     except Exception:
                         return pd.DataFrame(columns=EXPECTED_COLUMNS.get(table, []))
                 return pd.DataFrame(columns=EXPECTED_COLUMNS.get(table, []))
-
-
-
 
 def write_csv_safe(df: pd.DataFrame, path: str):
     """
@@ -611,17 +573,6 @@ APP_TITLE = "Nile Esports ProClubs Hub"
 DATA_DIR = "data"
 UPLOADS_DIR = "uploads"
 
-MATCHES_FILE = os.path.join(DATA_DIR, "matches.csv")
-PLAYER_STATS_FILE = os.path.join(DATA_DIR, "player_stats.csv")
-TACTICS_FILE = os.path.join(DATA_DIR, "tactics.csv")              # high-level tactics text
-TACTICS_POS_FILE = os.path.join(DATA_DIR, "tactics_positions.csv") # visual board assignments
-AVAIL_FILE = os.path.join(DATA_DIR, "availability.csv")
-FANWALL_FILE = os.path.join(DATA_DIR, "fan_wall.csv")
-PLAYERS_FILE = os.path.join(DATA_DIR, "players.csv")               # roster
-
-# NEW: training sessions + attendance
-TRAINING_SESSIONS_FILE = os.path.join(DATA_DIR, "training_sessions.csv")
-TRAINING_ATTEND_FILE   = os.path.join(DATA_DIR, "training_attendance.csv")
 
 # Simple in-code fallback role codes
 ROLE_CODES = {
@@ -629,12 +580,6 @@ ROLE_CODES = {
     "manager": {"Manager": "MGR-456"},
     "player": {"Player1": "PL-001", "Player2": "PL-002", "Player3": "PL-003"},
 }
-
-# Backward compatibility for Streamlit rerun
-if not hasattr(st, "rerun"):
-    st.rerun = st.experimental_rerun  # type: ignore
-
-
 
 # -------------------------------
 # AUTH & SESSION
@@ -990,21 +935,9 @@ def safe_int(val, default=0):
         return default
 
 
-import plotly.express as px
-import streamlit as st
-from datetime import date
-
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-from datetime import date
-
-import streamlit as st
-import pandas as pd
-from datetime import date
-import plotly.express as px
 
 def page_dashboard():
+    # Fetch data
     matches = read_csv_safe(MATCHES_FILE)
     stats = read_csv_safe(PLAYER_STATS_FILE)
 
@@ -1017,10 +950,15 @@ def page_dashboard():
         past_matches = pd.DataFrame()
         upcoming_matches = pd.DataFrame()
 
-    # ===================== LAST MATCH CARD =====================
+    # ===================== LAST MATCH =====================
     st.markdown("<h2 class='main-heading'>Last Match</h2>", unsafe_allow_html=True)
     if not past_matches.empty:
         lm = past_matches.iloc[0]
+
+        # Ensure integer scores
+        our_score = int(lm.get("our_score") or 0)
+        their_score = int(lm.get("their_score") or 0)
+
         st.markdown(f"""
         <div style='
             background: #4CAF50;
@@ -1031,7 +969,7 @@ def page_dashboard():
             text-align: center;
         '>
             <h3 style='margin:0;'>vs {lm['opponent']}</h3>
-            <h2 style='margin:10px 0;'>{lm.get('our_score', 0)} - {lm.get('their_score', 0)}</h2>
+            <h2 style='margin:10px 0;'>{our_score} - {their_score}</h2>
             <p style='margin:0;'><b>{lm.get('result', '')}</b></p>
             <p style='margin:0;'>{lm.get('date', '')}</p>
             <p style='margin:0;'>{lm.get('notes', '')}</p>
@@ -1040,10 +978,10 @@ def page_dashboard():
     else:
         st.info("No past matches yet.")
 
-    # ===================== UPCOMING MATCHES CARDS =====================
+    # ===================== UPCOMING MATCHES =====================
     st.markdown("<h2 class='main-heading'>📅 Upcoming Matches</h2>", unsafe_allow_html=True)
     if not upcoming_matches.empty:
-        next_matches = upcoming_matches.head(3)  # 🔥 Show only next 3
+        next_matches = upcoming_matches.head(3)  # Show only next 3
         cols = st.columns(len(next_matches))
 
         for idx, (_, row) in enumerate(next_matches.iterrows()):
@@ -1075,6 +1013,8 @@ def page_dashboard():
     st.divider()
 
     # ===================== LEADERBOARDS =====================
+        # ===================== LEADERBOARDS =====================
+        # ===================== LEADERBOARDS =====================
     st.markdown("<h2 class='main-heading'>🏆 Leaderboards</h2>", unsafe_allow_html=True)
 
     if stats.empty:
@@ -1090,82 +1030,84 @@ def page_dashboard():
             matches=("match_id", "count")
         ).reset_index()
 
-        # ---- Top 10 Players ----
-        top_scorers = agg.sort_values("goals", ascending=False).head(10)
-        top_assists = agg.sort_values("assists", ascending=False).head(10)
-        top_rating = agg[agg["matches"] >= 3].sort_values("avg_rating", ascending=False).head(10)
+        # Convert to integers
+        for col in ["goals", "assists", "yellow", "red", "matches"]:
+            if col in agg.columns:
+                agg[col] = agg[col].fillna(0).astype(int)
+
+        # Top rankings (smaller list)
+        top_scorers = agg.sort_values("goals", ascending=False).head(5)
+        top_assists = agg.sort_values("assists", ascending=False).head(5)
+        top_rating = agg[agg["matches"] >= 3].sort_values("avg_rating", ascending=False).head(5)
 
         # Theme colors
-        scorer_color = "#1E88E5"   # Nile Blue
-        assist_color = "#43A047"   # Green accent
-        rating_color = "#E53935"   # Red accent
-        card_bg = "#0C182E"        # Dark app background
-        text_color = "#FFFFFF"
+        scorer_color, assist_color, rating_color = "#1E88E5", "#43A047", "#E53935"
+        card_bg, text_color = "#0C182E", "#FFFFFF"
 
+        # ---------- 3 Leaderboards Side by Side ----------
         col1, col2, col3 = st.columns(3)
 
-        # ========== Top Scorers ==========
         with col1:
-            st.markdown(f"<div style='text-align:center; font-size:22px; font-weight:bold; color:{scorer_color};'>⚽ Top Scorers</div>", unsafe_allow_html=True)
-            for idx, row in top_scorers.iterrows():
+            st.markdown(f"<div style='text-align:center; font-size:18px; font-weight:bold; color:{scorer_color};'>⚽ Top Scorers</div>", unsafe_allow_html=True)
+            for i, row in enumerate(top_scorers.itertuples(), start=1):
                 st.markdown(f"""
                 <div style='
-                    background: {card_bg};
-                    color: {text_color};
-                    padding: 10px;
-                    border-radius: 12px;
-                    margin: 6px 0;
-                    border: 1px solid {scorer_color};
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 14px;
+                    background:{card_bg};
+                    color:{text_color};
+                    padding:6px;
+                    border-radius:8px;
+                    margin:4px 0;
+                    border:1px solid {scorer_color};
+                    display:flex;
+                    justify-content:space-between;
+                    font-size:13px;
                 '>
-                    <span>{idx+1}. {row['player_name']}</span>
-                    <span style='font-weight:bold;'>{int(row['goals'])} Goals</span>
+                    <span>{i}. {row.player_name}</span>
+                    <span style='font-weight:bold;'>{row.goals}</span>
                 </div>
                 """, unsafe_allow_html=True)
 
-        # ========== Top Assists ==========
         with col2:
-            st.markdown(f"<div style='text-align:center; font-size:22px; font-weight:bold; color:{assist_color};'>🎯 Top Assists</div>", unsafe_allow_html=True)
-            for idx, row in top_assists.iterrows():
+            st.markdown(f"<div style='text-align:center; font-size:18px; font-weight:bold; color:{assist_color};'>🎯 Top Assists</div>", unsafe_allow_html=True)
+            for i, row in enumerate(top_assists.itertuples(), start=1):
                 st.markdown(f"""
                 <div style='
-                    background: {card_bg};
-                    color: {text_color};
-                    padding: 10px;
-                    border-radius: 12px;
-                    margin: 6px 0;
-                    border: 1px solid {assist_color};
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 14px;
+                    background:{card_bg};
+                    color:{text_color};
+                    padding:6px;
+                    border-radius:8px;
+                    margin:4px 0;
+                    border:1px solid {assist_color};
+                    display:flex;
+                    justify-content:space-between;
+                    font-size:13px;
                 '>
-                    <span>{idx+1}. {row['player_name']}</span>
-                    <span style='font-weight:bold;'>{int(row['assists'])} Assists</span>
+                    <span>{i}. {row.player_name}</span>
+                    <span style='font-weight:bold;'>{row.assists}</span>
                 </div>
                 """, unsafe_allow_html=True)
 
-        # ========== Top Rating ==========
         with col3:
-            st.markdown(f"<div style='text-align:center; font-size:22px; font-weight:bold; color:{rating_color};'>⭐ Top Rating</div>", unsafe_allow_html=True)
-            for idx, row in top_rating.iterrows():
+            st.markdown(f"<div style='text-align:center; font-size:18px; font-weight:bold; color:{rating_color};'>⭐ Top Rating</div>", unsafe_allow_html=True)
+            for i, row in enumerate(top_rating.itertuples(), start=1):
                 st.markdown(f"""
                 <div style='
-                    background: {card_bg};
-                    color: {text_color};
-                    padding: 10px;
-                    border-radius: 12px;
-                    margin: 6px 0;
-                    border: 1px solid {rating_color};
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 14px;
+                    background:{card_bg};
+                    color:{text_color};
+                    padding:6px;
+                    border-radius:8px;
+                    margin:4px 0;
+                    border:1px solid {rating_color};
+                    display:flex;
+                    justify-content:space-between;
+                    font-size:13px;
                 '>
-                    <span>{idx+1}. {row['player_name']}</span>
-                    <span style='font-weight:bold;'>{row['avg_rating']:.2f}</span>
+                    <span>{i}. {row.player_name}</span>
+                    <span style='font-weight:bold;'>{row.avg_rating:.2f}</span>
                 </div>
                 """, unsafe_allow_html=True)
+
+
 
 
 
@@ -1281,6 +1223,10 @@ def admin_matches_page():
 
 
 def admin_player_stats_page():
+    import math
+    import numpy as np
+    from datetime import datetime
+
     st.markdown("<h2 class='main-heading'>📊 Player Stats Moderation</h2>", unsafe_allow_html=True)
 
     sb = _supabase_client()
@@ -1297,28 +1243,26 @@ def admin_player_stats_page():
 
     if not matches_df.empty and "match_id" in df.columns:
         matches_df["date"] = pd.to_datetime(matches_df["date"], errors="coerce")
-        matches_df = matches_df.sort_values("date", ascending=False)  # latest first
+        matches_df = matches_df.sort_values("date", ascending=False)
         match_labels = matches_df.set_index("match_id").apply(
             lambda r: f"{r['date'].date()} vs {r['opponent']}", axis=1, result_type="reduce"
         )
         df = df.merge(match_labels.rename("match_name"),
                       left_on="match_id", right_index=True, how="left")
-
-        # 🆕 Auto-select the latest match
         latest_match_name = match_labels.iloc[0] if not match_labels.empty else "All"
     else:
         df["match_name"] = df["match_id"].astype(str)
         latest_match_name = "All"
 
-    # === Filters (auto-set last match) ===
+    # === Filters ===
     players = sorted(df["player_name"].unique())
     selected_player = st.selectbox("Filter by Player", ["All"] + players)
 
-    matches = sorted(df["match_name"].unique())
+    matches_list = sorted(df["match_name"].unique())
     selected_match = st.selectbox(
         "Filter by Match",
-        ["All"] + matches,
-        index=(["All"] + matches).index(latest_match_name) if latest_match_name in matches else 0
+        ["All"] + matches_list,
+        index=(["All"] + matches_list).index(latest_match_name) if latest_match_name in matches_list else 0
     )
 
     filtered = df.copy()
@@ -1327,44 +1271,121 @@ def admin_player_stats_page():
     if selected_match != "All":
         filtered = filtered[filtered["match_name"] == selected_match]
 
-    # === Card UI for stats ===
     if filtered.empty:
         st.warning("No stats found for this filter.")
-    else:
-        for _, row in filtered.iterrows():
-            st.markdown(f"""
-            <div class="glass" style="margin-bottom:12px; padding:14px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="font-size:16px; font-weight:900; font-family:'SUPER EXP BLACK OBLIQUE'; color:#ffffff;">
-                        {row['player_name']}
-                    </div>
-                    <div style="font-size:13px; color:#60A5FA;">
-                        {row['match_name']}
-                    </div>
-                </div>
-                <div style="margin-top:8px; font-size:14px; color:#E5E7EB;">
-                    ⚽ Goals: <span style="color:#34D399; font-weight:bold;">{row.get('goals',0)}</span> &nbsp; | &nbsp;
-                    🎯 Assists: <span style="color:#60A5FA; font-weight:bold;">{row.get('assists',0)}</span> &nbsp; | &nbsp;
-                    ⭐ Rating: <span style="color:#FBBF24; font-weight:bold;">{row.get('rating',0):.1f}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+        return
 
-    # === Admin actions (delete only) ===
-    st.divider()
-    st.markdown("### 🗑️ Delete Individual Stat")
-    selected = st.selectbox(
-        "Select stat row to delete",
-        df.apply(lambda r: f"ID {r['id']} - {r['player_name']} ({r['match_name']})", axis=1)
+    # === Editable table for ALL stats ===
+    st.markdown("### ✏️ Edit Player Stats (edit any cell)")
+    # Keep DB columns only (drop the helper match_name)
+    editable_df = filtered.drop(columns=["match_name"])
+    edited_df = st.data_editor(
+        editable_df,
+        hide_index=True,
+        num_rows="dynamic",
+        use_container_width=True
     )
+
+    # ---- Sanitizer helper ----
+    def sanitize_for_json(value):
+        """Return a JSON-safe Python value for Supabase."""
+        # pandas / numpy NA
+        try:
+            if pd.isna(value):
+                return None
+        except Exception:
+            pass
+
+        # numpy scalars
+        if isinstance(value, (np.generic,)):
+            # integers
+            if np.issubdtype(type(value), np.integer):
+                return int(value)
+            # floats (handle Inf/NaN)
+            if np.issubdtype(type(value), np.floating):
+                v = float(value)
+                if math.isfinite(v):
+                    return v
+                return None
+            # booleans
+            if np.issubdtype(type(value), np.bool_):
+                return bool(value)
+
+        # plain Python types
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return int(value)
+        if isinstance(value, float):
+            if math.isfinite(value):
+                return float(value)
+            return None
+        if isinstance(value, (str,)):
+            return value
+
+        # pandas Timestamp / datetime
+        if isinstance(value, (pd.Timestamp, datetime)):
+            # standard ISO string
+            return str(value)
+
+        # fallback: try json-serializable or convert to string
+        try:
+            json.dumps(value)
+            return value
+        except Exception:
+            return str(value)
+
+    # === Save changes back ===
+    if st.button("💾 Save All Changes"):
+        try:
+            sb = _supabase_client()
+
+            # iterate rows and update per id
+            updates_count = 0
+            for _, row in edited_df.iterrows():
+                row_dict = dict(row)  # Series -> dict
+                # Extract id
+                row_id = row_dict.pop("id", None)
+                if row_id is None:
+                    # skip rows without primary id
+                    continue
+                # sanitize all values
+                clean_payload = {}
+                for k, v in row_dict.items():
+                    clean_payload[k] = sanitize_for_json(v)
+
+                # ensure id is a native int for equality check
+                try:
+                    id_val = int(row_id)
+                except Exception:
+                    id_val = int(np.int64(row_id)) if isinstance(row_id, np.integer) else row_id
+
+                # perform update
+                sb.table("player_stats").update(clean_payload).eq("id", id_val).execute()
+                updates_count += 1
+
+            st.success(f"✅ Saved changes for {updates_count} rows.")
+            st.rerun()
+
+        except Exception as e:
+            st.error(f"❌ Failed to save changes: {e}")
+
+    # === Delete option ===
+    st.divider()
+    st.markdown("### 🗑️ Delete Stats")
+    row_options = filtered.apply(lambda r: f"ID {r['id']} - {r['player_name']} ({r['match_name']})", axis=1)
+    selected = st.selectbox("Select stat row to delete", row_options)
+    row_id = int(selected.split(" ")[1])
+
     if st.button("Delete Selected Stat"):
-        row_id = int(selected.split(" ")[1])
         try:
             sb.table("player_stats").delete().eq("id", row_id).execute()
             st.success("✅ Stat deleted")
             st.rerun()
         except Exception as e:
             st.error(f"❌ Failed to delete stat: {e}")
+
+
 
 
 
@@ -2439,18 +2460,18 @@ def player_upload_stats_page():
         st.error("❌ You must be logged in to upload stats.")
         return
 
-    # Let player pick a match (defaults to most recent)
+    # Let player pick a match (defaults to most recent automatically)
     matches = read_csv_safe(MATCHES_FILE)
     match_id_choice = None
     if not matches.empty:
         matches_sorted = matches.sort_values("date", ascending=False)
         labels = [f"{r['date']} – {r['opponent']}" for _, r in matches_sorted.iterrows()]
         label_to_id = {labels[i]: int(matches_sorted.iloc[i]["match_id"]) for i in range(len(labels))}
-        chosen_label = st.selectbox("Link to match", ["(auto) Latest match"] + labels)
-        if chosen_label != "(auto) Latest match":
-            match_id_choice = label_to_id[chosen_label]
-        else:
-            match_id_choice = int(matches_sorted.iloc[0]["match_id"]) if not matches_sorted.empty else None
+
+        # ✅ Default to the most recent match
+        default_label = labels[0] if labels else None
+        chosen_label = st.selectbox("Link to match", labels, index=0)
+        match_id_choice = label_to_id.get(chosen_label)
 
     uploaded = st.file_uploader("Upload your match stats image", type=["png", "jpg", "jpeg"])
     if not uploaded:
@@ -2460,81 +2481,86 @@ def player_upload_stats_page():
 
     if st.button("📤 Extract & Save Stats"):
         try:
-            img_bytes = uploaded.read()
-            parsed = extract_stats_from_image(img_bytes)
-            if not parsed:
-                return
+            with st.spinner("⏳ Uploading and processing your stats..."):
+                img_bytes = uploaded.read()
+                parsed = extract_stats_from_image(img_bytes)
+                if not parsed:
+                    st.error("❌ Could not extract stats. Please try a clearer image.")
+                    return
 
-            # Validate player identity
-            parsed_name = (parsed.get("player_name") or "").strip()
-            if parsed_name.lower() != current_name.lower():
-                st.error("❌ Player name in uploaded stats does not match your account. Contact admin.")
-                return
+                # Validate player identity
+                parsed_name = (parsed.get("player_name") or "").strip()
+                if parsed_name.lower() != current_name.lower():
+                    st.error("❌ Player name in uploaded stats does not match your account. Contact admin.")
+                    return
 
-            # Get player_id
-            player_id = get_player_id_by_name(current_name)
-            if player_id is None:
-                st.error("❌ Player not found in roster. Contact admin.")
-                return
+                # Get player_id
+                player_id = get_player_id_by_name(current_name)
+                if player_id is None:
+                    st.error("❌ Player not found in roster. Contact admin.")
+                    return
 
-            # Determine match_id
-            parsed_match_id = None
-            try:
-                if parsed.get("match_id"):
-                    parsed_match_id = int(float(parsed["match_id"]))
-            except Exception:
-                pass
+                # Determine match_id (parsed > selected > None)
+                parsed_match_id = None
+                try:
+                    if parsed.get("match_id"):
+                        parsed_match_id = int(float(parsed["match_id"]))
+                except Exception:
+                    pass
 
-            match_id = parsed_match_id or match_id_choice
-            if match_id is None:
-                st.error("❌ No match found to attach stats to. Please ask admin to create a match first.")
-                return
+                match_id = parsed_match_id or match_id_choice
+                if match_id is None:
+                    st.error("❌ No match found to attach stats to. Please ask admin to create a match first.")
+                    return
 
-            # Prepare record
-            record = {"player_name": current_name, "player_id": player_id, "match_id": int(match_id)}
-            allowed_keys = [
-                "position","rating","goals","assists","shots","shot_accuracy","passes","pass_accuracy",
-                "dribbles","dribble_success","tackles","tackle_success","offsides","fouls_committed",
-                "possession_won","possession_lost","minutes_played","distance_covered","distance_sprinted",
-                "yellow_cards","red_cards"
-            ]
-            for k in allowed_keys:
-                if k in parsed:
-                    record[k] = parsed[k]
+                # Prepare record
+                record = {"player_name": current_name, "player_id": player_id, "match_id": int(match_id)}
+                allowed_keys = [
+                    "position","rating","goals","assists","shots","shot_accuracy","passes","pass_accuracy",
+                    "dribbles","dribble_success","tackles","tackle_success","offsides","fouls_committed",
+                    "possession_won","possession_lost","minutes_played","distance_covered","distance_sprinted",
+                    "yellow_cards","red_cards"
+                ]
+                for k in allowed_keys:
+                    if k in parsed:
+                        record[k] = parsed[k]
 
-            # Call UPSERT function
-            sb = _supabase_client()
-            sb.rpc("upsert_player_stats", {
-                "p_match_id": record["match_id"],
-                "p_player_name": record["player_name"],
-                "p_position": record.get("position") or "N/A",
-                "p_goals": record.get("goals") or 0,
-                "p_assists": record.get("assists") or 0,
-                "p_rating": record.get("rating") or 0.0,
-                "p_yellow_cards": record.get("yellow_cards") or 0,
-                "p_red_cards": record.get("red_cards") or 0,
-                "p_shots": record.get("shots") or 0,
-                "p_passes": record.get("passes") or 0,
-                "p_dribbles": record.get("dribbles") or 0,
-                "p_tackles": record.get("tackles") or 0,
-                "p_offsides": record.get("offsides") or 0,
-                "p_fouls_committed": record.get("fouls_committed") or 0,
-                "p_possession_won": record.get("possession_won") or 0,
-                "p_possession_lost": record.get("possession_lost") or 0,
-                "p_minutes_played": record.get("minutes_played") or 0,
-                "p_shot_accuracy": record.get("shot_accuracy") or 0.0,
-                "p_pass_accuracy": record.get("pass_accuracy") or 0.0,
-                "p_dribble_success": record.get("dribble_success") or 0.0,
-                "p_tackle_success": record.get("tackle_success") or 0.0,
-                "p_distance_covered": record.get("distance_covered") or 0.0,
-                "p_distance_sprinted": record.get("distance_sprinted") or 0.0,
-                "p_player_id": record["player_id"],
-            }).execute()
+                # Call UPSERT function
+                sb = _supabase_client()
+                sb.rpc("upsert_player_stats", {
+                    "p_match_id": record["match_id"],
+                    "p_player_name": record["player_name"],
+                    "p_position": record.get("position") or "N/A",
+                    "p_goals": record.get("goals") or 0,
+                    "p_assists": record.get("assists") or 0,
+                    "p_rating": record.get("rating") or 0.0,
+                    "p_yellow_cards": record.get("yellow_cards") or 0,
+                    "p_red_cards": record.get("red_cards") or 0,
+                    "p_shots": record.get("shots") or 0,
+                    "p_passes": record.get("passes") or 0,
+                    "p_dribbles": record.get("dribbles") or 0,
+                    "p_tackles": record.get("tackles") or 0,
+                    "p_offsides": record.get("offsides") or 0,
+                    "p_fouls_committed": record.get("fouls_committed") or 0,
+                    "p_possession_won": record.get("possession_won") or 0,
+                    "p_possession_lost": record.get("possession_lost") or 0,
+                    "p_minutes_played": record.get("minutes_played") or 0,
+                    "p_shot_accuracy": record.get("shot_accuracy") or 0.0,
+                    "p_pass_accuracy": record.get("pass_accuracy") or 0.0,
+                    "p_dribble_success": record.get("dribble_success") or 0.0,
+                    "p_tackle_success": record.get("tackle_success") or 0.0,
+                    "p_distance_covered": record.get("distance_covered") or 0.0,
+                    "p_distance_sprinted": record.get("distance_sprinted") or 0.0,
+                    "p_player_id": record["player_id"],
+                }).execute()
 
+            # ✅ Confirmation message
             st.success("✅ Stats uploaded successfully!")
 
         except Exception as e:
             st.error(f"❌ Error while processing stats: {e}")
+
+
 
 
 
