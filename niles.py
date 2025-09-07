@@ -1417,8 +1417,8 @@ def admin_players_crud_page():
         st.markdown("### ➕ Add Player")
         name = st.text_input("Player Name")
         position = st.selectbox(
-            "Primary Position",
-            ["GK","RB","CB","LB","RWB","LWB","CDM","CM","CAM","RM","LM","RW","LW","ST"]
+            "Position",
+            ["Goalkeeper","Defender","Midfielder","Winger","Striker"]
         )
         code = st.text_input("Login Code", placeholder="e.g. PL-010")
         active = st.checkbox("Active", value=True)
@@ -1494,7 +1494,7 @@ def admin_players_crud_page():
         sel_name = st.selectbox("Select player", options=names)
         row = players[players["name"] == sel_name].iloc[0]
 
-        positions_list = ["GK","RB","CB","LB","RWB","LWB","CDM","CM","CAM","RM","LM","RW","LW","ST"]
+        positions_list = ["Goalkeeper","Defender","Midfielder","Winger","Striker"]
         current_pos = str(row["position"]).upper()
         pos_index = positions_list.index(current_pos) if current_pos in positions_list else 0
 
@@ -3047,28 +3047,52 @@ def player_my_stats_page():
 
 
 
-def calculate_fair_score(row, match_df=None):
+def calculate_fair_score(row, match_df):
     score = 0
-    score += row.get("goals", 0) * (5 if row.get("position") in ["CB","GK"] else 3)
-    score += row.get("assists", 0) * 2
-    score += row.get("tackles", 0) * 1
-    score += row.get("interceptions", 0) * 1
-    score += row.get("dribbles", 0) * 1
-    score += (row.get("pass_accuracy", 0) or 0) * 0.1
+
+    # --- Normalization Factor ---
+    minutes = row.get("minutes_played", 0)
+    matches = 1
+    if "match_id" in row and row["match_id"]:
+        matches = 1 # each row = one match
+    factor = (minutes / 90) if minutes and minutes > 0 else matches
+
+    # Attack
+    score += (row.get("goals", 0) * 5) / factor
+    score += (row.get("assists", 0) * 3) / factor
+    score += (row.get("shots", 0) * 1) / factor
+
+    # Passing
+    score += (row.get("passes", 0) * 0.1) / factor
+    score += ((row.get("pass_accuracy", 0) or 0) * 0.2)
+
+    # Dribbles
+    score += (row.get("dribbles", 0) * 1) / factor
+    score += ((row.get("dribble_success", 0) or 0) * 0.5)
+
+    # Defense
+    score += (row.get("tackles", 0) * 1) / factor
+    score += ((row.get("tackle_success", 0) or 0) * 0.5)
+    score += (row.get("possession_won", 0) * 0.5) / factor
+    score -= (row.get("possession_lost", 0) * 0.5) / factor
+
+    # Physical/General
+    score += ((row.get("distance_covered", 0) or 0) * 0.3) / factor
     score += (row.get("rating", 0) or 0) * 2
-    score += row.get("attendance", 0) * 1
-    score -= row.get("yellow_cards", 0) * 1
-    score -= row.get("red_cards", 0) * 3
 
-    # Clean sheet bonus
-    if match_df is not None and row.get("position") in ["CB","GK"]:
-        clean_sheets = (match_df[["match_id","our_score","their_score"]]
-                        .drop_duplicates()
-                        .query("their_score == 0")
-                        ["match_id"].nunique())
-        score += clean_sheets * 5
+    # --- Clean Sheet Bonus (for Goalkeepers & Defenders) ---
+    if match_df is not None and not match_df.empty:
+        match_id = row.get("match_id")
+        opponent_score = match_df[match_df['match_id'] == match_id]['their_score'].values
+        # Check for clean sheet and player's position
+        if opponent_score.size > 0 and opponent_score[0] == 0:
+            if row.get("position") in ["Goalkeeper", "Defender", "CB", "LB", "RB", "RWB", "LWB"]:
+                score += 5 # Example bonus value
 
-    return score
+    return round(score, 2)
+
+
+
 
 import random
 
@@ -3197,10 +3221,10 @@ def page_competition_hub():
     st.markdown("<h2 style='color:#00C0FA;'>🏅 Player Rankings</h2>", unsafe_allow_html=True)
 
     def tier(score):
-        if score >= 60: return "🏆 Platinum", 80
-        elif score >= 40: return "🥇 Gold", 60
-        elif score >= 20: return "🥈 Silver", 40
-        else: return "🥉 Bronze", 20
+        if score >= 1000: return "🏆 Platinum", 1000
+        elif score >= 750: return "🥇 Gold", 1000
+        elif score >= 500: return "🥈 Silver", 750
+        else: return "🥉 Bronze", 500
 
     ranked = df.groupby("player_name", as_index=False)["score"].sum()
     ranked[["tier", "next_target"]] = ranked["score"].apply(lambda s: pd.Series(tier(s)))
@@ -3226,6 +3250,31 @@ def page_competition_hub():
         """, unsafe_allow_html=True)
 
     st.markdown("<hr style='border:1px solid #015EEA;'>", unsafe_allow_html=True)
+# ================= POINTS GUIDE =================
+    st.markdown("<h2 style='color:#00C0FA;'>ℹ️ How Points Are Calculated</h2>", unsafe_allow_html=True)
+
+    st.markdown("""
+<div style='background:#0C182E; padding:16px; border-radius:14px; color:#FFFFFF; font-size:14px; line-height:1.6;'>
+    <p>⚖️ All points are normalized <b>per 90 minutes</b> so players are compared fairly regardless of playtime.</p>
+    <ul style='margin:0; padding-left:20px;'>
+        <li>⚽ <b>Goals</b>: +5 points</li>
+        <li>🎯 <b>Assists</b>: +3 points</li>
+        <li>🎯 <b>Shots</b>: +1 point</li>
+        <li>📊 <b>Passes</b>: +0.1 point each</li>
+        <li>🎯 <b>Pass Accuracy %</b>: accuracy × 0.2</li>
+        <li>⚡ <b>Dribbles</b>: +1 point</li>
+        <li>⚡ <b>Dribble Success %</b>: × 0.5</li>
+        <li>🛡️ <b>Tackles</b>: +1 point</li>
+        <li>🛡️ <b>Tackle Success %</b>: × 0.5</li>
+        <li>💪 <b>Possession Won</b>: +0.5 point</li>
+        <li>❌ <b>Possession Lost</b>: –0.5 point</li>
+        <li>🏃 <b>Distance Covered</b>: +0.3 per km</li>
+        <li>⭐ <b>Rating</b>: rating × 2</li>
+        <li><b>🧤 Clean Sheet</b>: +5 points for Goalkeepers and Defenders when the opponent scores 0 goals.</li>
+    </ul>
+    
+</div>
+""", unsafe_allow_html=True)
 
     # ================= MOTIVATION =================
     st.markdown("<h2 style='color:#00C0FA;'>💬 Motivation of the Day</h2>", unsafe_allow_html=True)
@@ -3618,6 +3667,5 @@ if __name__ == "__main__":
 ## TEXT  =>WIDE MID
 
 ## BUTTONS SKY BLUE
-
 
 
