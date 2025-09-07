@@ -3047,6 +3047,197 @@ def player_my_stats_page():
 
 
 
+def calculate_fair_score(row, match_df=None):
+    score = 0
+    score += row.get("goals", 0) * (5 if row.get("position") in ["CB","GK"] else 3)
+    score += row.get("assists", 0) * 2
+    score += row.get("tackles", 0) * 1
+    score += row.get("interceptions", 0) * 1
+    score += row.get("dribbles", 0) * 1
+    score += (row.get("pass_accuracy", 0) or 0) * 0.1
+    score += (row.get("rating", 0) or 0) * 2
+    score += row.get("attendance", 0) * 1
+    score -= row.get("yellow_cards", 0) * 1
+    score -= row.get("red_cards", 0) * 3
+
+    # Clean sheet bonus
+    if match_df is not None and row.get("position") in ["CB","GK"]:
+        clean_sheets = (match_df[["match_id","our_score","their_score"]]
+                        .drop_duplicates()
+                        .query("their_score == 0")
+                        ["match_id"].nunique())
+        score += clean_sheets * 5
+
+    return score
+
+import random
+
+def page_competition_hub():
+    st.markdown("<h1 style='text-align:center; color:#00C0FA;'>🏆 Competition Hub</h1>", unsafe_allow_html=True)
+
+    sb = _supabase_client()
+
+    # === Fetch Data ===
+    stats = sb.table("player_stats").select("*").execute()
+    df = pd.DataFrame(stats.data) if stats.data else pd.DataFrame()
+
+    attendance = sb.table("training_attendance").select("*").execute()
+    att_df = pd.DataFrame(attendance.data) if attendance.data else pd.DataFrame()
+
+    matches = sb.table("matches").select("match_id, our_score, their_score, date").execute()
+    match_df = pd.DataFrame(matches.data) if matches.data else pd.DataFrame()
+
+    if df.empty and att_df.empty:
+        st.info("No stats or attendance data available yet.")
+        return
+
+    # === Merge Attendance ===
+    att_score = att_df.groupby("player_name").size().reset_index(name="attendance")
+    df = df.merge(att_score, on="player_name", how="left").fillna(0)
+
+    # === Compute Scores ===
+    df["score"] = df.apply(lambda r: calculate_fair_score(r, match_df), axis=1)
+
+    # ================= PLAYER OF THE MONTH =================
+    st.markdown("<h2 style='color:#00C0FA;'>👑 Player of the Month</h2>", unsafe_allow_html=True)
+    hall_of_fame = st.session_state.get("hall_of_fame", [])
+
+    if not df.empty:
+        best_player = df.groupby("player_name", as_index=False)["score"].sum().sort_values("score", ascending=False).iloc[0]
+
+        # Save to Hall of Fame
+        if hall_of_fame == [] or hall_of_fame[-1]["name"] != best_player["player_name"]:
+            hall_of_fame.append({"name": best_player["player_name"], "score": int(best_player["score"])})
+            st.session_state["hall_of_fame"] = hall_of_fame[-3:]
+
+        st.markdown(f"""
+        <div style='background:linear-gradient(135deg,#015EEA,#00C0FA); padding:22px; border-radius:18px; text-align:center; color:#FFFFFF; box-shadow:0 4px 12px rgba(0,0,0,0.6);'>
+            <h2 style='margin:0;'>👑 {best_player['player_name']}</h2>
+            <h3 style='margin:5px 0;'>🔥 Score: {int(best_player['score'])}</h3>
+        </div>
+        """, unsafe_allow_html=True)
+
+    if hall_of_fame:
+        st.markdown("<h4 style='color:#FFFFFF;'>🏟️ Hall of Fame</h4>", unsafe_allow_html=True)
+        for past in hall_of_fame[:-1]:
+            st.markdown(f"- 👑 {past['name']} ({past['score']} pts)")
+
+    st.markdown("<hr style='border:1px solid #015EEA;'>", unsafe_allow_html=True)
+
+    # ================= INDIVIDUAL CHALLENGES =================
+    st.markdown("<h2 style='color:#00C0FA;'>🎯 Monthly Challenges</h2>", unsafe_allow_html=True)
+
+    if not df.empty and not match_df.empty:
+        clean_sheet_matches = match_df.query("their_score == 0")["match_id"].unique()
+        df["clean_sheets"] = df["match_id"].apply(lambda mid: 1 if mid in clean_sheet_matches else 0)
+
+    challenges = {
+        "⚽ Top Scorer": "goals",
+        "🎯 Assist King": "assists",
+        "🛡️ Defensive Wall": "tackles",
+        "🧤 Clean Sheet Hero": "clean_sheets",
+        "📈 Pass Master": "pass_accuracy",
+        "🌀 Dribble King": "dribbles",
+        "🚀 Iron Man": "attendance",
+        "⭐ Highest Rated": "rating"
+    }
+
+    cols = st.columns(4)
+    for idx, (title, metric) in enumerate(challenges.items()):
+        with cols[idx % 4]:
+            if metric in df.columns and not df.empty:
+                agg_metric = "mean" if metric in ["pass_accuracy", "rating"] else "sum"
+                top = df.groupby("player_name", as_index=False).agg({metric: agg_metric}).sort_values(metric, ascending=False).iloc[0]
+                value = round(top[metric], 1) if isinstance(top[metric], float) else int(top[metric])
+                st.markdown(f"""
+                <div style='background:#0C182E; padding:14px; border-radius:14px; text-align:center; color:#FFFFFF; box-shadow:0 4px 10px rgba(0,0,0,0.5); margin-bottom:10px;'>
+                    <h4 style='margin:0; color:#00C0FA;'>{title}</h4>
+                    <p style='margin:6px 0; font-size:15px;'><b>{top['player_name']}</b></p>
+                    <p style='margin:0; font-size:14px; color:#FACC15;'>{value} {metric}</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+    st.markdown("<hr style='border:1px solid #015EEA;'>", unsafe_allow_html=True)
+
+    # ================= TEAM CHALLENGES =================
+    st.markdown("<h2 style='color:#00C0FA;'>🤝 Team Challenges</h2>", unsafe_allow_html=True)
+
+    team_challenges = []
+    if not df.empty:
+        team_challenges.append(("⚽ Team Goals", df["goals"].sum(), 15, "Target: 15"))
+        team_challenges.append(("🎯 Team Assists", df["assists"].sum(), 10, "Target: 10"))
+        team_challenges.append(("⭐ Avg Team Rating", round(df["rating"].mean(),2), 7.0, "Target: 7.0"))
+        if not att_df.empty:
+            players = df["player_name"].nunique()
+            sessions = att_df["date"].nunique()
+            avg_att = len(att_df) / max(players * sessions, 1) * 100
+            team_challenges.append(("🚀 Training Attendance", avg_att, 80, "Target: 80%"))
+        if not match_df.empty:
+            clean_sheets = match_df.query("their_score == 0")["match_id"].nunique()
+            team_challenges.append(("🧤 Clean Sheets", clean_sheets, 3, "Target: 3"))
+
+    cols = st.columns(len(team_challenges))
+    for idx, (title, value, target, label) in enumerate(team_challenges):
+        with cols[idx]:
+            progress = min(100, int((float(value) / float(target)) * 100 if target else 0))
+            st.markdown(f"""
+            <div style='background:#0C182E; padding:14px; border-radius:14px; text-align:center; color:#FFFFFF; box-shadow:0 4px 10px rgba(0,0,0,0.5);'>
+                <h4 style='margin:0; color:#00C0FA;'>{title}</h4>
+                <p style='margin:6px 0; font-size:16px;'><b>{value}</b></p>
+                <div style='background:#374151; height:14px; border-radius:7px; margin:6px 0;'>
+                    <div style='background:#015EEA; height:14px; border-radius:7px; width:{progress}%;'></div>
+                </div>
+                <p style='margin:0; font-size:12px; color:#9CA3AF;'>{label}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("<hr style='border:1px solid #015EEA;'>", unsafe_allow_html=True)
+
+    # ================= RANKINGS =================
+    st.markdown("<h2 style='color:#00C0FA;'>🏅 Player Rankings</h2>", unsafe_allow_html=True)
+
+    def tier(score):
+        if score >= 60: return "🏆 Platinum", 80
+        elif score >= 40: return "🥇 Gold", 60
+        elif score >= 20: return "🥈 Silver", 40
+        else: return "🥉 Bronze", 20
+
+    ranked = df.groupby("player_name", as_index=False)["score"].sum()
+    ranked[["tier", "next_target"]] = ranked["score"].apply(lambda s: pd.Series(tier(s)))
+    ranked = ranked.sort_values("score", ascending=False)
+
+    medals = ["🥇","🥈","🥉"]
+    for i, row in enumerate(ranked.itertuples()):
+        medal = medals[i] if i < 3 else ""
+        progress = min(100, int((row.score / row.next_target) * 100))
+        st.markdown(f"""
+        <div style='background:#0C182E; padding:14px; margin:6px 0; border-radius:12px; color:#FFFFFF; box-shadow:0 4px 10px rgba(0,0,0,0.5);'>
+            <div style='display:flex; justify-content:space-between;'>
+                <span>{medal} <b>{row.player_name}</b> – {row.tier}</span>
+                <span>🔥 {int(row.score)} pts</span>
+            </div>
+            <div style='background:#374151; height:14px; border-radius:7px; margin-top:6px;'>
+                <div style='background:#00C0FA; height:14px; border-radius:7px; width:{progress}%;'></div>
+            </div>
+            <div style='font-size:12px; margin-top:2px; text-align:right; color:#9CA3AF;'>
+                Next tier at {row.next_target} pts
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<hr style='border:1px solid #015EEA;'>", unsafe_allow_html=True)
+
+    # ================= MOTIVATION =================
+    st.markdown("<h2 style='color:#00C0FA;'>💬 Motivation of the Day</h2>", unsafe_allow_html=True)
+    quotes = [
+        "Talent wins games, but teamwork wins championships. – Michael Jordan",
+        "Hard work beats talent when talent doesn’t work hard.",
+        "Success is no accident. It’s hard work, perseverance, learning, and love for the game.",
+        "The more difficult the victory, the greater the happiness in winning. – Pelé",
+        "A champion is afraid of losing. Everyone else is afraid of winning."
+    ]
+    st.markdown(f"<i style='color:#FFFFFF;'>{random.choice(quotes)}</i>", unsafe_allow_html=True)
+
 
 
 
@@ -3317,7 +3508,7 @@ def run_player():
         "📋 Attendance",
         "📄 Tactics",
         "⭐ Best XI",
-           # 👈 Added Radar tab
+        "🏆 Competition Hub"   # 🆕 Added tab
     ])
 
     # Dashboard
@@ -3347,6 +3538,12 @@ def run_player():
     # Best XI
     with main_tabs[4]:
         page_best_xi()
+
+
+    # Competition Hub
+    with main_tabs[5]:
+        page_competition_hub()   # 🆕 Challenges + Player of Month + Gamification
+
 
     # Radar
  
