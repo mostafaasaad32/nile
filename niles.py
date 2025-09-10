@@ -195,7 +195,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 
 /* ====== TITLES ====== */
 .app-title {
-  font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
+  font-family: 'Base Neue Sup Exp Obl', sans-serif !important;
   font-weight: 900 !important;
   font-style: oblique !important;
   letter-spacing: 1.5px;
@@ -213,7 +213,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 
 /* ====== MAIN & SECONDARY HEADINGS ====== */
 .main-heading, .stTabs [role="tab"][aria-selected="true"], .stSubheader {
-  font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
+  font-family: 'Base Neue Sup Exp Obl', sans-serif !important;
   font-weight: 900 !important;
   font-style: oblique !important;
   letter-spacing: 1.2px !important;
@@ -221,7 +221,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
   text-transform: uppercase !important;
 }
 .secondary-heading, .stTabs [role="tab"] {
-  font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
+  font-family: 'Base Neue Sup Exp Obl', sans-serif !important;
   font-weight: 700 !important;
   font-style: oblique !important;
   letter-spacing: 1px !important;
@@ -230,14 +230,14 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {
 
 /* ====== METRICS ====== */
 .stMetricLabel {
-  font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
+  font-family: 'Base Neue Sup Exp Obl', sans-serif !important;
   font-weight: 700 !important;
   font-style: oblique !important;
   letter-spacing: 1px !important;
   color: var(--text-secondary) !important;
 }
 [data-testid="stMetricValue"] {
-  font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
+  font-family: 'Base Neue Sup Exp Obl', sans-serif !important;
   font-weight: 900 !important;
   font-style: oblique !important;
   color: #ffffff !important;
