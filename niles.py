@@ -713,7 +713,6 @@ def render_header():
 # INTRO PAGE (before login)
 # -------------------------------
 def intro_page():
-    # Remove Streamlit default padding/margin
     st.markdown("""
     <style>
         .block-container {
@@ -727,68 +726,77 @@ def intro_page():
 
         /* Container */
         .intro-container {
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-            align-items: center;
-            min-height: auto;
-            text-align: center;
-            background: linear-gradient(135deg, #0A1128, #111827);
-            padding: 40px 0;
-        }
-
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    min-height: auto;
+    text-align: center;
+    background: transparent !important;   /* same as app background */
+    padding: 40px 0;
+}
         /* Logo */
         .intro-logo {
-            width: 200px;
+            width: 300px;
             animation: fadeInScale 2s ease forwards;
         }
 
-        /* Title with gradient + animation */
+        /* Title plain white */
         .intro-title {
-            font-family: 'SUPER EXP BLACK OBLIQUE', sans-serif !important;
+            font-family: 'Base Neue Sup Exp Obl', sans-serif !important;
             font-size: 36px;
             font-weight: 900;
             text-transform: uppercase;
-            background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: white !important;
             margin-top: 16px;
             opacity: 0;
             animation: slideUp 1.5s ease forwards 1s;
         }
 
-        /* Subtitle with gradient + animation */
+        /* Subtitle plain white */
         .intro-subtitle {
-            font-family: 'SUPER EXP OBLIQUE', sans-serif !important;
+            font-family: 'Base Neue Sup Exp Obl', sans-serif !important;
             font-size: 18px;
-            background: linear-gradient(90deg, #00C0FA, #015EEA, #FFFFFF);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: white !important;
             margin-top: 8px;
             opacity: 0;
             animation: fadeIn 1.2s ease forwards 2s;
         }
 
-        /* Button wrapper */
-        .button-wrapper {
-            margin-top: 30px;
-            width: 50%;
-            max-width: 250px;
-        }
+     /* Button wrapper centered */
+.button-wrapper {
+    margin-top: 30px;
+    display: flex;
+    flex-direction: column;    /* stacked vertically */
+    align-items: center;
+    gap: 10px;
+    width: 100%;               /* span full row */
+}
 
-        /* Override Streamlit buttons only for intro page */
-        .intro-container .stButton > button {
-            background: linear-gradient(135deg, #0A1128, #111827) !important;
-            color: white !important;
-            border: 1px solid #1F2937 !important;
-            border-radius: 10px !important;
-            font-family: 'Wide Medium', sans-serif !important;
-            font-size: 16px !important;
-            font-weight: 600 !important;
-            padding: 12px 20px !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-            transition: all 0.2s ease-in-out;
-        }
+/* Force each Streamlit button block to center */
+.intro-container .stButton {
+    display: flex !important;
+    justify-content: center !important;
+    width: 100% !important;
+}
+
+/* Buttons smaller & centered */
+.intro-container .stButton > button {
+    background: linear-gradient(135deg, #0A1128, #111827) !important;
+    color: white !important;
+    border: 1px solid #1F2937 !important;
+    border-radius: 8px !important;
+    font-family: 'Wide Medium', sans-serif !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    padding: 6px 12px !important;
+    min-height: 32px !important;
+    width: 160px !important;   /* fixed narrow width */
+    text-align: center !important;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.25) !important;
+    transition: all 0.2s ease-in-out;
+}
+
         .intro-container .stButton > button:hover {
             transform: translateY(-2px);
             opacity: 0.95;
@@ -814,9 +822,16 @@ def intro_page():
             .intro-logo { max-width: 120px !important; }
             .intro-title { font-size: 24px !important; }
             .intro-subtitle { font-size: 14px !important; }
+            .intro-container .stButton > button {
+                width: 120px !important;
+                font-size: 13px !important;
+                padding: 5px 10px !important;
+            }
         }
     </style>
     """, unsafe_allow_html=True)
+
+
 
     # =======================
     # Content with Streamlit container
