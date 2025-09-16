@@ -1640,7 +1640,7 @@ def _attendance_color(val: str):
 
 
 def manager_radar_page():
-    st.markdown("<h1 class='super-head'>📊 Player Radar Analysis</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='super-head'>📊 Player Radar Comparison</h1>", unsafe_allow_html=True)
 
     # Load stats
     stats = read_csv_safe(PLAYER_STATS_FILE)
@@ -1650,18 +1650,21 @@ def manager_radar_page():
         st.info("⚠️ No stats or players available.")
         return
 
-    # === Select One Player ===
+    # === Select Two Players ===
     player_names = players["name"].dropna().unique().tolist()
-    selected_player = st.selectbox("Select Player", player_names)
+    col1, col2 = st.columns(2)
+    with col1:
+        player1 = st.selectbox("👤 Select First Player", player_names, key="cmp_p1")
+    with col2:
+        player2 = st.selectbox("👤 Select Second Player", player_names, key="cmp_p2")
 
-    if not selected_player:
-        st.warning("⚠️ Please select a player.")
+    if not player1 or not player2 or player1 == player2:
+        st.warning("⚠️ Please select two different players.")
         return
 
     # === Cumulative Metrics Function ===
     def cumulative_metrics(df):
         metrics = {}
-
         metrics["⚽ Goals"] = df["goals"].sum()
         metrics["🎯 Assists"] = df["assists"].sum()
         metrics["🔫 Shots"] = df["shots"].sum()
@@ -1684,70 +1687,108 @@ def manager_radar_page():
         metrics["❌ Possession Lost"] = df["possession_lost"].sum()
         metrics["🏃 Distance Covered (km)"] = round(df["distance_covered"].sum(), 1)
         metrics["⭐ Avg Rating"] = round(df["rating"].mean(), 2) if "rating" in df else 0
-
         return metrics
 
-    # === Collect Metrics for Selected Player ===
-    df = stats[stats["player_name"] == selected_player]
-    if df.empty:
-        st.warning("⚠️ No stats found for this player.")
+    # === Collect Metrics for Both Players ===
+    df1 = stats[stats["player_name"] == player1]
+    df2 = stats[stats["player_name"] == player2]
+
+    if df1.empty or df2.empty:
+        st.warning("⚠️ Stats missing for one of the players.")
         return
 
-    metrics = cumulative_metrics(df)
+    m1 = cumulative_metrics(df1)
+    m2 = cumulative_metrics(df2)
+
+    categories = list(m1.keys())
+    v1 = list(m1.values())
+    v2 = list(m2.values())
+
+    # Normalize to same scale (0–100)
+    max_val = max(max(v1), max(v2)) if (v1 and v2) else 1
+    norm_v1 = [(v / max_val) * 100 for v in v1]
+    norm_v2 = [(v / max_val) * 100 for v in v2]
 
     # === Radar Chart ===
-    categories = list(metrics.keys())
-    values = list(metrics.values())
-
     fig = go.Figure()
+
+    # Player 1 polygon
     fig.add_trace(go.Scatterpolar(
-        r=values, theta=categories, fill="toself",
-        name=selected_player, line_color="#015EEA"
+        r=norm_v1, theta=categories, fill="toself",
+        name=player1, line_color="#00C0FA", fillcolor="rgba(0,192,250,0.3)"
     ))
 
+    # Player 2 polygon
+    fig.add_trace(go.Scatterpolar(
+        r=norm_v2, theta=categories, fill="toself",
+        name=player2, line_color="#FF4B4B", fillcolor="rgba(255,75,75,0.3)"
+    ))
+
+    # Layout with numbered axis
     fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, gridcolor="#666")),
-        title=f"Radar Analysis – {selected_player} (Cumulative Totals)"
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 100],
+                tickmode="linear",
+                tick0=0,
+                dtick=20,  # numbers: 0,20,40,60,80,100
+                gridcolor="#444",
+                linecolor="#666",
+                tickfont=dict(color="#FFFFFF", size=12)
+            ),
+            angularaxis=dict(
+                tickfont=dict(color="#FFFFFF", size=13)
+            )
+        ),
+        title=f"Radar Comparison – {player1} vs {player2}",
+        title_font=dict(color="#00C0FA", size=20),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        autosize=False,
+        width=800,
+        height=800,
+        margin=dict(l=120, r=120, t=100, b=100)
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # === Styled Stats Table ===
-    st.markdown("### 📋 Detailed Cumulative Stats")
+    # === Styled Comparison Table ===
+    st.markdown("### 📋 Player Comparison Table")
 
-    # Custom HTML table (instead of raw dataframe)
-    table_html = """
+    table_html = f"""
     <style>
-        .stats-table {
+        .cmp-table {{
             width: 100%;
             border-collapse: collapse;
             margin-top: 15px;
-        }
-        .stats-table th, .stats-table td {
+        }}
+        .cmp-table th, .cmp-table td {{
             padding: 12px 15px;
-            text-align: left;
+            text-align: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .stats-table th {
+        }}
+        .cmp-table th {{
             background: rgba(0,192,250,0.2);
             color: #00C0FA;
             font-weight: 700;
             text-transform: uppercase;
-        }
-        .stats-table td {
+        }}
+        .cmp-table td {{
             color: #FFFFFF;
-        }
-        .stats-table tr:hover {
+        }}
+        .cmp-table tr:hover {{
             background: rgba(255,255,255,0.05);
-        }
+        }}
     </style>
-    <table class="stats-table">
-        <tr><th>Metric</th><th>Value</th></tr>
+    <table class="cmp-table">
+        <tr><th>Metric</th><th>{player1}</th><th>{player2}</th></tr>
     """
-    for metric, value in metrics.items():
-        table_html += f"<tr><td>{metric}</td><td>{value}</td></tr>"
+    for cat, val1, val2 in zip(categories, v1, v2):
+        table_html += f"<tr><td>{cat}</td><td>{val1}</td><td>{val2}</td></tr>"
     table_html += "</table>"
 
     st.markdown(table_html, unsafe_allow_html=True)
+
 
 
 
@@ -2881,7 +2922,7 @@ def player_my_stats_page():
 
     # ===== Load Stats & Matches =====
     stats = read_csv_safe(PLAYER_STATS_FILE)
-    matches = read_csv_safe(MATCHES_FILE)   # 👈 new
+    matches = read_csv_safe(MATCHES_FILE)
     if stats.empty or matches.empty:
         st.info("⚠️ No stats or matches available.")
         return
@@ -2896,10 +2937,9 @@ def player_my_stats_page():
 
     # === Matches Played & Results ===
     matches_played = df["match_id"].nunique()
-
-    wins = df[df["result"].str.lower().isin(["w", "win"]) ]["match_id"].nunique()
-    draws = df[df["result"].str.lower().isin(["d", "draw"]) ]["match_id"].nunique()
-    losses = df[df["result"].str.lower().isin(["l", "loss"]) ]["match_id"].nunique()
+    wins = df[df["result"].str.lower().isin(["w", "win"])]["match_id"].nunique()
+    draws = df[df["result"].str.lower().isin(["d", "draw"])]["match_id"].nunique()
+    losses = df[df["result"].str.lower().isin(["l", "loss"])]["match_id"].nunique()
 
     st.markdown(f"""
     <div style="background: rgba(0,192,250,0.1); padding:15px; border-radius:10px; margin-bottom:20px; text-align:center;">
@@ -2913,13 +2953,9 @@ def player_my_stats_page():
     </div>
     """, unsafe_allow_html=True)
 
-    # ... keep your cumulative_metrics, radar chart, and styled table as before ...
-
-
     # === Cumulative Metrics Function ===
     def cumulative_metrics(df):
         metrics = {}
-
         metrics["⚽ Goals"] = df["goals"].sum()
         metrics["🎯 Assists"] = df["assists"].sum()
         metrics["🔫 Shots"] = df["shots"].sum()
@@ -2942,84 +2978,56 @@ def player_my_stats_page():
         metrics["❌ Possession Lost"] = df["possession_lost"].sum()
         metrics["🏃 Distance Covered (km)"] = round(df["distance_covered"].sum(), 1)
         metrics["⭐ Avg Rating"] = round(df["rating"].mean(), 2) if "rating" in df else 0
-
         return metrics
 
     metrics = cumulative_metrics(df)
 
-          # === Radar Chart with Numbers (fixed scatter) ===
-       
-
-# === Radar Chart with Numbers (non-overlapping labels) ===
-    # === Radar Chart with Numbers (numbers outside & clear) ===
+    # === Radar Chart with Numbers ===
     categories = list(metrics.keys())
     values = list(metrics.values())
 
-# Compute angles for each category
-    angles = np.linspace(0, 360, len(categories), endpoint=False)
+    fig = go.Figure()
 
-# Add a small padding so text goes outside the polygon
-    label_values = [v * 1.15 if v > 0 else 0.1 for v in values]
-
-    fig = go.Figure() 
-
-# Main radar shape
+    # Main radar shape
     fig.add_trace(go.Scatterpolar(
-    r=values,
-    theta=categories,
-    fill="toself",
-    name=current_name,
-    line_color="#015EEA"
-))
+        r=values,
+        theta=categories,
+        fill="toself",
+        name=current_name,
+        line_color="#015EEA"
+    ))
 
-# Smart text alignment based on angle
-    text_positions = []
-    for angle in angles:
-     if 80 < angle < 100:   # near top
-        text_positions.append("bottom center")
-     elif 260 < angle < 280:  # near bottom
-        text_positions.append("top center")
-     elif 0 <= angle < 80 or 280 <= angle <= 360:  # right side
-        text_positions.append("middle left")
-     else:  # left side
-        text_positions.append("middle right")
-
-    # Calculate outward positions for labels
+    # Push numbers outward along axis
     max_val = max(values) if values else 1
-    label_values = [
-        v + (0.08 * max_val) if v > 0 else 0   # push 8% outward along axis
-        for v in values
-    ]
+    label_values = [v + (0.08 * max_val) if v > 0 else 0.1 for v in values]
 
-    # Add number labels slightly outside polygon, aligned to each axis
     fig.add_trace(go.Scatterpolar(
-        r=label_values,                   # 👈 outward offset
-        theta=categories,                 # 👈 stays on same axis
+        r=label_values,
+        theta=categories,
         mode="text",
         text=[str(v) for v in values],
-        textfont=dict(color="#015EEA", size=8, family="Arial Black"),
+        textfont=dict(color="#66CCFF", size=9, family="Arial Black"),  # 👈 smaller + softer color
         showlegend=False
     ))
 
-
-# Layout styling
+    # Layout styling
     fig.update_layout(
-    polar=dict(
-        radialaxis=dict(
-            visible=True,
-            gridcolor="#666",
-            linecolor="#888",
-            tickfont=dict(color="#00C0FA", size=12),
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                gridcolor="#666",
+                linecolor="#888",
+                tickfont=dict(color="#00C0FA", size=12),
+            ),
+            angularaxis=dict(
+                tickfont=dict(color="#FFFFFF", size=12)
+            )
         ),
-        angularaxis=dict(
-            tickfont=dict(color="#FFFFFF", size=12)
-        )
-    ),
-    title=f"Radar Analysis – {current_name} (Cumulative Totals)",
-    title_font=dict(color="#00C0FA", size=18),
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)"
-)
+        title=f"Radar Analysis – {current_name} (Cumulative Totals)",
+        title_font=dict(color="#00C0FA", size=18),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)"
+    )
 
     st.plotly_chart(fig, use_container_width=True)
 
@@ -3310,34 +3318,152 @@ def page_competition_hub():
 # -------------------------------
 # FAN & PUBLIC PAGES
 # -------------------------------
-def fan_public_page():
-    st.subheader("Public Results & Fixtures")
-    matches = read_csv_safe(MATCHES_FILE)
-    if matches.empty:
-        st.info("No matches yet.")
-    else:
-        st.write("**All Matches**")
-        st.dataframe(matches.sort_values("date", ascending=True if hasattr(pd.DataFrame, "sort_values") else True), use_container_width=True)
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+import time
 
-    st.divider()
-    st.subheader("Fan Wall (messages require admin approval)")
-    name = st.session_state.auth.get("name", "Fan")
-    msg = st.text_input("Leave a short message (max 200 chars)")
-    if st.button("Post message"):
-        if msg and len(msg) <= 200:
-            wall = read_csv_safe(FANWALL_FILE)
-            new = {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": name, "message": msg, "approved": False}
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+import time
+
+# =======================
+# Safe fan wall loader
+# =======================
+def load_fanwall():
+    wall = read_csv_safe(FANWALL_FILE)
+
+    # Ensure required columns exist (backwards compatibility)
+    if "type" not in wall.columns:
+        wall["type"] = "shoutout"
+    if "message" not in wall.columns:
+        wall["message"] = ""
+    if "prediction" not in wall.columns:
+        wall["prediction"] = ""
+    if "match" not in wall.columns:
+        wall["match"] = ""
+
+    return wall
+
+# =======================
+# Fan wall page
+# =======================
+def fan_wall_page():
+    st.subheader("🎉 Fan Interaction Zone")
+
+    # Tabs for shoutouts & predictions
+    tab1, tab2 = st.tabs(["📢 Shoutout Wall", "⚽ Predictions Wall"])
+
+    # ======================
+    # TAB 1: Shoutout Wall
+    # ======================
+    with tab1:
+        st.markdown("### 📢 Fan Shoutout Wall (like stadium big screen)")
+        name = st.session_state.auth.get("name", "Fan")
+        msg = st.text_input("Leave a short shoutout (max 200 chars)", key="shoutout_input")
+        if st.button("Post shoutout", key="shoutout_btn"):
+            if msg and len(msg) <= 200:
+                wall = load_fanwall()
+                new = {
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "user": name,
+                    "message": msg,
+                    "prediction": "",
+                    "match": "",
+                    "approved": False,
+                    "type": "shoutout"
+                }
+                wall = pd.concat([wall, pd.DataFrame([new])], ignore_index=True)
+                write_csv_safe(wall, FANWALL_FILE)
+                st.success("✅ Shoutout submitted! Waiting for admin approval.")
+            else:
+                st.warning("⚠️ Please keep your shoutout under 200 characters.")
+
+        wall = load_fanwall()
+        approved = wall[(wall["approved"] == True) & (wall["type"] == "shoutout")].sort_values("timestamp", ascending=False)
+
+        if not approved.empty:
+            st.write("**Rotating shoutouts (approved only):**")
+            placeholder = st.empty()
+            messages = approved.head(10).to_dict(orient="records")
+
+            for _ in range(2):  # loop few times
+                for row in messages:
+                    with placeholder.container():
+                        st.markdown(f"""
+                        <div style="
+                            font-size:26px;
+                            font-weight:bold;
+                            text-align:center;
+                            color:#22c55e;
+                            background:#111827;
+                            border-radius:12px;
+                            padding:20px;
+                            margin:15px 0;
+                            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                        ">
+                            {row['message']}  
+                            <div style="font-size:14px; color:gray; margin-top:8px;">
+                                — {row['user']} ({row['timestamp']})
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    time.sleep(2)
+        else:
+            st.info("No approved shoutouts yet. Be the first!")
+
+    # ======================
+    # TAB 2: Predictions Wall
+    # ======================
+    with tab2:
+        st.markdown("### ⚽ Fan Predictions Wall")
+        name = st.session_state.auth.get("name", "Fan")
+
+        # Example: replace with actual upcoming match
+        next_match = "Team A vs Team B"
+        st.write(f"Upcoming Match: **{next_match}**")
+
+        home_score = st.number_input("Predicted score for Team A", min_value=0, max_value=20, step=1, key="pred_home")
+        away_score = st.number_input("Predicted score for Team B", min_value=0, max_value=20, step=1, key="pred_away")
+
+        if st.button("Submit Prediction", key="pred_submit"):
+            wall = load_fanwall()
+            new = {
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "user": name,
+                "message": "",
+                "prediction": f"{home_score} - {away_score}",
+                "match": next_match,
+                "approved": False,
+                "type": "prediction"
+            }
             wall = pd.concat([wall, pd.DataFrame([new])], ignore_index=True)
             write_csv_safe(wall, FANWALL_FILE)
-            st.success("Submitted! Waiting for admin approval.")
+            st.success("✅ Prediction submitted! Waiting for admin approval.")
+
+        wall = load_fanwall()
+        approved = wall[(wall["approved"] == True) & (wall["type"] == "prediction") & (wall["match"] == next_match)]
+
+        if not approved.empty:
+            st.write(f"**Predictions for {next_match}:**")
+            for _, row in approved.sort_values("timestamp", ascending=False).iterrows():
+                st.markdown(f"""
+                <div style="
+                    border:1px solid #333;
+                    background:#1f2937;
+                    color:white;
+                    border-radius:10px;
+                    padding:10px;
+                    margin-bottom:8px;
+                ">
+                    <b style="color:#22c55e;">{row['user']}</b> predicted:  
+                    <span style="font-size:18px;">{row['prediction']}</span>  
+                    <div style="font-size:12px; color:gray;">{row['timestamp']}</div>
+                </div>
+                """, unsafe_allow_html=True)
         else:
-            st.warning("Please write a message under 200 characters.")
-
-    wall = read_csv_safe(FANWALL_FILE)
-    if not wall.empty:
-        st.write("**Recent approved messages**")
-        st.dataframe(wall[wall["approved"]==True].sort_values("timestamp", ascending=False), use_container_width=True,height=300)
-
+            st.info("No approved predictions yet. Submit yours!")
 # -------------------------------
 # ADMIN: FAN WALL MODERATION & REPORTS
 # -------------------------------
@@ -3628,7 +3754,7 @@ def run_fan():
 
     pages = {
         "🏠 Dashboard": page_dashboard,
-        "💬 Fan Wall": fan_public_page,
+        "💬 Fan Wall": fan_wall_page,
     }
 
     selected_tabs = st.tabs(tabs)
@@ -3652,7 +3778,7 @@ def main():
         return
     elif st.session_state.page == "fan_public_only" and st.session_state.auth["role"] == "fan":
         render_header()
-        fan_public_page()
+        fan_wall_page()
         return
 
     role = st.session_state.auth["role"]
