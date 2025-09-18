@@ -1433,7 +1433,7 @@ def admin_players_crud_page():
         name = st.text_input("Player Name")
         position = st.selectbox(
             "Position",
-            ["Goalkeeper","Defender","Midfielder","Winger","Striker"]
+            ["Goalkeeper", "Defender", "Midfielder", "Winger", "Striker"]
         )
         code = st.text_input("Login Code", placeholder="e.g. PL-010")
         active = st.checkbox("Active", value=True)
@@ -1443,19 +1443,28 @@ def admin_players_crud_page():
         if not name or not code:
             st.warning("Name and Code are required.")
         else:
-            new_id = int(players.get("player_id", pd.Series([0])).max()) + 1 if not players.empty else 1
+            # Check duplicates
+            duplicate_name = players["name"].str.lower().eq(name.lower()).any()
+            duplicate_code = players["code"].astype(str).eq(str(code)).any()
 
-            new_row = {
-                "player_id": new_id,
-                "name": name,
-                "position": position,
-                "code": code,
-                "active": bool(active)
-            }
-            players = pd.concat([players, pd.DataFrame([new_row])], ignore_index=True)
-            write_csv_safe(players, PLAYERS_FILE)
-            st.success(f"Added {name}.")
-            st.rerun()
+            if duplicate_name:
+                st.error(f"A player with the name '{name}' already exists.")
+            elif duplicate_code:
+                st.error(f"A player with the code '{code}' already exists.")
+            else:
+                new_id = int(players.get("player_id", pd.Series([0])).max()) + 1 if not players.empty else 1
+
+                new_row = {
+                    "player_id": new_id,
+                    "name": name,
+                    "position": position,
+                    "code": code,
+                    "active": bool(active)
+                }
+                players = pd.concat([players, pd.DataFrame([new_row])], ignore_index=True)
+                write_csv_safe(players, PLAYERS_FILE)
+                st.success(f"Added {name}.")
+                st.rerun()
 
     st.divider()
 
@@ -1509,8 +1518,8 @@ def admin_players_crud_page():
         sel_name = st.selectbox("Select player", options=names)
         row = players[players["name"] == sel_name].iloc[0]
 
-        positions_list = ["Goalkeeper","Defender","Midfielder","Winger","Striker"]
-        current_pos = str(row["position"]).upper()
+        positions_list = ["Goalkeeper", "Defender", "Midfielder", "Winger", "Striker"]
+        current_pos = str(row["position"])
         pos_index = positions_list.index(current_pos) if current_pos in positions_list else 0
 
         new_name = st.text_input("Name", value=row["name"])
@@ -1521,22 +1530,40 @@ def admin_players_crud_page():
         colb1, colb2 = st.columns(2)
         with colb1:
             if st.button("Save Changes"):
-                players.loc[players["name"] == sel_name, ["name", "position", "code", "active"]] = [
-                    new_name, new_pos, new_code, bool(new_active)
+                # Prevent duplicate when editing (exclude current row)
+                duplicate_name = players[
+                    (players["name"].str.lower() == new_name.lower()) &
+                    (players["player_id"] != row["player_id"])
                 ]
-                write_csv_safe(players, PLAYERS_FILE)
-                st.success("Updated.")
-                st.rerun()
+                duplicate_code = players[
+                    (players["code"].astype(str) == str(new_code)) &
+                    (players["player_id"] != row["player_id"])
+                ]
+
+                if not new_name or not new_code:
+                    st.warning("Name and Code are required.")
+                elif not duplicate_name.empty:
+                    st.error(f"Another player with the name '{new_name}' already exists.")
+                elif not duplicate_code.empty:
+                    st.error(f"Another player with the code '{new_code}' already exists.")
+                else:
+                    players.loc[players["player_id"] == row["player_id"], ["name", "position", "code", "active"]] = [
+                        new_name, new_pos, new_code, bool(new_active)
+                    ]
+                    write_csv_safe(players, PLAYERS_FILE)
+                    st.success("Updated.")
+                    st.rerun()
 
         with colb2:
             if st.button("Delete Player"):
                 delete_player_and_stats(int(row["player_id"]), sel_name)  # deletes stats first
-                players = players[players["name"] != sel_name]
+                players = players[players["player_id"] != row["player_id"]]
                 if players.empty:
-                    players = pd.DataFrame(columns=["player_id","name","position","code","active"])
+                    players = pd.DataFrame(columns=["player_id", "name", "position", "code", "active"])
                 write_csv_safe(players, PLAYERS_FILE)
                 st.success(f"Deleted {sel_name} and all their stats.")
                 st.rerun()
+
 
 
 
@@ -1712,43 +1739,26 @@ def manager_radar_page():
     # === Radar Chart ===
     fig = go.Figure()
 
-    # Player 1 polygon
     fig.add_trace(go.Scatterpolar(
         r=norm_v1, theta=categories, fill="toself",
         name=player1, line_color="#00C0FA", fillcolor="rgba(0,192,250,0.3)"
     ))
 
-    # Player 2 polygon
     fig.add_trace(go.Scatterpolar(
         r=norm_v2, theta=categories, fill="toself",
         name=player2, line_color="#FF4B4B", fillcolor="rgba(255,75,75,0.3)"
     ))
 
-    # Layout with numbered axis
     fig.update_layout(
-        polar=dict(
-            radialaxis=dict(
-                visible=True,
-                range=[0, 100],
-                tickmode="linear",
-                tick0=0,
-                dtick=20,  # numbers: 0,20,40,60,80,100
-                gridcolor="#444",
-                linecolor="#666",
-                tickfont=dict(color="#FFFFFF", size=12)
-            ),
-            angularaxis=dict(
-                tickfont=dict(color="#FFFFFF", size=13)
-            )
-        ),
+        polar=dict(radialaxis=dict(visible=True, range=[0, 100], gridcolor="#666")),
         title=f"Radar Comparison – {player1} vs {player2}",
         title_font=dict(color="#00C0FA", size=20),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         autosize=False,
-        width=800,
-        height=800,
-        margin=dict(l=120, r=120, t=100, b=100)
+        width=750,
+        height=750,
+        margin=dict(l=100, r=100, t=100, b=100)
     )
     st.plotly_chart(fig, use_container_width=True)
 
