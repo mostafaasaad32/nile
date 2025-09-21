@@ -533,17 +533,30 @@ def write_csv_safe(df: pd.DataFrame, path: str):
             if table == "players":
                 ids = [r["player_id"] for r in rows if r.get("player_id") is not None]
                 sb.table(table).delete().not_.in_("player_id", ids).execute()
+
             elif table == "matches":
                 ids = [r["match_id"] for r in rows if r.get("match_id") is not None]
                 sb.table(table).delete().not_.in_("match_id", ids).execute()
+
             elif table == "training_sessions":
                 ids = [r["session_id"] for r in rows if r.get("session_id") is not None]
                 sb.table(table).delete().not_.in_("session_id", ids).execute()
+
             elif table == "player_stats":
-                sb.table(table).delete().neq("match_id", -1).execute()
+                role = st.session_state.auth.get("role", "").lower()
+                if role == "admin":
+                    # Admin cleanup: remove old stats for uploaded matches
+                    match_ids = [r["match_id"] for r in rows if r.get("match_id") is not None]
+                    if match_ids:
+                        sb.table(table).delete().in_("match_id", match_ids).execute()
+                else:
+                    # Player: do not delete other stats
+                    pass
+
             elif table in ["tactics", "tactics_positions", "availability", "training_attendance", "fan_wall"]:
-                # No cleanup based on id (let Supabase keep history)
+                # No cleanup based on id (keep history)
                 pass
+
         except Exception as delete_err:
             st.warning(f"⚠️ Cleanup issue in {table}: {delete_err}")
 
@@ -555,6 +568,7 @@ def write_csv_safe(df: pd.DataFrame, path: str):
             st.warning(f"💾 Saved locally to {path} instead.")
         except Exception as csv_err:
             st.error(f"❌ Could not save CSV backup: {csv_err}")
+
 
 
 
@@ -3090,28 +3104,38 @@ def player_my_stats_page():
 
 def calculate_fair_score(row, match_df):
     """Calculate fair player score with role-specific balanced weightings (match-based only)."""
+
+    def safe_get(r, col, default=0):
+        try:
+            val = r[col] if col in r else default
+            if pd.isna(val):
+                return default
+            return val
+        except Exception:
+            return default
+
     score = 0
 
     # --- Normalization Factor (per 90 minutes) ---
-    minutes = row.get("minutes_played", 0)
+    minutes = safe_get(row, "minutes_played", 0)
     factor = (minutes / 90) if minutes and minutes > 0 else 1
 
-    pos = (row.get("position") or "").strip()
+    pos = (safe_get(row, "position", "") or "").strip()
 
     # -------------------------
     # 🧤 Goalkeepers
     # -------------------------
     if pos == "Goalkeeper":
-        score += (row.get("goals", 0) * 10) / factor
-        score += (row.get("assists", 0) * 5) / factor
-        score += (row.get("passes", 0) * 0.05) / factor
-        score += ((row.get("pass_accuracy", 0) or 0) * 0.3)
-        score += (row.get("possession_won", 0) * 0.3) / factor
-        score -= (row.get("possession_lost", 0) * 0.3) / factor
-        score += (row.get("rating", 0) or 0) * 2
+        score += (safe_get(row, "goals") * 10) / factor
+        score += (safe_get(row, "assists") * 5) / factor
+        score += (safe_get(row, "passes") * 0.05) / factor
+        score += safe_get(row, "pass_accuracy") * 0.3
+        score += (safe_get(row, "possession_won") * 0.3) / factor
+        score -= (safe_get(row, "possession_lost") * 0.3) / factor
+        score += safe_get(row, "rating") * 2
         # Clean sheet bonus
         if match_df is not None and not match_df.empty:
-            match_id = row.get("match_id")
+            match_id = safe_get(row, "match_id")
             opp = match_df[match_df["match_id"] == match_id]["their_score"].values
             if opp.size > 0 and opp[0] == 0:
                 score += 7
@@ -3120,20 +3144,20 @@ def calculate_fair_score(row, match_df):
     # 🛡️ Defenders
     # -------------------------
     elif pos == "Defender":
-        score += (row.get("goals", 0) * 7) / factor
-        score += (row.get("assists", 0) * 4) / factor
-        score += (row.get("shots", 0) * 0.5) / factor
-        score += (row.get("tackles", 0) * 1.5) / factor
-        score += ((row.get("tackle_success", 0) or 0) * 0.7)
-        score += (row.get("possession_won", 0) * 1.0) / factor
-        score -= (row.get("possession_lost", 0) * 0.5) / factor
-        score += (row.get("passes", 0) * 0.1) / factor
-        score += ((row.get("pass_accuracy", 0) or 0) * 0.3)
-        score += (row.get("distance_covered", 0) or 0) * 0.2 / factor
-        score += (row.get("rating", 0) or 0) * 2
+        score += (safe_get(row, "goals") * 7) / factor
+        score += (safe_get(row, "assists") * 4) / factor
+        score += (safe_get(row, "shots") * 0.5) / factor
+        score += (safe_get(row, "tackles") * 1.5) / factor
+        score += safe_get(row, "tackle_success") * 0.7
+        score += (safe_get(row, "possession_won") * 1.0) / factor
+        score -= (safe_get(row, "possession_lost") * 0.5) / factor
+        score += (safe_get(row, "passes") * 0.1) / factor
+        score += safe_get(row, "pass_accuracy") * 0.3
+        score += safe_get(row, "distance_covered") * 0.2 / factor
+        score += safe_get(row, "rating") * 2
         # Clean sheet bonus
         if match_df is not None and not match_df.empty:
-            match_id = row.get("match_id")
+            match_id = safe_get(row, "match_id")
             opp = match_df[match_df["match_id"] == match_id]["their_score"].values
             if opp.size > 0 and opp[0] == 0:
                 score += 5
@@ -3142,56 +3166,55 @@ def calculate_fair_score(row, match_df):
     # 🎩 Midfielders
     # -------------------------
     elif pos == "Midfielder":
-        score += (row.get("goals", 0) * 5) / factor
-        score += (row.get("assists", 0) * 4) / factor
-        score += (row.get("shots", 0) * 0.7) / factor
-        score += (row.get("passes", 0) * 0.2) / factor
-        score += ((row.get("pass_accuracy", 0) or 0) * 0.4)
-        score += (row.get("tackles", 0) * 1.0) / factor
-        score += ((row.get("tackle_success", 0) or 0) * 0.5)
-        score += (row.get("possession_won", 0) * 0.7) / factor
-        score -= (row.get("possession_lost", 0) * 0.5) / factor
-        score += (row.get("dribbles", 0) * 0.7) / factor
-        score += ((row.get("dribble_success", 0) or 0) * 0.4)
-        score += (row.get("distance_covered", 0) or 0) * 0.3 / factor
-        score += (row.get("rating", 0) or 0) * 2
+        score += (safe_get(row, "goals") * 5) / factor
+        score += (safe_get(row, "assists") * 4) / factor
+        score += (safe_get(row, "shots") * 0.7) / factor
+        score += (safe_get(row, "passes") * 0.2) / factor
+        score += safe_get(row, "pass_accuracy") * 0.4
+        score += (safe_get(row, "tackles") * 1.0) / factor
+        score += safe_get(row, "tackle_success") * 0.5
+        score += (safe_get(row, "possession_won") * 0.7) / factor
+        score -= (safe_get(row, "possession_lost") * 0.5) / factor
+        score += (safe_get(row, "dribbles") * 0.7) / factor
+        score += safe_get(row, "dribble_success") * 0.4
+        score += safe_get(row, "distance_covered") * 0.3 / factor
+        score += safe_get(row, "rating") * 2
 
     # -------------------------
     # 🌀 Wingers
     # -------------------------
     elif pos == "Winger":
-        score += (row.get("goals", 0) * 4) / factor
-        score += (row.get("assists", 0) * 3) / factor
-        score += (row.get("shots", 0) * 1.0) / factor
-        score += (row.get("dribbles", 0) * 1.5) / factor
-        score += ((row.get("dribble_success", 0) or 0) * 0.7)
-        score += (row.get("tackles", 0) * 0.5) / factor
-        score += ((row.get("tackle_success", 0) or 0) * 0.3)
-        score += (row.get("possession_won", 0) * 0.5) / factor
-        score -= (row.get("possession_lost", 0) * 0.3) / factor
-        score += (row.get("passes", 0) * 0.1) / factor
-        score += ((row.get("pass_accuracy", 0) or 0) * 0.2)
-        score += (row.get("distance_covered", 0) or 0) * 0.2 / factor
-        score += (row.get("rating", 0) or 0) * 2
+        score += (safe_get(row, "goals") * 4) / factor
+        score += (safe_get(row, "assists") * 3) / factor
+        score += (safe_get(row, "shots") * 1.0) / factor
+        score += (safe_get(row, "dribbles") * 1.5) / factor
+        score += safe_get(row, "dribble_success") * 0.7
+        score += (safe_get(row, "tackles") * 0.5) / factor
+        score += safe_get(row, "tackle_success") * 0.3
+        score += (safe_get(row, "possession_won") * 0.5) / factor
+        score -= (safe_get(row, "possession_lost") * 0.3) / factor
+        score += (safe_get(row, "passes") * 0.1) / factor
+        score += safe_get(row, "pass_accuracy") * 0.2
+        score += safe_get(row, "distance_covered") * 0.2 / factor
+        score += safe_get(row, "rating") * 2
 
     # -------------------------
     # ⚽ Strikers
     # -------------------------
     elif pos == "Striker":
-        score += (row.get("goals", 0) * 4) / factor
-        score += (row.get("assists", 0) * 2) / factor
-        score += (row.get("shots", 0) * 2.0) / factor
-        score += (row.get("dribbles", 0) * 1.0) / factor
-        score += ((row.get("dribble_success", 0) or 0) * 0.5)
-        score += (row.get("tackles", 0) * 0.3) / factor
-        score += ((row.get("tackle_success", 0) or 0) * 0.2)
-        score += (row.get("possession_won", 0) * 0.3) / factor
-        score -= (row.get("possession_lost", 0) * 0.2) / factor
-        score += (row.get("passes", 0) * 0.05) / factor
-        score += ((row.get("pass_accuracy", 0) or 0) * 0.1)
-        score += (row.get("distance_covered", 0) or 0) * 0.1 / factor
-        score += (row.get("rating", 0) or 0) * 2
-
+        score += (safe_get(row, "goals") * 4) / factor
+        score += (safe_get(row, "assists") * 2) / factor
+        score += (safe_get(row, "shots") * 2.0) / factor
+        score += (safe_get(row, "dribbles") * 1.0) / factor
+        score += safe_get(row, "dribble_success") * 0.5
+        score += (safe_get(row, "tackles") * 0.3) / factor
+        score += safe_get(row, "tackle_success") * 0.2
+        score += (safe_get(row, "possession_won") * 0.3) / factor
+        score -= (safe_get(row, "possession_lost") * 0.2) / factor
+        score += (safe_get(row, "passes") * 0.05) / factor
+        score += safe_get(row, "pass_accuracy") * 0.1
+        score += safe_get(row, "distance_covered") * 0.1 / factor
+        score += safe_get(row, "rating") * 2
 
     return round(score, 2)
 
@@ -3199,7 +3222,8 @@ def calculate_fair_score(row, match_df):
 
 
 
-import random
+
+
 
 def page_competition_hub():
     import random
@@ -3210,7 +3234,12 @@ def page_competition_hub():
 
     # === Fetch Data ===
     stats = sb.table("player_stats").select("*").execute()
-    df = pd.DataFrame(stats.data) if stats.data else pd.DataFrame()
+    if stats.data:
+        df = pd.DataFrame(stats.data)
+        st.session_state["player_stats_cache"] = df  # update cache
+    else:
+        # fallback to cached data
+        df = st.session_state.get("player_stats_cache", pd.DataFrame())
 
     attendance = sb.table("training_attendance").select("*").execute()
     att_df = pd.DataFrame(attendance.data) if attendance.data else pd.DataFrame()
@@ -3234,7 +3263,7 @@ def page_competition_hub():
             df["position"].fillna(df["position_player"], inplace=True)
             df.drop(columns=["position_player"], inplace=True, errors="ignore")
 
-    # === Normalize attendance columns ===
+     # === Normalize attendance columns ===
     if not att_df.empty:
         if "player_name" not in att_df.columns:
             if "name" in att_df.columns:
@@ -3249,8 +3278,23 @@ def page_competition_hub():
     else:
         df["attendance"] = 0
 
+    # === Deduplicate stats (prevent double-counting from admin + player) ===
+    agg_cols = [
+        "goals","assists","shots","passes","dribbles","tackles",
+        "possession_won","possession_lost","minutes_played","rating",
+        "pass_accuracy","tackle_success","dribble_success",
+        "distance_covered","distance_sprinted"
+    ]
+    if not df.empty and "match_id" in df.columns and "player_id" in df.columns:
+        df = df.groupby(
+            ["match_id", "player_id", "player_name", "position"], as_index=False
+        )[agg_cols].max()
+
     # === Compute Scores ===
-    df["score"] = df.apply(lambda r: calculate_fair_score(r, match_df), axis=1)
+    if not df.empty:
+        df["score"] = df.apply(lambda r: calculate_fair_score(r, match_df), axis=1)
+    else:
+        df["score"] = 0
 
 
 
