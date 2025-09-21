@@ -3130,6 +3130,8 @@ def calculate_fair_score(row, match_df):
 import random
 
 def page_competition_hub():
+    import random
+
     st.markdown("<h1 style='text-align:center; color:#00C0FA;'>🏆 Competition Hub</h1>", unsafe_allow_html=True)
 
     sb = _supabase_client()
@@ -3148,9 +3150,24 @@ def page_competition_hub():
         st.info("No stats or attendance data available yet.")
         return
 
-    # === Merge Attendance ===
-    att_score = att_df.groupby("player_name").size().reset_index(name="attendance")
-    df = df.merge(att_score, on="player_name", how="left").fillna(0)
+    # === Normalize attendance columns ===
+    if not att_df.empty:
+        # Debugging: see what columns exist
+        st.write("Attendance DF Columns:", att_df.columns.tolist())
+
+        if "player_name" not in att_df.columns:
+            if "name" in att_df.columns:
+                att_df = att_df.rename(columns={"name": "player_name"})
+            elif "player" in att_df.columns:
+                att_df = att_df.rename(columns={"player": "player_name"})
+            else:
+                # If still no player_name, create empty col
+                att_df["player_name"] = None
+
+        att_score = att_df.groupby("player_name").size().reset_index(name="attendance")
+        df = df.merge(att_score, on="player_name", how="left").fillna(0)
+    else:
+        df["attendance"] = 0
 
     # === Compute Scores ===
     df["score"] = df.apply(lambda r: calculate_fair_score(r, match_df), axis=1)
@@ -3159,20 +3176,30 @@ def page_competition_hub():
     st.markdown("<h2 style='color:#00C0FA;'>👑 Player of the Month</h2>", unsafe_allow_html=True)
     hall_of_fame = st.session_state.get("hall_of_fame", [])
 
-    if not df.empty:
-        best_player = df.groupby("player_name", as_index=False)["score"].sum().sort_values("score", ascending=False).iloc[0]
+    if not df.empty and "player_name" in df.columns:
+        best_player = (
+            df.groupby("player_name", as_index=False)["score"]
+            .sum()
+            .sort_values("score", ascending=False)
+            .iloc[0]
+        )
 
         # Save to Hall of Fame
         if hall_of_fame == [] or hall_of_fame[-1]["name"] != best_player["player_name"]:
-            hall_of_fame.append({"name": best_player["player_name"], "score": int(best_player["score"])})
+            hall_of_fame.append(
+                {"name": best_player["player_name"], "score": int(best_player["score"])}
+            )
             st.session_state["hall_of_fame"] = hall_of_fame[-3:]
 
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style='background:linear-gradient(135deg,#015EEA,#00C0FA); padding:22px; border-radius:18px; text-align:center; color:#FFFFFF; box-shadow:0 4px 12px rgba(0,0,0,0.6);'>
             <h2 style='margin:0;'>👑 {best_player['player_name']}</h2>
             <h3 style='margin:5px 0;'>🔥 Score: {int(best_player['score'])}</h3>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     if hall_of_fame:
         st.markdown("<h4 style='color:#FFFFFF;'>🏟️ Hall of Fame</h4>", unsafe_allow_html=True)
@@ -3186,7 +3213,9 @@ def page_competition_hub():
 
     if not df.empty and not match_df.empty:
         clean_sheet_matches = match_df.query("their_score == 0")["match_id"].unique()
-        df["clean_sheets"] = df["match_id"].apply(lambda mid: 1 if mid in clean_sheet_matches else 0)
+        df["clean_sheets"] = df["match_id"].apply(
+            lambda mid: 1 if mid in clean_sheet_matches else 0
+        )
 
     challenges = {
         "⚽ Top Scorer": "goals",
@@ -3196,7 +3225,7 @@ def page_competition_hub():
         "📈 Pass Master": "pass_accuracy",
         "🌀 Dribble King": "dribbles",
         "🚀 Iron Man": "attendance",
-        "⭐ Highest Rated": "rating"
+        "⭐ Highest Rated": "rating",
     }
 
     cols = st.columns(4)
@@ -3204,15 +3233,27 @@ def page_competition_hub():
         with cols[idx % 4]:
             if metric in df.columns and not df.empty:
                 agg_metric = "mean" if metric in ["pass_accuracy", "rating"] else "sum"
-                top = df.groupby("player_name", as_index=False).agg({metric: agg_metric}).sort_values(metric, ascending=False).iloc[0]
-                value = round(top[metric], 1) if isinstance(top[metric], float) else int(top[metric])
-                st.markdown(f"""
+                top = (
+                    df.groupby("player_name", as_index=False)
+                    .agg({metric: agg_metric})
+                    .sort_values(metric, ascending=False)
+                    .iloc[0]
+                )
+                value = (
+                    round(top[metric], 1)
+                    if isinstance(top[metric], float)
+                    else int(top[metric])
+                )
+                st.markdown(
+                    f"""
                 <div style='background:#0C182E; padding:14px; border-radius:14px; text-align:center; color:#FFFFFF; box-shadow:0 4px 10px rgba(0,0,0,0.5); margin-bottom:10px;'>
                     <h4 style='margin:0; color:#00C0FA;'>{title}</h4>
                     <p style='margin:6px 0; font-size:15px;'><b>{top['player_name']}</b></p>
                     <p style='margin:0; font-size:14px; color:#FACC15;'>{value} {metric}</p>
                 </div>
-                """, unsafe_allow_html=True)
+                """,
+                    unsafe_allow_html=True,
+                )
 
     st.markdown("<hr style='border:1px solid #015EEA;'>", unsafe_allow_html=True)
 
@@ -3223,12 +3264,16 @@ def page_competition_hub():
     if not df.empty:
         team_challenges.append(("⚽ Team Goals", df["goals"].sum(), 15, "Target: 15"))
         team_challenges.append(("🎯 Team Assists", df["assists"].sum(), 10, "Target: 10"))
-        team_challenges.append(("⭐ Avg Team Rating", round(df["rating"].mean(),2), 7.0, "Target: 7.0"))
+        team_challenges.append(
+            ("⭐ Avg Team Rating", round(df["rating"].mean(), 2), 7.0, "Target: 7.0")
+        )
         if not att_df.empty:
             players = df["player_name"].nunique()
             sessions = att_df["date"].nunique()
             avg_att = len(att_df) / max(players * sessions, 1) * 100
-            team_challenges.append(("🚀 Training Attendance", avg_att, 80, "Target: 80%"))
+            team_challenges.append(
+                ("🚀 Training Attendance", avg_att, 80, "Target: 80%")
+            )
         if not match_df.empty:
             clean_sheets = match_df.query("their_score == 0")["match_id"].nunique()
             team_challenges.append(("🧤 Clean Sheets", clean_sheets, 3, "Target: 3"))
@@ -3236,8 +3281,11 @@ def page_competition_hub():
     cols = st.columns(len(team_challenges))
     for idx, (title, value, target, label) in enumerate(team_challenges):
         with cols[idx]:
-            progress = min(100, int((float(value) / float(target)) * 100 if target else 0))
-            st.markdown(f"""
+            progress = min(
+                100, int((float(value) / float(target)) * 100 if target else 0)
+            )
+            st.markdown(
+                f"""
             <div style='background:#0C182E; padding:14px; border-radius:14px; text-align:center; color:#FFFFFF; box-shadow:0 4px 10px rgba(0,0,0,0.5);'>
                 <h4 style='margin:0; color:#00C0FA;'>{title}</h4>
                 <p style='margin:6px 0; font-size:16px;'><b>{value}</b></p>
@@ -3246,7 +3294,9 @@ def page_competition_hub():
                 </div>
                 <p style='margin:0; font-size:12px; color:#9CA3AF;'>{label}</p>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
     st.markdown("<hr style='border:1px solid #015EEA;'>", unsafe_allow_html=True)
 
@@ -3254,20 +3304,27 @@ def page_competition_hub():
     st.markdown("<h2 style='color:#00C0FA;'>🏅 Player Rankings</h2>", unsafe_allow_html=True)
 
     def tier(score):
-        if score >= 1000: return "🏆 Platinum", 1000
-        elif score >= 750: return "🥇 Gold", 1000
-        elif score >= 500: return "🥈 Silver", 750
-        else: return "🥉 Bronze", 500
+        if score >= 1000:
+            return "🏆 Platinum", 1000
+        elif score >= 750:
+            return "🥇 Gold", 1000
+        elif score >= 500:
+            return "🥈 Silver", 750
+        else:
+            return "🥉 Bronze", 500
 
     ranked = df.groupby("player_name", as_index=False)["score"].sum()
-    ranked[["tier", "next_target"]] = ranked["score"].apply(lambda s: pd.Series(tier(s)))
+    ranked[["tier", "next_target"]] = ranked["score"].apply(
+        lambda s: pd.Series(tier(s))
+    )
     ranked = ranked.sort_values("score", ascending=False)
 
-    medals = ["🥇","🥈","🥉"]
+    medals = ["🥇", "🥈", "🥉"]
     for i, row in enumerate(ranked.itertuples()):
         medal = medals[i] if i < 3 else ""
         progress = min(100, int((row.score / row.next_target) * 100))
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style='background:#0C182E; padding:14px; margin:6px 0; border-radius:12px; color:#FFFFFF; box-shadow:0 4px 10px rgba(0,0,0,0.5);'>
             <div style='display:flex; justify-content:space-between;'>
                 <span>{medal} <b>{row.player_name}</b> – {row.tier}</span>
@@ -3280,13 +3337,17 @@ def page_competition_hub():
                 Next tier at {row.next_target} pts
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     st.markdown("<hr style='border:1px solid #015EEA;'>", unsafe_allow_html=True)
-# ================= POINTS GUIDE =================
+
+    # ================= POINTS GUIDE =================
     st.markdown("<h2 style='color:#00C0FA;'>ℹ️ How Points Are Calculated</h2>", unsafe_allow_html=True)
 
-    st.markdown("""
+    st.markdown(
+        """
 <div style='background:#0C182E; padding:16px; border-radius:14px; color:#FFFFFF; font-size:14px; line-height:1.6;'>
     <p>⚖️ All points are normalized <b>per 90 minutes</b> so players are compared fairly regardless of playtime.</p>
     <ul style='margin:0; padding-left:20px;'>
@@ -3305,9 +3366,10 @@ def page_competition_hub():
         <li>⭐ <b>Rating</b>: rating × 2</li>
         <li><b>🧤 Clean Sheet</b>: +5 points for Goalkeepers and Defenders when the opponent scores 0 goals.</li>
     </ul>
-    
 </div>
-""", unsafe_allow_html=True)
+""",
+        unsafe_allow_html=True,
+    )
 
     # ================= MOTIVATION =================
     st.markdown("<h2 style='color:#00C0FA;'>💬 Motivation of the Day</h2>", unsafe_allow_html=True)
@@ -3316,9 +3378,12 @@ def page_competition_hub():
         "Hard work beats talent when talent doesn’t work hard.",
         "Success is no accident. It’s hard work, perseverance, learning, and love for the game.",
         "The more difficult the victory, the greater the happiness in winning. – Pelé",
-        "A champion is afraid of losing. Everyone else is afraid of winning."
+        "A champion is afraid of losing. Everyone else is afraid of winning.",
     ]
-    st.markdown(f"<i style='color:#FFFFFF;'>{random.choice(quotes)}</i>", unsafe_allow_html=True)
+    st.markdown(
+        f"<i style='color:#FFFFFF;'>{random.choice(quotes)}</i>", unsafe_allow_html=True
+    )
+
 
 
 
