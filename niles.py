@@ -852,11 +852,7 @@ def intro_page():
             st.session_state.page = "login"
             st.rerun()
 
-        if st.button("👀 View Public Fan Wall", use_container_width=True):
-            save_login("fan", "Guest")
-            st.session_state.page = "fan_public_only"
-            st.balloons()
-            st.rerun()
+
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -883,7 +879,7 @@ def login_ui():
     </div>
     """, unsafe_allow_html=True)
 
-    role = st.selectbox("Select your role", ["Admin", "Manager", "Player", "Fan"])
+    role = st.selectbox("Select your role", ["Admin", "Manager", "Player"])
     name = st.text_input("Your name")
     code_required = role != "Fan"
     code = st.text_input(
@@ -897,11 +893,7 @@ def login_ui():
             st.warning("Please enter your name.")
             return
 
-        if role == "Fan":
-            save_login("fan", name)
-            st.success(f"Welcome, {name}! You're logged in as Fan.")
-            st.balloons()
-            st.rerun()
+
 
         elif role == "Admin":
             valid = ROLE_CODES.get("admin", {}).get(name)
@@ -3385,177 +3377,9 @@ def page_competition_hub():
     )
 
 
-
-
-
-
-
-# -------------------------------
-# FAN & PUBLIC PAGES
-# -------------------------------
-import streamlit as st
-import pandas as pd
-from datetime import datetime
-import time
-
-import streamlit as st
-import pandas as pd
-from datetime import datetime
-import time
-
-# =======================
-# Safe fan wall loader
-# =======================
-def load_fanwall():
-    wall = read_csv_safe(FANWALL_FILE)
-
-    # Ensure required columns exist (backwards compatibility)
-    if "type" not in wall.columns:
-        wall["type"] = "shoutout"
-    if "message" not in wall.columns:
-        wall["message"] = ""
-    if "prediction" not in wall.columns:
-        wall["prediction"] = ""
-    if "match" not in wall.columns:
-        wall["match"] = ""
-
-    return wall
-
-# =======================
-# Fan wall page
-# =======================
-def fan_wall_page():
-    st.subheader("🎉 Fan Interaction Zone")
-
-    # Tabs for shoutouts & predictions
-    tab1, tab2 = st.tabs(["📢 Shoutout Wall", "⚽ Predictions Wall"])
-
-    # ======================
-    # TAB 1: Shoutout Wall
-    # ======================
-    with tab1:
-        st.markdown("### 📢 Fan Shoutout Wall (like stadium big screen)")
-        name = st.session_state.auth.get("name", "Fan")
-        msg = st.text_input("Leave a short shoutout (max 200 chars)", key="shoutout_input")
-        if st.button("Post shoutout", key="shoutout_btn"):
-            if msg and len(msg) <= 200:
-                wall = load_fanwall()
-                new = {
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "user": name,
-                    "message": msg,
-                    "prediction": "",
-                    "match": "",
-                    "approved": False,
-                    "type": "shoutout"
-                }
-                wall = pd.concat([wall, pd.DataFrame([new])], ignore_index=True)
-                write_csv_safe(wall, FANWALL_FILE)
-                st.success("✅ Shoutout submitted! Waiting for admin approval.")
-            else:
-                st.warning("⚠️ Please keep your shoutout under 200 characters.")
-
-        wall = load_fanwall()
-        approved = wall[(wall["approved"] == True) & (wall["type"] == "shoutout")].sort_values("timestamp", ascending=False)
-
-        if not approved.empty:
-            st.write("**Rotating shoutouts (approved only):**")
-            placeholder = st.empty()
-            messages = approved.head(10).to_dict(orient="records")
-
-            for _ in range(2):  # loop few times
-                for row in messages:
-                    with placeholder.container():
-                        st.markdown(f"""
-                        <div style="
-                            font-size:26px;
-                            font-weight:bold;
-                            text-align:center;
-                            color:#22c55e;
-                            background:#111827;
-                            border-radius:12px;
-                            padding:20px;
-                            margin:15px 0;
-                            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-                        ">
-                            {row['message']}  
-                            <div style="font-size:14px; color:gray; margin-top:8px;">
-                                — {row['user']} ({row['timestamp']})
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    time.sleep(2)
-        else:
-            st.info("No approved shoutouts yet. Be the first!")
-
-    # ======================
-    # TAB 2: Predictions Wall
-    # ======================
-    with tab2:
-        st.markdown("### ⚽ Fan Predictions Wall")
-        name = st.session_state.auth.get("name", "Fan")
-
-        # Example: replace with actual upcoming match
-        next_match = "Team A vs Team B"
-        st.write(f"Upcoming Match: **{next_match}**")
-
-        home_score = st.number_input("Predicted score for Team A", min_value=0, max_value=20, step=1, key="pred_home")
-        away_score = st.number_input("Predicted score for Team B", min_value=0, max_value=20, step=1, key="pred_away")
-
-        if st.button("Submit Prediction", key="pred_submit"):
-            wall = load_fanwall()
-            new = {
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "user": name,
-                "message": "",
-                "prediction": f"{home_score} - {away_score}",
-                "match": next_match,
-                "approved": False,
-                "type": "prediction"
-            }
-            wall = pd.concat([wall, pd.DataFrame([new])], ignore_index=True)
-            write_csv_safe(wall, FANWALL_FILE)
-            st.success("✅ Prediction submitted! Waiting for admin approval.")
-
-        wall = load_fanwall()
-        approved = wall[(wall["approved"] == True) & (wall["type"] == "prediction") & (wall["match"] == next_match)]
-
-        if not approved.empty:
-            st.write(f"**Predictions for {next_match}:**")
-            for _, row in approved.sort_values("timestamp", ascending=False).iterrows():
-                st.markdown(f"""
-                <div style="
-                    border:1px solid #333;
-                    background:#1f2937;
-                    color:white;
-                    border-radius:10px;
-                    padding:10px;
-                    margin-bottom:8px;
-                ">
-                    <b style="color:#22c55e;">{row['user']}</b> predicted:  
-                    <span style="font-size:18px;">{row['prediction']}</span>  
-                    <div style="font-size:12px; color:gray;">{row['timestamp']}</div>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.info("No approved predictions yet. Submit yours!")
-# -------------------------------
 # ADMIN: FAN WALL MODERATION & REPORTS
 # -------------------------------
-def admin_fanwall_moderation():
-    
-    st.markdown("<h2 class='main-heading'>Moderate Fan Wall</h2>", unsafe_allow_html=True)
 
-    wall = read_csv_safe(FANWALL_FILE)
-    if wall.empty:
-        st.info("No messages yet.")
-        return
-    st.dataframe(wall, use_container_width=True,height=300)
-    idx = st.number_input("Row index to toggle approval", 0, len(wall)-1, 0)
-    if st.button("Toggle approval"):
-        wall.loc[idx, "approved"] = not bool(wall.loc[idx, "approved"])
-        write_csv_safe(wall, FANWALL_FILE)
-        st.success("Toggled.")
 
 def admin_reports_page():
     
@@ -3707,8 +3531,8 @@ def tab_nav(pages: dict, default: str):
 # -------------------------------
 def run_admin():
      render_header() 
-     tabs = [ "🏠 Dashboard", "⚽ Matches", "📊 Player Stats", "📸 Upload Player Stats", "👤 Players", "📝 Training Sessions", "📋 Attendance", "💬 Fan Wall", "📄 Reports", "⭐ Best XI"] 
-     pages = { "🏠 Dashboard": page_dashboard, "⚽ Matches": admin_matches_page, "📊 Player Stats": admin_player_stats_page, "📸 Upload Player Stats": admin_upload_player_stats_page, "👤 Players": admin_players_crud_page, "📝 Training Sessions": admin_training_sessions_page, "📋 Attendance": admin_training_attendance_all, "💬 Fan Wall": admin_fanwall_moderation, "📄 Reports": admin_reports_page, "⭐ Best XI": page_best_xi }
+     tabs = [ "🏠 Dashboard", "⚽ Matches", "📊 Player Stats", "📸 Upload Player Stats", "👤 Players", "📝 Training Sessions", "📋 Attendance", "📄 Reports", "⭐ Best XI"] 
+     pages = { "🏠 Dashboard": page_dashboard, "⚽ Matches": admin_matches_page, "📊 Player Stats": admin_player_stats_page, "📸 Upload Player Stats": admin_upload_player_stats_page, "👤 Players": admin_players_crud_page, "📝 Training Sessions": admin_training_sessions_page, "📋 Attendance": admin_training_attendance_all,  "📄 Reports": admin_reports_page, "⭐ Best XI": page_best_xi }
      selected_tab = st.tabs(tabs) 
      for i, tab_name in enumerate(tabs): 
          with selected_tab[i]: pages[tab_name]()
@@ -3794,7 +3618,7 @@ def run_player():
 
     # Tactics
     with main_tabs[3]:
-        tactics_tabs = st.tabs(["📝 Text View", "📈 Board View"])
+        tactics_tabs = st.tabs(["📝 Text View", "📈 Line Up"])
         with tactics_tabs[0]:
             player_tactics_text_page()
         with tactics_tabs[1]:
@@ -3829,7 +3653,7 @@ def run_fan():
 
     pages = {
         "🏠 Dashboard": page_dashboard,
-        "💬 Fan Wall": fan_wall_page,
+        
     }
 
     selected_tabs = st.tabs(tabs)
@@ -3851,9 +3675,7 @@ def main():
     elif st.session_state.page == "login" and st.session_state.auth["role"] is None:
         login_ui()
         return
-    elif st.session_state.page == "fan_public_only" and st.session_state.auth["role"] == "fan":
-        render_header()
-        fan_wall_page()
+
         return
 
     role = st.session_state.auth["role"]
@@ -3863,8 +3685,7 @@ def main():
         run_manager()
     elif role == "player":
         run_player()
-    elif role == "fan":
-        run_fan()
+
     else:
         logout()
 
@@ -3883,5 +3704,4 @@ if __name__ == "__main__":
 ## TEXT  =>WIDE MID
 
 ## BUTTONS SKY BLUE
-
 
