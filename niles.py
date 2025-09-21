@@ -1,10 +1,3 @@
-# proclubs_app.py
-# Streamlit app for a FIFA Pro Clubs team with 4 roles + Admin player management
-# Manager interactive tactics board with visual formation placement
-# + NEW: Training Sessions + Training Attendance (color-coded + stats)
-# Run locally: pip install streamlit pandas plotly pillow
-# Then: streamlit run proclubs_app.py
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -1020,8 +1013,6 @@ def page_dashboard():
     st.divider()
 
     # ===================== LEADERBOARDS =====================
-        # ===================== LEADERBOARDS =====================
-        # ===================== LEADERBOARDS =====================
     st.markdown("<h2 class='main-heading'>🏆 Leaderboards</h2>", unsafe_allow_html=True)
 
     if stats.empty:
@@ -2028,6 +2019,37 @@ def extract_player_stats(image_file) -> pd.DataFrame:
         return pd.DataFrame(columns=["player_name", "rating", "goals", "assists"])
 
 
+POSITION_MAP = {
+    # Goalkeeper
+    "GK": "Goalkeeper",
+
+    # Defenders
+    "CB": "Defender",
+    "LCB": "Defender",
+    "RCB": "Defender",
+    "LB": "Defender",
+    "RB": "Defender",
+    "RWB": "Defender",
+    "LWB": "Defender",
+
+    # Midfielders
+    "CDM": "Midfielder",
+    "CM": "Midfielder",
+    "LCM": "Midfielder",
+    "RCM": "Midfielder",
+    "CAM": "Midfielder",
+    "RM": "Midfielder",
+    "LM": "Midfielder",
+
+    # Wingers
+    "LW": "Winger",
+    "RW": "Winger",
+
+    # Attackers
+    "CF": "Striker",
+    "ST": "Striker",
+    "SS": "Striker"
+}
 
     
 def admin_upload_player_stats_page():
@@ -2044,9 +2066,9 @@ def admin_upload_player_stats_page():
     selected_match = st.selectbox("Select Match", match_options)
     match_id = int(selected_match.split(" - ")[0])
 
-    # ✅ Fetch players
-    players = _supabase_client().table("players").select("player_id, name").execute()
-    players_df = pd.DataFrame(players.data) if players.data else pd.DataFrame(columns=["player_id", "name"])
+    # ✅ Fetch players with positions
+    players = _supabase_client().table("players").select("player_id, name, position").execute()
+    players_df = pd.DataFrame(players.data) if players.data else pd.DataFrame(columns=["player_id", "name", "position"])
 
     img_file = st.file_uploader("Upload stats photo", type=["jpg", "jpeg", "png"])
     if img_file:
@@ -2054,7 +2076,7 @@ def admin_upload_player_stats_page():
 
         if st.button("Extract Stats with Gemini"):
             with st.spinner("Extracting stats..."):
-                df = extract_player_stats(img_file)  # Your existing extraction function
+                df = extract_player_stats(img_file)  # Your existing OCR/AI extraction function
 
             if df.empty:
                 st.error("❌ No stats extracted. Try with a clearer image.")
@@ -2063,7 +2085,7 @@ def admin_upload_player_stats_page():
             st.success("✅ Stats extracted successfully!")
             st.dataframe(df)
 
-            # Match extracted names to players list
+            # Match extracted names to players list (to get player_id and position)
             merged = df.merge(players_df, left_on="player_name", right_on="name", how="left")
 
             # 🚨 Check for unknown players
@@ -2079,6 +2101,9 @@ def admin_upload_player_stats_page():
             # Save stats to Supabase
             for _, row in valid_rows.iterrows():
                 try:
+                    # ✅ Always get position from players file
+                    player_pos = row.get("position") or "N/A"
+
                     # Check if stats for this player and match already exist
                     existing = _supabase_client().table("player_stats") \
                         .select("id") \
@@ -2092,7 +2117,7 @@ def admin_upload_player_stats_page():
                             "rating": row.get("rating"),
                             "goals": row.get("goals"),
                             "assists": row.get("assists"),
-                            "position": "N/A"
+                            "position": player_pos
                         }).eq("match_id", match_id).eq("player_id", int(row["player_id"])).execute()
                     else:
                         # Insert new row
@@ -2103,13 +2128,14 @@ def admin_upload_player_stats_page():
                             "rating": row.get("rating"),
                             "goals": row.get("goals"),
                             "assists": row.get("assists"),
-                            "position": "N/A"
+                            "position": player_pos
                         }).execute()
 
                 except Exception as e:
                     st.error(f"❌ Failed to save row for {row.get('player_name')}: {e}")
 
             st.success("📤 Stats saved/updated in Supabase!")
+
 
 
 
@@ -2421,11 +2447,6 @@ def manager_tactics_board_page():
 # -------------------------------
 # PLAYER PAGES
 # -------------------------------
-
-
-
-
-
 def extract_stats_from_image(image_bytes: bytes):
     """
     Send image bytes to Gemini and return parsed JSON (dict) or None on failure.
@@ -2518,16 +2539,13 @@ def player_upload_stats_page():
         st.error("❌ You must be logged in to upload stats.")
         return
 
-    # Let player pick a match (defaults to most recent automatically)
+    # ✅ Fetch matches (default to most recent)
     matches = read_csv_safe(MATCHES_FILE)
     match_id_choice = None
     if not matches.empty:
         matches_sorted = matches.sort_values("date", ascending=False)
         labels = [f"{r['date']} – {r['opponent']}" for _, r in matches_sorted.iterrows()]
         label_to_id = {labels[i]: int(matches_sorted.iloc[i]["match_id"]) for i in range(len(labels))}
-
-        # ✅ Default to the most recent match
-        default_label = labels[0] if labels else None
         chosen_label = st.selectbox("Link to match", labels, index=0)
         match_id_choice = label_to_id.get(chosen_label)
 
@@ -2546,19 +2564,24 @@ def player_upload_stats_page():
                     st.error("❌ Could not extract stats. Please try a clearer image.")
                     return
 
-                # Validate player identity
+                # ✅ Validate player identity
                 parsed_name = (parsed.get("player_name") or "").strip()
                 if parsed_name.lower() != current_name.lower():
                     st.error("❌ Player name in uploaded stats does not match your account. Contact admin.")
                     return
 
-                # Get player_id
-                player_id = get_player_id_by_name(current_name)
-                if player_id is None:
+                # ✅ Get player_id and position from roster
+                sb = _supabase_client()
+                player_row = sb.table("players").select("player_id, position").eq("name", current_name).execute()
+
+                if not player_row.data:
                     st.error("❌ Player not found in roster. Contact admin.")
                     return
 
-                # Determine match_id (parsed > selected > None)
+                player_id = player_row.data[0]["player_id"]
+                player_pos = player_row.data[0].get("position") or "N/A"
+
+                # ✅ Determine match_id (parsed > selected > None)
                 parsed_match_id = None
                 try:
                     if parsed.get("match_id"):
@@ -2571,10 +2594,10 @@ def player_upload_stats_page():
                     st.error("❌ No match found to attach stats to. Please ask admin to create a match first.")
                     return
 
-                # Prepare record
+                # ✅ Prepare record
                 record = {"player_name": current_name, "player_id": player_id, "match_id": int(match_id)}
                 allowed_keys = [
-                    "position","rating","goals","assists","shots","shot_accuracy","passes","pass_accuracy",
+                    "rating","goals","assists","shots","shot_accuracy","passes","pass_accuracy",
                     "dribbles","dribble_success","tackles","tackle_success","offsides","fouls_committed",
                     "possession_won","possession_lost","minutes_played","distance_covered","distance_sprinted",
                     "yellow_cards","red_cards"
@@ -2583,12 +2606,13 @@ def player_upload_stats_page():
                     if k in parsed:
                         record[k] = parsed[k]
 
-                # Call UPSERT function
-                sb = _supabase_client()
+                record["position"] = player_pos  # ✅ Always take from roster
+
+                # ✅ Call UPSERT function
                 sb.rpc("upsert_player_stats", {
                     "p_match_id": record["match_id"],
                     "p_player_name": record["player_name"],
-                    "p_position": record.get("position") or "N/A",
+                    "p_position": record["position"],
                     "p_goals": record.get("goals") or 0,
                     "p_assists": record.get("assists") or 0,
                     "p_rating": record.get("rating") or 0.0,
@@ -2613,18 +2637,10 @@ def player_upload_stats_page():
                 }).execute()
 
             # ✅ Confirmation message
-            st.success("✅ Stats uploaded successfully!")
+            st.success(f"✅ Stats uploaded successfully! Position assigned from roster: {player_pos}")
 
         except Exception as e:
             st.error(f"❌ Error while processing stats: {e}")
-
-
-
-
-
-
-
-
 
 
 
@@ -3073,48 +3089,112 @@ def player_my_stats_page():
 
 
 def calculate_fair_score(row, match_df):
+    """Calculate fair player score with role-specific balanced weightings (match-based only)."""
     score = 0
 
-    # --- Normalization Factor ---
+    # --- Normalization Factor (per 90 minutes) ---
     minutes = row.get("minutes_played", 0)
-    matches = 1
-    if "match_id" in row and row["match_id"]:
-        matches = 1 # each row = one match
-    factor = (minutes / 90) if minutes and minutes > 0 else matches
+    factor = (minutes / 90) if minutes and minutes > 0 else 1
 
-    # Attack
-    score += (row.get("goals", 0) * 5) / factor
-    score += (row.get("assists", 0) * 3) / factor
-    score += (row.get("shots", 0) * 1) / factor
+    pos = (row.get("position") or "").strip()
 
-    # Passing
-    score += (row.get("passes", 0) * 0.1) / factor
-    score += ((row.get("pass_accuracy", 0) or 0) * 0.2)
+    # -------------------------
+    # 🧤 Goalkeepers
+    # -------------------------
+    if pos == "Goalkeeper":
+        score += (row.get("goals", 0) * 10) / factor
+        score += (row.get("assists", 0) * 5) / factor
+        score += (row.get("passes", 0) * 0.05) / factor
+        score += ((row.get("pass_accuracy", 0) or 0) * 0.3)
+        score += (row.get("possession_won", 0) * 0.3) / factor
+        score -= (row.get("possession_lost", 0) * 0.3) / factor
+        score += (row.get("rating", 0) or 0) * 2
+        # Clean sheet bonus
+        if match_df is not None and not match_df.empty:
+            match_id = row.get("match_id")
+            opp = match_df[match_df["match_id"] == match_id]["their_score"].values
+            if opp.size > 0 and opp[0] == 0:
+                score += 7
 
-    # Dribbles
-    score += (row.get("dribbles", 0) * 1) / factor
-    score += ((row.get("dribble_success", 0) or 0) * 0.5)
+    # -------------------------
+    # 🛡️ Defenders
+    # -------------------------
+    elif pos == "Defender":
+        score += (row.get("goals", 0) * 7) / factor
+        score += (row.get("assists", 0) * 4) / factor
+        score += (row.get("shots", 0) * 0.5) / factor
+        score += (row.get("tackles", 0) * 1.5) / factor
+        score += ((row.get("tackle_success", 0) or 0) * 0.7)
+        score += (row.get("possession_won", 0) * 1.0) / factor
+        score -= (row.get("possession_lost", 0) * 0.5) / factor
+        score += (row.get("passes", 0) * 0.1) / factor
+        score += ((row.get("pass_accuracy", 0) or 0) * 0.3)
+        score += (row.get("distance_covered", 0) or 0) * 0.2 / factor
+        score += (row.get("rating", 0) or 0) * 2
+        # Clean sheet bonus
+        if match_df is not None and not match_df.empty:
+            match_id = row.get("match_id")
+            opp = match_df[match_df["match_id"] == match_id]["their_score"].values
+            if opp.size > 0 and opp[0] == 0:
+                score += 5
 
-    # Defense
-    score += (row.get("tackles", 0) * 1) / factor
-    score += ((row.get("tackle_success", 0) or 0) * 0.5)
-    score += (row.get("possession_won", 0) * 0.5) / factor
-    score -= (row.get("possession_lost", 0) * 0.5) / factor
+    # -------------------------
+    # 🎩 Midfielders
+    # -------------------------
+    elif pos == "Midfielder":
+        score += (row.get("goals", 0) * 5) / factor
+        score += (row.get("assists", 0) * 4) / factor
+        score += (row.get("shots", 0) * 0.7) / factor
+        score += (row.get("passes", 0) * 0.2) / factor
+        score += ((row.get("pass_accuracy", 0) or 0) * 0.4)
+        score += (row.get("tackles", 0) * 1.0) / factor
+        score += ((row.get("tackle_success", 0) or 0) * 0.5)
+        score += (row.get("possession_won", 0) * 0.7) / factor
+        score -= (row.get("possession_lost", 0) * 0.5) / factor
+        score += (row.get("dribbles", 0) * 0.7) / factor
+        score += ((row.get("dribble_success", 0) or 0) * 0.4)
+        score += (row.get("distance_covered", 0) or 0) * 0.3 / factor
+        score += (row.get("rating", 0) or 0) * 2
 
-    # Physical/General
-    score += ((row.get("distance_covered", 0) or 0) * 0.3) / factor
-    score += (row.get("rating", 0) or 0) * 2
+    # -------------------------
+    # 🌀 Wingers
+    # -------------------------
+    elif pos == "Winger":
+        score += (row.get("goals", 0) * 4) / factor
+        score += (row.get("assists", 0) * 3) / factor
+        score += (row.get("shots", 0) * 1.0) / factor
+        score += (row.get("dribbles", 0) * 1.5) / factor
+        score += ((row.get("dribble_success", 0) or 0) * 0.7)
+        score += (row.get("tackles", 0) * 0.5) / factor
+        score += ((row.get("tackle_success", 0) or 0) * 0.3)
+        score += (row.get("possession_won", 0) * 0.5) / factor
+        score -= (row.get("possession_lost", 0) * 0.3) / factor
+        score += (row.get("passes", 0) * 0.1) / factor
+        score += ((row.get("pass_accuracy", 0) or 0) * 0.2)
+        score += (row.get("distance_covered", 0) or 0) * 0.2 / factor
+        score += (row.get("rating", 0) or 0) * 2
 
-    # --- Clean Sheet Bonus (for Goalkeepers & Defenders) ---
-    if match_df is not None and not match_df.empty:
-        match_id = row.get("match_id")
-        opponent_score = match_df[match_df['match_id'] == match_id]['their_score'].values
-        # Check for clean sheet and player's position
-        if opponent_score.size > 0 and opponent_score[0] == 0:
-            if row.get("position") in ["Goalkeeper", "Defender", "CB", "LB", "RB", "RWB", "LWB"]:
-                score += 5 # Example bonus value
+    # -------------------------
+    # ⚽ Strikers
+    # -------------------------
+    elif pos == "Striker":
+        score += (row.get("goals", 0) * 4) / factor
+        score += (row.get("assists", 0) * 2) / factor
+        score += (row.get("shots", 0) * 2.0) / factor
+        score += (row.get("dribbles", 0) * 1.0) / factor
+        score += ((row.get("dribble_success", 0) or 0) * 0.5)
+        score += (row.get("tackles", 0) * 0.3) / factor
+        score += ((row.get("tackle_success", 0) or 0) * 0.2)
+        score += (row.get("possession_won", 0) * 0.3) / factor
+        score -= (row.get("possession_lost", 0) * 0.2) / factor
+        score += (row.get("passes", 0) * 0.05) / factor
+        score += ((row.get("pass_accuracy", 0) or 0) * 0.1)
+        score += (row.get("distance_covered", 0) or 0) * 0.1 / factor
+        score += (row.get("rating", 0) or 0) * 2
+
 
     return round(score, 2)
+
 
 
 
@@ -3138,22 +3218,30 @@ def page_competition_hub():
     matches = sb.table("matches").select("match_id, our_score, their_score, date").execute()
     match_df = pd.DataFrame(matches.data) if matches.data else pd.DataFrame()
 
+    players = sb.table("players").select("name, position").execute()
+    players_df = pd.DataFrame(players.data) if players.data else pd.DataFrame()
+
     if df.empty and att_df.empty:
         st.info("No stats or attendance data available yet.")
         return
 
+    # === Merge positions from players table ===
+    if not players_df.empty:
+        players_df = players_df.rename(columns={"name": "player_name"})
+        df = df.merge(players_df, on="player_name", how="left", suffixes=("", "_player"))
+        df["position"] = df["position"].replace(["N/A", "", None], pd.NA)
+        if "position_player" in df.columns:
+            df["position"].fillna(df["position_player"], inplace=True)
+            df.drop(columns=["position_player"], inplace=True, errors="ignore")
+
     # === Normalize attendance columns ===
     if not att_df.empty:
-        # Debugging: see what columns exist
-        st.write("Attendance DF Columns:", att_df.columns.tolist())
-
         if "player_name" not in att_df.columns:
             if "name" in att_df.columns:
                 att_df = att_df.rename(columns={"name": "player_name"})
             elif "player" in att_df.columns:
                 att_df = att_df.rename(columns={"player": "player_name"})
             else:
-                # If still no player_name, create empty col
                 att_df["player_name"] = None
 
         att_score = att_df.groupby("player_name").size().reset_index(name="attendance")
@@ -3163,6 +3251,8 @@ def page_competition_hub():
 
     # === Compute Scores ===
     df["score"] = df.apply(lambda r: calculate_fair_score(r, match_df), axis=1)
+
+
 
     # ================= PLAYER OF THE MONTH =================
     st.markdown("<h2 style='color:#00C0FA;'>👑 Player of the Month</h2>", unsafe_allow_html=True)
@@ -3176,7 +3266,6 @@ def page_competition_hub():
             .iloc[0]
         )
 
-        # Save to Hall of Fame
         if hall_of_fame == [] or hall_of_fame[-1]["name"] != best_player["player_name"]:
             hall_of_fame.append(
                 {"name": best_player["player_name"], "score": int(best_player["score"])}
@@ -3335,33 +3424,91 @@ def page_competition_hub():
 
     st.markdown("<hr style='border:1px solid #015EEA;'>", unsafe_allow_html=True)
 
-    # ================= POINTS GUIDE =================
-    st.markdown("<h2 style='color:#00C0FA;'>ℹ️ How Points Are Calculated</h2>", unsafe_allow_html=True)
+    html_guide = """
+⚖️ All points are normalized per 90 minutes so players are compared fairly regardless of playtime.
 
-    st.markdown(
-        """
-<div style='background:#0C182E; padding:16px; border-radius:14px; color:#FFFFFF; font-size:14px; line-height:1.6;'>
-    <p>⚖️ All points are normalized <b>per 90 minutes</b> so players are compared fairly regardless of playtime.</p>
-    <ul style='margin:0; padding-left:20px;'>
-        <li>⚽ <b>Goals</b>: +5 points</li>
-        <li>🎯 <b>Assists</b>: +3 points</li>
-        <li>🎯 <b>Shots</b>: +1 point</li>
-        <li>📊 <b>Passes</b>: +0.1 point each</li>
-        <li>🎯 <b>Pass Accuracy %</b>: accuracy × 0.2</li>
-        <li>⚡ <b>Dribbles</b>: +1 point</li>
-        <li>⚡ <b>Dribble Success %</b>: × 0.5</li>
-        <li>🛡️ <b>Tackles</b>: +1 point</li>
-        <li>🛡️ <b>Tackle Success %</b>: × 0.5</li>
-        <li>💪 <b>Possession Won</b>: +0.5 point</li>
-        <li>❌ <b>Possession Lost</b>: –0.5 point</li>
-        <li>🏃 <b>Distance Covered</b>: +0.3 per km</li>
-        <li>⭐ <b>Rating</b>: rating × 2</li>
-        <li><b>🧤 Clean Sheet</b>: +5 points for Goalkeepers and Defenders when the opponent scores 0 goals.</li>
-    </ul>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
+<h4>🧤 Goalkeepers</h4>
+<ul>
+    <li>⚽ Goals: +10</li>
+    <li>🎯 Assists: +5</li>
+    <li>📊 Passes: +0.05 each</li>
+    <li>🎯 Pass Accuracy: ×0.3</li>
+    <li>💪 Possession Won: +0.3</li>
+    <li>❌ Possession Lost: –0.3</li>
+    <li>⭐ Rating: ×2</li>
+    <li>🧱 Clean Sheet: +7</li>
+</ul>
+
+<h4>🛡️ Defenders</h4>
+<ul>
+    <li>⚽ Goals: +7</li>
+    <li>🎯 Assists: +4</li>
+    <li>🎯 Shots: +0.5</li>
+    <li>🛡️ Tackles: +1.5</li>
+    <li>🛡️ Tackle Success %: ×0.7</li>
+    <li>💪 Possession Won: +1.0</li>
+    <li>❌ Possession Lost: –0.5</li>
+    <li>📊 Passes: +0.1 each</li>
+    <li>🎯 Pass Accuracy: ×0.3</li>
+    <li>🏃 Distance Covered: +0.2 per km</li>
+    <li>⭐ Rating: ×2</li>
+    <li>🧱 Clean Sheet: +5</li>
+</ul>
+
+<h4>🎩 Midfielders</h4>
+<ul>
+    <li>⚽ Goals: +5</li>
+    <li>🎯 Assists: +4</li>
+    <li>🎯 Shots: +0.7</li>
+    <li>📊 Passes: +0.2 each</li>
+    <li>🎯 Pass Accuracy: ×0.4</li>
+    <li>🛡️ Tackles: +1.0</li>
+    <li>🛡️ Tackle Success %: ×0.5</li>
+    <li>💪 Possession Won: +0.7</li>
+    <li>❌ Possession Lost: –0.5</li>
+    <li>⚡ Dribbles: +0.7</li>
+    <li>⚡ Dribble Success %: ×0.4</li>
+    <li>🏃 Distance Covered: +0.3 per km</li>
+    <li>⭐ Rating: ×2</li>
+</ul>
+
+<h4>🌀 Wingers</h4>
+<ul>
+    <li>⚽ Goals: +4</li>
+    <li>🎯 Assists: +3</li>
+    <li>🎯 Shots: +1.0</li>
+    <li>⚡ Dribbles: +1.5</li>
+    <li>⚡ Dribble Success %: ×0.7</li>
+    <li>🛡️ Tackles: +0.5</li>
+    <li>🛡️ Tackle Success %: ×0.3</li>
+    <li>💪 Possession Won: +0.5</li>
+    <li>❌ Possession Lost: –0.3</li>
+    <li>📊 Passes: +0.1 each</li>
+    <li>🎯 Pass Accuracy: ×0.2</li>
+    <li>🏃 Distance Covered: +0.2 per km</li>
+    <li>⭐ Rating: ×2</li>
+</ul>
+
+<h4>⚽ Strikers</h4>
+<ul>
+    <li>⚽ Goals: +4</li>
+    <li>🎯 Assists: +2</li>
+    <li>🎯 Shots: +2.0</li>
+    <li>⚡ Dribbles: +1.0</li>
+    <li>⚡ Dribble Success %: ×0.5</li>
+    <li>🛡️ Tackles: +0.3</li>
+    <li>🛡️ Tackle Success %: ×0.2</li>
+    <li>💪 Possession Won: +0.3</li>
+    <li>❌ Possession Lost: –0.2</li>
+    <li>📊 Passes: +0.05 each</li>
+    <li>🎯 Pass Accuracy: ×0.1</li>
+    <li>🏃 Distance Covered: +0.1 per km</li>
+    <li>⭐ Rating: ×2</li>
+</ul>
+"""
+
+    st.markdown(html_guide, unsafe_allow_html=True)
+
 
     # ================= MOTIVATION =================
     st.markdown("<h2 style='color:#00C0FA;'>💬 Motivation of the Day</h2>", unsafe_allow_html=True)
@@ -3377,8 +3524,6 @@ def page_competition_hub():
     )
 
 
-# ADMIN: FAN WALL MODERATION & REPORTS
-# -------------------------------
 
 
 def admin_reports_page():
@@ -3418,105 +3563,6 @@ def admin_reports_page():
         if str(mrow.get("notes", "")):
             summary.append(f"Notes: {mrow['notes']}")
         st.text_area("Generated Report", " ".join(summary), height=200)
-# -------------------------------
-# AUTO BEST XI
-# -------------------------------
-def page_best_xi():
-    st.subheader("Auto Best XI (by average rating)")
-    stats = read_csv_safe(PLAYER_STATS_FILE)
-    if stats.empty:
-        st.info("No stats yet.")
-        return
-
-    min_matches = st.number_input("Minimum matches played", 1, 50, 3)
-    formation = st.selectbox("Formation", FORMATIONS)
-
-    agg = stats.groupby(["player_name","position"]).agg(matches=("match_id","count"), avg_rating=("rating","mean")).reset_index()
-    pool = agg[agg["matches"] >= int(min_matches)].sort_values("avg_rating", ascending=False)
-
-    def pick(pos, n):
-        return pool[pool["position"]==pos].head(n)
-
-    selection = []
-    if formation == "4-3-3":
-        selection += [pick("GK",1), pick("RB",1), pick("LB",1), pick("CB",2), pick("CM",2), pick("CDM",1), pick("RW",1), pick("LW",1), pick("ST",1)]
-    elif formation == "4-2-3-1":
-        selection += [pick("GK",1), pick("RB",1), pick("LB",1), pick("CB",2), pick("CDM",2), pick("CAM",1), pick("RW",1), pick("LW",1), pick("ST",1)]
-    elif formation == "4-4-2":
-        selection += [pick("GK",1), pick("RB",1), pick("LB",1), pick("CB",2), pick("RM",1), pick("LM",1), pick("CM",2), pick("ST",2)]
-    elif formation == "3-5-2":
-        selection += [pick("GK",1), pick("CB",3), pick("CDM",1), pick("CM",2), pick("CAM",1), pick("ST",2)]
-    elif formation == "3-4-3":
-        selection += [pick("GK",1), pick("CB",3), pick("RM",1), pick("LM",1), pick("CM",2), pick("RW",1), pick("LW",1), pick("ST",1)]
-    elif formation == "5-2-1-2":
-        selection += [pick("GK",1), pick("RWB",1), pick("LWB",1), pick("CB",3), pick("CM",2), pick("CAM",1), pick("ST",2)]
-    else:  # 4-1-2-1-2
-        selection += [pick("GK",1), pick("RB",1), pick("LB",1), pick("CB",2), pick("CDM",1), pick("CM",2), pick("CAM",1), pick("ST",2)]
-
-    valid_dfs = [x for x in selection if x is not None and not x.empty]
-    sel_df = pd.concat(valid_dfs, ignore_index=True) if valid_dfs else pd.DataFrame()
-
-    if sel_df.empty:
-        st.info("Not enough data for this formation / filters.")
-        return
-    st.dataframe(sel_df.head(11), use_container_width=True,height=300)
-
-
-
-
-
-
-# ============================
-# Professional Tab Navigation
-# ============================
-
-def tab_nav(pages: dict, default: str):
-    """Render professional Streamlit tabs for navigation."""
-
-    # --- CSS Styling for Pro Tabs ---
-    st.markdown("""
-    <style>
-    .stTabs [role="tablist"] {
-        justify-content: center;
-        border-bottom: 2px solid #222;
-    }
-    .stTabs [role="tab"] {
-        font-family: 'WIDE MEDIUM', sans-serif !important;
-        font-size: 14px;
-        font-weight: 500;
-        padding: 8px 16px;
-        border-radius: 8px 8px 0 0;
-        background-color: #0A1128;
-        color: #9CA3AF;
-        margin: 0 4px;
-    }
-    .stTabs [role="tab"]:hover {
-        background-color: #111827;
-        color: white;
-    }
-    .stTabs [role="tab"][aria-selected="true"] {
-        background: linear-gradient(90deg, #10B981, #2563EB);
-        color: white !important;
-        font-weight: 700 !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # --- Render Tabs ---
-    labels = list(pages.keys())
-    icons  = [pages[l][0] for l in labels]
-    funcs  = [pages[l][1] for l in labels]
-
-    tab_labels = [f"{icons[i]} {labels[i]}" for i in range(len(labels))]
-    tabs = st.tabs(tab_labels)
-
-    for i, tab in enumerate(tabs):
-        with tab:
-            funcs[i]()
-
-
-
-
 
 
 
@@ -3531,8 +3577,8 @@ def tab_nav(pages: dict, default: str):
 # -------------------------------
 def run_admin():
      render_header() 
-     tabs = [ "🏠 Dashboard", "⚽ Matches", "📊 Player Stats", "📸 Upload Player Stats", "👤 Players", "📝 Training Sessions", "📋 Attendance", "📄 Reports", "⭐ Best XI"] 
-     pages = { "🏠 Dashboard": page_dashboard, "⚽ Matches": admin_matches_page, "📊 Player Stats": admin_player_stats_page, "📸 Upload Player Stats": admin_upload_player_stats_page, "👤 Players": admin_players_crud_page, "📝 Training Sessions": admin_training_sessions_page, "📋 Attendance": admin_training_attendance_all,  "📄 Reports": admin_reports_page, "⭐ Best XI": page_best_xi }
+     tabs = [ "🏠 Dashboard", "⚽ Matches", "📊 Player Stats", "📸 Upload Player Stats", "👤 Players", "📝 Training Sessions", "📋 Attendance", "📄 Reports"] 
+     pages = { "🏠 Dashboard": page_dashboard, "⚽ Matches": admin_matches_page, "📊 Player Stats": admin_player_stats_page, "📸 Upload Player Stats": admin_upload_player_stats_page, "👤 Players": admin_players_crud_page, "📝 Training Sessions": admin_training_sessions_page, "📋 Attendance": admin_training_attendance_all,  "📄 Reports": admin_reports_page }
      selected_tab = st.tabs(tabs) 
      for i, tab_name in enumerate(tabs): 
          with selected_tab[i]: pages[tab_name]()
@@ -3551,8 +3597,7 @@ def run_manager():
         "🏠 Dashboard",
         "📄 Tactics",
         "📋 Attendance",
-        "⭐ Best XI",
-        "📊 Radar",   # 👈 Added Radar tab
+        "📊 Radar",  
     ])
 
     # Main Tab: Dashboard
@@ -3574,12 +3619,8 @@ def run_manager():
     with main_tabs[2]:
         manager_training_attendance_overview()
 
-    # Main Tab: Best XI
-    with main_tabs[3]:
-        page_best_xi()
-
     # Main Tab: Radar
-    with main_tabs[4]:
+    with main_tabs[3]:
         manager_radar_page()
 
 
@@ -3596,8 +3637,7 @@ def run_player():
         "📊 Stats",
         "📋 Attendance",
         "📄 Tactics",
-        "⭐ Best XI",
-        "🏆 Competition Hub"   # 🆕 Added tab
+        "🏆 Competition Hub" 
     ])
 
     # Dashboard
@@ -3623,45 +3663,12 @@ def run_player():
             player_tactics_text_page()
         with tactics_tabs[1]:
             player_tactics_board_page()
-
-    # Best XI
-    with main_tabs[4]:
-        page_best_xi()
-
-
     # Competition Hub
-    with main_tabs[5]:
+    with main_tabs[4]:
         page_competition_hub()   # 🆕 Challenges + Player of Month + Gamification
 
 
-    # Radar
  
-
-
-
-
-# -------------------------------
-# FAN APP
-# -------------------------------
-def run_fan():
-    render_header()
-
-    tabs = [
-        "🏠 Dashboard",
-        "💬 Fan Wall",
-    ]
-
-    pages = {
-        "🏠 Dashboard": page_dashboard,
-        
-    }
-
-    selected_tabs = st.tabs(tabs)
-    for i, tab_name in enumerate(tabs):
-        with selected_tabs[i]:
-            pages[tab_name]()
-
-
 
 # -------------------------------
 # MAIN
