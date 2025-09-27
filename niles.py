@@ -972,8 +972,20 @@ def page_dashboard():
         lm = past_matches.iloc[0]
 
         # Ensure integer scores
-        our_score = int(lm.get("our_score") or 0)
-        their_score = int(lm.get("their_score") or 0)
+        import math
+
+        val = lm.get("our_score")
+        if val is None or (isinstance(val, float) and math.isnan(val)):
+         our_score = 0
+        else:
+         our_score = int(val)
+
+        val2 = lm.get("their_score")
+        if val2 is None or (isinstance(val2, float) and math.isnan(val2)):
+         their_score = 0
+        else:
+         their_score = int(val2)
+
 
         st.markdown(f"""
         <div style='
@@ -2461,60 +2473,142 @@ def manager_tactics_board_page():
 # -------------------------------
 # PLAYER PAGES
 # -------------------------------
+import re, json
+
+EXPECTED_FIELDS = {
+    "player_name": str,
+    "position": str,
+    "match_id": int,
+    "rating": float,
+    "goals": int,
+    "assists": int,
+    "shots": int,
+    "shot_accuracy": float,
+    "passes": int,
+    "pass_accuracy": float,
+    "dribbles": int,
+    "dribble_success": float,
+    "tackles": int,
+    "tackle_success": float,
+    "offsides": int,
+    "fouls_committed": int,
+    "possession_won": int,
+    "possession_lost": int,
+    "minutes_played": int,
+    "distance_covered": float,
+    "distance_sprinted": float,
+    "yellow_cards": int,
+    "red_cards": int,
+}
+
+def _clean_gemini_text(raw_text: str) -> str:
+    """Strip markdown/code fences and return possible JSON string."""
+    text = raw_text.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z]*\n", "", text)
+        text = re.sub(r"\n```$", "", text)
+    return text
+
+def _safe_parse_json(text: str) -> dict | None:
+    """Try to load JSON dict from Gemini text, fallback to regex extract."""
+    try:
+        data = json.loads(text)
+        if isinstance(data, dict): 
+            return data
+        if isinstance(data, list) and data: 
+            return data[0]
+    except Exception:
+        pass
+
+    # fallback: extract first {...}
+    m = re.search(r"(\{.*\})", text, re.DOTALL)
+    if m:
+        try:
+            data = json.loads(m.group(1))
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+    return None
+
+def _validate_stats(data: dict) -> dict:
+    """Validate and coerce to expected schema with defaults."""
+    cleaned = {}
+    for key, ftype in EXPECTED_FIELDS.items():
+        val = data.get(key)
+        if val is None:
+            cleaned[key] = "" if ftype is str else 0
+        else:
+            try:
+                cleaned[key] = ftype(val)
+            except Exception:
+                # if type conversion fails, fallback to default
+                cleaned[key] = "" if ftype is str else 0
+    return cleaned
+
 def extract_stats_from_image(image_bytes: bytes):
     """
-    Send image bytes to Gemini and return parsed JSON (dict) or None on failure.
-    This function is robust to code fences and extra text in Gemini response.
+    Send image to Gemini, return validated stats dict or None on failure.
     """
     try:
         model = _gemini_client()
         img = {"mime_type": "image/png", "data": image_bytes}
 
-        # Prompt: ask for JSON only (tweak keys as you want)
         prompt = """
-        You are a precise data extractor. Return ONLY valid JSON, no explanations.
-        Extract the following keys for the PLAYER shown (if a key is missing return null):
-        ["player_name","position","rating","match_id",
-         "goals","assists",
-         "shots","shot_accuracy","passes","pass_accuracy",
-         "dribbles","dribble_success","tackles","tackle_success",
-         "offsides","fouls_committed","possession_won","possession_lost",
-         "minutes_played","distance_covered","distance_sprinted",
-         "yellow_cards","red_cards"]
-        """
+You are a strict data extraction system. 
+Extract the player's statistics from the provided image and return them in EXACT JSON format.
+Do not add explanations, comments, or markdown.
+
+Output Schema (all keys required):
+{
+  "player_name": string,
+  "position": string,
+  "match_id": string,        // leave "" if not visible
+  "rating": float,
+  "goals": int,
+  "assists": int,
+  "shots": int,
+  "shot_accuracy": int,      // percent, number only (e.g. 60 not "60%")
+  "passes": int,
+  "pass_accuracy": int,      // percent, number only
+  "dribbles": int,
+  "dribble_success": int,    // percent, number only
+  "tackles": int,
+  "tackle_success": int,     // percent, number only
+  "offsides": int,
+  "fouls_committed": int,
+  "possession_won": int,
+  "possession_lost": int,
+  "minutes_played": int,
+  "distance_covered": float, // km
+  "distance_sprinted": float,// km
+  "yellow_cards": int,
+  "red_cards": int
+}
+
+Rules:
+- Always include all fields, even if value is 0.
+- Use numbers only (no symbols like %, km, or strings like "None").
+- If data is missing, return 0 (for numeric) or "" (for string).
+- Output MUST be valid JSON.
+"""
 
         resp = model.generate_content([prompt, img])
-        raw_text = resp.text.strip()
+        raw_text = _clean_gemini_text(resp.text or "")
 
-        # Remove markdown fences if present
-        if raw_text.startswith("```"):
-            raw_text = re.sub(r"^```[a-zA-Z]*\n", "", raw_text)
-            raw_text = re.sub(r"\n```$", "", raw_text)
+        parsed = _safe_parse_json(raw_text)
+        if not parsed:
+            st.error("❌ Could not parse valid JSON from Gemini response.")
+            st.code(raw_text, language="json")
+            return None
 
-        # Try direct JSON load
-        try:
-            parsed = json.loads(raw_text)
-            if isinstance(parsed, dict):
-                return parsed
-        except Exception:
-            # Try to extract first JSON object in text as fallback
-            m = re.search(r"(\{.*\})", raw_text, flags=re.DOTALL)
-            if m:
-                try:
-                    parsed = json.loads(m.group(1))
-                    if isinstance(parsed, dict):
-                        return parsed
-                except Exception:
-                    pass
-
-        # If we reach here, parsing failed
-        st.error("❌ Could not parse JSON from AI response. See raw output below for debugging.")
-        st.code(raw_text)
-        return None
+        stats = _validate_stats(parsed)
+        return stats
 
     except Exception as e:
-        st.error(f"❌ Error calling extraction model: {e}")
+        st.error(f"❌ Error extracting stats: {e}")
         return None
+
 
 
 def get_player_id_by_name(name: str):
@@ -2547,7 +2641,6 @@ import streamlit as st
 
 def player_upload_stats_page():
     st.markdown("<h2 class='main-heading'>📸 Upload My Stats</h2>", unsafe_allow_html=True)
-
     current_name = st.session_state.auth.get("name", "").strip()
     if not current_name:
         st.error("❌ You must be logged in to upload stats.")
@@ -2587,11 +2680,9 @@ def player_upload_stats_page():
                 # ✅ Get player_id and position from roster
                 sb = _supabase_client()
                 player_row = sb.table("players").select("player_id, position").eq("name", current_name).execute()
-
                 if not player_row.data:
                     st.error("❌ Player not found in roster. Contact admin.")
                     return
-
                 player_id = player_row.data[0]["player_id"]
                 player_pos = player_row.data[0].get("position") or "N/A"
 
@@ -2602,7 +2693,6 @@ def player_upload_stats_page():
                         parsed_match_id = int(float(parsed["match_id"]))
                 except Exception:
                     pass
-
                 match_id = parsed_match_id or match_id_choice
                 if match_id is None:
                     st.error("❌ No match found to attach stats to. Please ask admin to create a match first.")
@@ -2619,7 +2709,6 @@ def player_upload_stats_page():
                 for k in allowed_keys:
                     if k in parsed:
                         record[k] = parsed[k]
-
                 record["position"] = player_pos  # ✅ Always take from roster
 
                 # ✅ Call UPSERT function
@@ -2650,11 +2739,13 @@ def player_upload_stats_page():
                     "p_player_id": record["player_id"],
                 }).execute()
 
-            # ✅ Confirmation message
-            st.success(f"✅ Stats uploaded successfully! Position assigned from roster: {player_pos}")
+                # ✅ Confirmation message
+                st.success(f"✅ Stats uploaded successfully! Position assigned from roster: {player_pos}")
 
         except Exception as e:
             st.error(f"❌ Error while processing stats: {e}")
+
+
 
 
 
@@ -3223,18 +3314,302 @@ def calculate_fair_score(row, match_df):
 
 
 
-
+import random
 
 def page_competition_hub():
-    st.markdown("""
-    <div style="text-align:center; padding: 80px;">
-        <h1 style="font-size:3rem;">🏆 Competition Hub</h1>
-        <p style="font-size:1.5rem; color:gray;">
-            This page is currently <strong>under construction</strong>.<br>
-            Player rankings, leaderboards, and live stats will be available here soon.
-        </p>
+    import random
+
+    st.markdown("<h1 style='text-align:center; color:#00C0FA;'>🏆 Competition Hub</h1>", unsafe_allow_html=True)
+    sb = _supabase_client()
+
+    # ---------------- Load Current or Most Recent Competition ----------------
+    try:
+        resp = sb.table("competition_history").select("*").eq("is_closed", False)\
+            .order("start_date", desc=True).limit(1).execute()
+        comp = resp.data[0] if resp and resp.data else None
+        if not comp:
+            resp = sb.table("competition_history").select("*").order("start_date", desc=True).limit(1).execute()
+            comp = resp.data[0] if resp and resp.data else None
+    except Exception as e:
+        st.error(f"❌ Could not load competition info: {e}")
+        return
+
+    if not comp:
+        st.info("📭 No competitions found. Check back later.")
+        return
+
+    # ---------------- Parse Dates ----------------
+    def parse_date(v):
+        try:
+            return pd.to_datetime(v).date()
+        except Exception:
+            return None
+
+    comp_start, comp_end = parse_date(comp.get("start_date")), parse_date(comp.get("end_date"))
+    if not comp_start or not comp_end:
+        st.warning("⚠️ Competition dates missing or invalid.")
+        return
+
+    is_closed = comp.get("is_closed", False)
+    status_color = "#FF5252" if is_closed else "#4CAF50"
+    status_text = "CLOSED" if is_closed else "ACTIVE"
+
+    st.markdown(f"""
+    <div class="glass" style="padding: 16px; margin-bottom: 18px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h3 style='color:#00C0FA;'>Current Competition</h3>
+                <p>📅 {comp_start} → {comp_end}</p>
+            </div>
+            <div style="background:{status_color}; color:white; padding:6px 14px; border-radius:18px; font-weight:bold;">
+                {status_text}
+            </div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # ---------------- Load Data ----------------
+    def safe_load(table):
+        try:
+            r = sb.table(table).select("*").execute()
+            return pd.DataFrame(r.data) if r and r.data else pd.DataFrame()
+        except Exception as e:
+            st.warning(f"⚠️ Could not load {table}: {e}")
+            return pd.DataFrame()
+
+    matches = safe_load("matches")
+    stats = safe_load("player_stats")
+    att = safe_load("training_attendance")
+    players = safe_load("players")[["name", "position"]].rename(columns={"name": "player_name"})
+
+    # ---------------- Filter by Competition Period ----------------
+    def filter_by_date(df, col):
+        if df.empty or col not in df: return df
+        df[col] = pd.to_datetime(df[col], errors="coerce").dt.date
+        return df[(df[col] >= comp_start) & (df[col] <= comp_end)]
+
+    matches = filter_by_date(matches, "date")
+    att = filter_by_date(att, "date")
+    match_ids = set(matches["match_id"].astype(str)) if not matches.empty else set()
+    stats = stats[stats["match_id"].astype(str).isin(match_ids)] if not stats.empty else pd.DataFrame()
+
+    if stats.empty and att.empty and matches.empty:
+        st.info("📭 No competition data found in this period.")
+        return
+
+    # ---------------- Merge Player Info ----------------
+    if not players.empty and not stats.empty:
+        stats = stats.merge(players, on="player_name", how="left")
+
+    # ---------------- Attendance Bonus ----------------
+    if not att.empty and "player_name" in att:
+        att_score = att.groupby("player_name").size().reset_index(name="attendance")
+        stats = stats.merge(att_score, on="player_name", how="left") if not stats.empty else att_score
+    stats["attendance"] = stats.get("attendance")
+    if stats["attendance"] is None:
+        stats["attendance"] = 0
+    else:
+        stats["attendance"] = stats["attendance"].fillna(0)
+
+    # ---------------- Deduplicate ----------------
+    agg_cols = ["goals","assists","shots","passes","dribbles","tackles",
+                "possession_won","possession_lost","minutes_played","rating",
+                "pass_accuracy","tackle_success","dribble_success",
+                "distance_covered","distance_sprinted","yellow_cards","red_cards"]
+    if not stats.empty:
+        merge = {c:"max" for c in agg_cols if c in stats}
+        group = [c for c in ["match_id","player_id","player_name","position"] if c in stats]
+        stats = stats.groupby(group, as_index=False).agg(merge)
+
+    # ---------------- Scoring ----------------
+    if not stats.empty:
+        try:
+            stats["score"] = stats.apply(lambda r: calculate_fair_score(r, matches), axis=1)
+        except Exception as e:
+            st.warning(f"⚠️ calculate_fair_score() failed: {e}")
+            stats["score"] = stats.get("goals",0)*5 + stats.get("assists",0)*3
+    else:
+        stats["score"] = 0
+
+    leaderboard = stats.groupby("player_name", as_index=False)["score"].sum()\
+                       .sort_values("score", ascending=False).reset_index(drop=True)
+
+    # ---------------- Top Player ----------------
+    st.markdown("<h2 style='color:#00C0FA;'>👑 Player of the Competition</h2>", unsafe_allow_html=True)
+    if not leaderboard.empty:
+        best = leaderboard.iloc[0]
+        st.markdown(f"""
+        <div style='background:linear-gradient(135deg,#015EEA,#00C0FA); padding:20px; border-radius:16px; text-align:center; color:white;'>
+            <h2>👑 {best['player_name']}</h2>
+            <h3>🔥 Score: {int(best['score'])}</h3>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.info("No player scores yet.")
+
+    # ---------------- Hall of Fame ----------------
+    st.markdown("<h3 style='color:#00C0FA;'>🏟️ Hall of Fame</h3>", unsafe_allow_html=True)
+    hof = safe_load("hall_of_fame")
+    if not hof.empty:
+        hof = hof.sort_values("closed_at", ascending=False).head(6)
+        rows = "".join([
+            f"<tr><td>👑 {r['player_name']}</td>"
+            f"<td style='text-align:center;'>{int(r['score'])}</td>"
+            f"<td style='text-align:right;'>📅 {r['start_date']} → {r['end_date']}</td></tr>"
+            for _, r in hof.iterrows()
+        ])
+        st.markdown(f"""
+        <div class="glass" style="padding:14px;">
+            <table style="width:100%; border-collapse:collapse;">
+                <tr><th>Champion</th><th>Score</th><th>Period</th></tr>
+                {rows}
+            </table>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.info("No champions yet. Close a competition to crown one!")
+
+    # ---------------- Player Rankings ----------------
+    st.markdown("<h2 style='color:#00C0FA;'>🏅 Player Rankings</h2>", unsafe_allow_html=True)
+    def tier(score):
+        if score >= 1000:
+            return "🏆 Platinum", 1000
+        elif score >= 750:
+            return "🥇 Gold", 1000
+        elif score >= 500:
+            return "🥈 Silver", 750
+        else:
+            return "🥉 Bronze", 500
+
+    if not leaderboard.empty:
+        ranked = leaderboard.copy()
+        ranked[["tier", "next_target"]] = ranked["score"].apply(lambda s: pd.Series(tier(s)))
+        ranked = ranked.sort_values("score", ascending=False).reset_index(drop=True)
+
+        medals = ["🥇", "🥈", "🥉"]
+        for i, row in enumerate(ranked.itertuples()):
+            medal = medals[i] if i < 3 else ""
+            next_target = getattr(row, "next_target", 500)
+            progress = min(100, int((row.score / next_target) * 100)) if next_target else 0
+            st.markdown(
+                f"""
+            <div style='background:#0C182E; padding:14px; margin:6px 0; border-radius:12px; color:#FFFFFF; box-shadow:0 4px 10px rgba(0,0,0,0.5);'>
+                <div style='display:flex; justify-content:space-between;'>
+                    <span>{medal} <b>{row.player_name}</b> – {row.tier}</span>
+                    <span>🔥 {int(row.score)} pts</span>
+                </div>
+                <div style='background:#374151; height:14px; border-radius:7px; margin-top:6px;'>
+                    <div style='background:#00C0FA; height:14px; border-radius:7px; width:{progress}%;'></div>
+                </div>
+                <div style='font-size:12px; margin-top:2px; text-align:right; color:#9CA3AF;'>
+                    Next tier at {next_target} pts
+                </div>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+    else:
+        st.info("No rankings available for this competition.")
+
+    st.markdown("<hr style='border:1px solid #015EEA;'>", unsafe_allow_html=True)
+
+    # ------------------ Guide & Motivation ------------------
+    html_guide ="""
+    ⚖️ All points are normalized per 90 minutes so players are compared fairly regardless of playtime.
+
+    <h4>🧤 Goalkeepers</h4>
+    <ul>
+        <li>⚽ Goals: +10</li>
+        <li>🎯 Assists: +5</li>
+        <li>📊 Passes: +0.05 each</li>
+        <li>🎯 Pass Accuracy: ×0.3</li>
+        <li>💪 Possession Won: +0.3</li>
+        <li>❌ Possession Lost: –0.3</li>
+        <li>⭐ Rating: ×2</li>
+        <li>🧱 Clean Sheet: +7</li>
+    </ul>
+
+    <h4>🛡️ Defenders</h4>
+    <ul>
+        <li>⚽ Goals: +7</li>
+        <li>🎯 Assists: +4</li>
+        <li>🎯 Shots: +0.5</li>
+        <li>🛡️ Tackles: +1.5</li>
+        <li>🛡️ Tackle Success %: ×0.7</li>
+        <li>💪 Possession Won: +1.0</li>
+        <li>❌ Possession Lost: –0.5</li>
+        <li>📊 Passes: +0.1 each</li>
+        <li>🎯 Pass Accuracy: ×0.3</li>
+        <li>🏃 Distance Covered: +0.2 per km</li>
+        <li>⭐ Rating: ×2</li>
+        <li>🧱 Clean Sheet: +5</li>
+    </ul>
+
+    <h4>🎩 Midfielders</h4>
+    <ul>
+        <li>⚽ Goals: +5</li>
+        <li>🎯 Assists: +4</li>
+        <li>🎯 Shots: +0.7</li>
+        <li>📊 Passes: +0.2 each</li>
+        <li>🎯 Pass Accuracy: ×0.4</li>
+        <li>🛡️ Tackles: +1.0</li>
+        <li>🛡️ Tackle Success %: ×0.5</li>
+        <li>💪 Possession Won: +0.7</li>
+        <li>❌ Possession Lost: –0.5</li>
+        <li>⚡ Dribbles: +0.7</li>
+        <li>⚡ Dribble Success %: ×0.4</li>
+        <li>🏃 Distance Covered: +0.3 per km</li>
+        <li>⭐ Rating: ×2</li>
+    </ul>
+
+    <h4>🌀 Wingers</h4>
+    <ul>
+        <li>⚽ Goals: +4</li>
+        <li>🎯 Assists: +3</li>
+        <li>🎯 Shots: +1.0</li>
+        <li>⚡ Dribbles: +1.5</li>
+        <li>⚡ Dribble Success %: ×0.7</li>
+        <li>🛡️ Tackles: +0.5</li>
+        <li>🛡️ Tackle Success %: ×0.3</li>
+        <li>💪 Possession Won: +0.5</li>
+        <li>❌ Possession Lost: –0.3</li>
+        <li>📊 Passes: +0.1 each</li>
+        <li>🎯 Pass Accuracy: ×0.2</li>
+        <li>🏃 Distance Covered: +0.2 per km</li>
+        <li>⭐ Rating: ×2</li>
+    </ul>
+
+    <h4>⚽ Strikers</h4>
+    <ul>
+        <li>⚽ Goals: +4</li>
+        <li>🎯 Assists: +2</li>
+        <li>🎯 Shots: +2.0</li>
+        <li>⚡ Dribbles: +1.0</li>
+        <li>⚡ Dribble Success %: ×0.5</li>
+        <li>🛡️ Tackles: +0.3</li>
+        <li>🛡️ Tackle Success %: ×0.2</li>
+        <li>💪 Possession Won: +0.3</li>
+        <li>❌ Possession Lost: –0.2</li>
+        <li>📊 Passes: +0.05 each</li>
+        <li>🎯 Pass Accuracy: ×0.1</li>
+        <li>🏃 Distance Covered: +0.1 per km</li>
+        <li>⭐ Rating: ×2</li>
+    </ul>
+    """
+
+    st.markdown(html_guide, unsafe_allow_html=True)
+
+    # ------------------ Motivation ------------------
+    st.markdown("<h2 style='color:#00C0FA;'>💬 Motivation of the Day</h2>", unsafe_allow_html=True)
+    quotes = [
+        "Talent wins games, but teamwork wins championships. – Michael Jordan",
+        "Hard work beats talent when talent doesn’t work hard.",
+        "Success is no accident. It’s hard work, perseverance, learning, and love for the game.",
+        "The more difficult the victory, the greater the happiness in winning. – Pelé",
+        "A champion is afraid of losing. Everyone else is afraid of winning.",
+    ]
+    st.markdown(f"<i style='color:#FFFFFF;'>{random.choice(quotes)}</i>", unsafe_allow_html=True)
+
 
 
 
@@ -3281,15 +3656,122 @@ def admin_reports_page():
 
 
 def admin_competition_moderation_page():
-    st.markdown("""
-    <div style="text-align:center; padding: 80px;">
-        <h1 style="font-size:3rem;">🚧 Admin Competition Moderation</h1>
-        <p style="font-size:1.5rem; color:gray;">
-            This section is currently <strong>under construction</strong>.<br>
-            New features for starting/closing competitions and score moderation are coming soon.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    from datetime import datetime, date
+
+    st.markdown("<h2 class='main-heading'>🏆 Competition Moderation</h2>", unsafe_allow_html=True)
+    sb = _supabase_client()
+
+    # --------------------- Start a New Competition ---------------------
+    st.subheader("🟢 Start a New Competition")
+    c1, c2 = st.columns(2)
+    with c1:
+        start_date = st.date_input("Start Date", value=date.today())
+    with c2:
+        end_date = st.date_input("End Date", value=date.today())
+
+    if st.button("🚀 Start Competition"):
+        if end_date < start_date:
+            st.warning("⚠️ End date must be after start date.")
+        else:
+            try:
+                # ✅ Close any active competitions before starting a new one
+                sb.table("competition_history").update({
+                    "is_closed": True,
+                    "updated_at": datetime.utcnow().isoformat()
+                }).eq("is_closed", False).execute()
+
+                # ✅ Create new competition row
+                sb.table("competition_history").insert({
+                    "player_name": "N/A",
+                    "score": 0,
+                    "is_closed": False,
+                    "start_date": start_date.isoformat(),
+                    "end_date": end_date.isoformat(),
+                    "updated_at": datetime.utcnow().isoformat()
+                }).execute()
+
+                st.success(f"✅ New competition started: {start_date} → {end_date}")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Could not start competition: {e}")
+
+    st.divider()
+
+    # --------------------- Load Active or Latest Competition ---------------------
+    try:
+        resp = sb.table("competition_history").select("*").eq("is_closed", False).order("start_date", desc=True).limit(1).execute()
+        comp = resp.data[0] if resp and resp.data else None
+        if not comp:
+            resp = sb.table("competition_history").select("*").order("start_date", desc=True).limit(1).execute()
+            comp = resp.data[0] if resp and resp.data else None
+    except Exception as e:
+        st.error(f"❌ Could not load competition info: {e}")
+        return
+
+    if not comp:
+        st.info("📭 No competitions found.")
+        return
+
+    comp_start = comp.get("start_date")
+    comp_end = comp.get("end_date")
+    is_closed = comp.get("is_closed", False)
+
+    st.subheader("📊 Current Competition")
+    st.markdown(f"📅 **{comp_start} → {comp_end}** {'(Closed ✅)' if is_closed else '(Active 🟢)'}")
+
+    # --------------------- End Competition Button ---------------------
+    st.subheader("🔴 End & Archive Competition")
+    st.info("⚠️ This will end the competition immediately, calculate winner, archive to Hall of Fame, and reset all scores.")
+
+    if st.button("🏁 End Competition Now"):
+        try:
+            # ---------- Step 1: Load all stats within competition period ----------
+            matches_resp = sb.table("matches").select("*").execute()
+            stats_resp = sb.table("player_stats").select("*").execute()
+            matches_df = pd.DataFrame(matches_resp.data) if matches_resp.data else pd.DataFrame()
+            stats_df = pd.DataFrame(stats_resp.data) if stats_resp.data else pd.DataFrame()
+
+            # Filter matches and stats by competition dates
+            if not matches_df.empty:
+                matches_df["date"] = pd.to_datetime(matches_df["date"], errors="coerce").dt.date
+                matches_df = matches_df[(matches_df["date"] >= pd.to_datetime(comp_start).date()) & (matches_df["date"] <= pd.to_datetime(comp_end).date())]
+
+            if not stats_df.empty and not matches_df.empty:
+                stats_df = stats_df[stats_df["match_id"].isin(matches_df["match_id"])]
+
+            # ---------- Step 2: Recalculate scores fairly ----------
+            if not stats_df.empty:
+                stats_df["score"] = stats_df.apply(lambda r: calculate_fair_score(r, matches_df), axis=1)
+                leaderboard = stats_df.groupby("player_name", as_index=False)["score"].sum().sort_values("score", ascending=False)
+            else:
+                leaderboard = pd.DataFrame()
+
+            # ---------- Step 3: Archive winner ----------
+            if not leaderboard.empty:
+                best = leaderboard.iloc[0]
+                sb.table("hall_of_fame").insert({
+                    "player_name": best["player_name"],
+                    "score": float(best["score"]),
+                    "start_date": comp_start,
+                    "end_date": comp_end,
+                    "closed_at": datetime.utcnow().isoformat()
+                }).execute()
+
+            # ---------- Step 4: Mark competition as closed ----------
+            sb.table("competition_history").update({
+                "is_closed": True,
+                "updated_at": datetime.utcnow().isoformat()
+            }).eq("start_date", comp_start).eq("end_date", comp_end).execute()
+
+            # ---------- Step 5: Reset all scores ----------
+            sb.table("player_stats").update({"score": 0}).execute()
+
+            st.success("✅ Competition ended successfully! Winner archived and scores reset.")
+            st.rerun()
+
+        except Exception as e:
+            st.error(f"❌ Could not end competition: {e}")
+
 
 
 
