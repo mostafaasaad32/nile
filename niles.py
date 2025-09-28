@@ -387,9 +387,21 @@ def _supabase_client() -> Client:
 
 @st.cache_resource
 def _gemini_client():
-    import google.generativeai as genai
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    # Store multiple keys in secrets.toml
+    # Example:
+    # [keys]
+    # GEMINI_API_KEYS = ["key1", "key2", "key3", "key4"]
+
+    api_keys = st.secrets["keys"]["GEMINI_API_KEYS"]
+
+    # Pick one key (random or round robin)
+    selected_key = random.choice(api_keys)
+
+    # Configure client with the chosen key
+    genai.configure(api_key=selected_key)
     return genai.GenerativeModel("gemini-2.0-flash")
+
+
 
 def _table_for_path(path: str) -> str:
     if path not in PATH_TO_TABLE:
