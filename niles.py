@@ -18,9 +18,7 @@ import httpx
 from postgrest.exceptions import APIError
 import google.generativeai as genai
 import io 
-import unicodedata
-import pytesseract
-import cv2
+
 # -------------------------------
 # PAGE CONFIG (mobile-first)
 # -------------------------------
