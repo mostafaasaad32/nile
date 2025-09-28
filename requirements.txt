@@ -8,3 +8,4 @@ supabase
 httpx
 postgrest
 google-generativeai
+
