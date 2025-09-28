@@ -18,9 +18,9 @@ import httpx
 from postgrest.exceptions import APIError
 import google.generativeai as genai
 import io 
-
-
-
+import unicodedata
+import pytesseract
+import cv2
 # -------------------------------
 # PAGE CONFIG (mobile-first)
 # -------------------------------
@@ -1197,10 +1197,15 @@ def admin_matches_page():
                 c1, c2, c3 = st.columns(3)
                 with c1: our = st.number_input("Our score", 0, 99, 0)
                 with c2: their = st.number_input("Their score", 0, 99, 0)
+                match_row = unfinished.loc[unfinished["match_id"] == int(mid), "notes"]
+
+                if not match_row.empty:
+                 default_notes = str(match_row.values[0])
+                else:
+                 default_notes = ""
+
                 with c3:
-                    notes2 = st.text_area("Notes", value=str(
-                        unfinished.loc[unfinished["match_id"] == int(mid), "notes"].values[0]
-                    ))
+                 notes2 = st.text_area("Notes", value=default_notes)
                 submit_res = st.form_submit_button("Save Result", type="primary")
 
             if submit_res:
@@ -2043,7 +2048,6 @@ def extract_player_stats(image_file) -> pd.DataFrame:
     except Exception as e:
         st.error(f"Parsing error: {e}")
         return pd.DataFrame(columns=["player_name", "rating", "goals", "assists"])
-
 
 POSITION_MAP = {
     # Goalkeeper
