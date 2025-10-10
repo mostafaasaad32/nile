@@ -1878,43 +1878,45 @@ def player_training_attendance_page(player_name: str):
     """Page for players to mark and view their training attendance."""
     st.subheader("🏋️ Training Attendance (My Response)")
 
-    # Load training sessions
     sessions = read_csv_safe(TRAINING_SESSIONS_FILE)
     if sessions.empty:
         st.info("No training sessions scheduled yet.")
         return
 
-    # Parse datetime for filtering upcoming
     try:
-        sessions["dt"] = pd.to_datetime(sessions["date"].astype(str) + " " + sessions["time"].astype(str), errors="coerce")
+        sessions["dt"] = pd.to_datetime(
+            sessions["date"].astype(str) + " " + sessions["time"].astype(str),
+            errors="coerce"
+        )
     except Exception:
         sessions["dt"] = pd.to_datetime(sessions["date"], errors="coerce")
 
-    # Filter upcoming sessions
     upcoming = sessions[sessions["dt"] >= pd.Timestamp(date.today())].sort_values(["date", "time"])
     if upcoming.empty:
         st.info("No upcoming training sessions.")
         return
 
-    # Load attendance table
+    # Load attendance
     att = read_csv_safe(TRAINING_ATTEND_FILE)
     if att.empty:
         att = pd.DataFrame(columns=["session_id", "date", "player_name", "status", "timestamp"])
 
+    sb = _supabase_client()
+
     st.caption("Select your attendance for each upcoming session:")
 
-    # Display each upcoming session
     for _, row in upcoming.iterrows():
         sid = int(row["session_id"])
         key = f"att_{sid}"
 
-        # Get existing choice
+        # Check if record already exists
         mask = (att["session_id"] == sid) & (att["player_name"].str.lower() == player_name.lower())
         existing_choice = att.loc[mask, "status"].iloc[0] if mask.any() else None
 
         col1, col2, col3 = st.columns([2, 2, 1])
         with col1:
             st.markdown(f"**{row['date']} {row['time']} – {row['title']}**  @ {row['location']}")
+
         with col2:
             choice = st.radio(
                 "Attend?",
@@ -1923,31 +1925,43 @@ def player_training_attendance_page(player_name: str):
                 index=(["Yes", "No"].index(existing_choice) if existing_choice in ["Yes", "No"] else 0),
                 key=key
             )
+
         with col3:
             if st.button("Save", key=f"save_{sid}"):
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                payload = {
+                    "session_id": sid,
+                    "date": row["date"],
+                    "player_name": player_name,
+                    "status": choice,
+                    "timestamp": timestamp
+                }
 
-                # Update or add attendance
-                if mask.any():
-                    att.loc[mask, ["status", "timestamp", "date"]] = [choice, timestamp, row["date"]]
-                else:
-                    new_entry = {
-                        "session_id": sid,
-                        "date": row["date"],
-                        "player_name": player_name,
-                        "status": choice,
-                        "timestamp": timestamp
-                    }
-                    att = pd.concat([att, pd.DataFrame([new_entry])], ignore_index=True)
+                try:
+                    # ✅ check if exists
+                    res = sb.table("training_attendance") \
+                        .select("id") \
+                        .eq("session_id", sid) \
+                        .eq("player_name", player_name) \
+                        .execute()
 
-                write_csv_safe(att, TRAINING_ATTEND_FILE)
-                st.success("✅ Saved attendance")
-                st.rerun()
+                    if res.data:
+                        # ✅ update existing record
+                        att_id = res.data[0]["id"]
+                        sb.table("training_attendance").update(payload).eq("id", att_id).execute()
+                    else:
+                        # ✅ insert new record
+                        sb.table("training_attendance").insert(payload).execute()
+
+                    st.success("✅ Attendance saved successfully!")
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(f"❌ Failed to save attendance: {e}")
 
     st.divider()
     st.subheader("📊 My Attendance Stats")
 
-    # Show attendance stats for this player
     mine = att[att["player_name"].str.lower() == player_name.lower()]
     if mine.empty:
         st.info("No attendance records yet.")
@@ -3331,299 +3345,32 @@ def calculate_fair_score(row, match_df):
 import random
 
 def page_competition_hub():
-    import random
+    import streamlit as st
 
-    st.markdown("<h1 style='text-align:center; color:#00C0FA;'>🏆 Competition Hub</h1>", unsafe_allow_html=True)
-    sb = _supabase_client()
-
-    # ---------------- Load Current or Most Recent Competition ----------------
-    try:
-        resp = sb.table("competition_history").select("*").eq("is_closed", False)\
-            .order("start_date", desc=True).limit(1).execute()
-        comp = resp.data[0] if resp and resp.data else None
-        if not comp:
-            resp = sb.table("competition_history").select("*").order("start_date", desc=True).limit(1).execute()
-            comp = resp.data[0] if resp and resp.data else None
-    except Exception as e:
-        st.error(f"❌ Could not load competition info: {e}")
-        return
-
-    if not comp:
-        st.info("📭 No competitions found. Check back later.")
-        return
-
-    # ---------------- Parse Dates ----------------
-    def parse_date(v):
-        try:
-            return pd.to_datetime(v).date()
-        except Exception:
-            return None
-
-    comp_start, comp_end = parse_date(comp.get("start_date")), parse_date(comp.get("end_date"))
-    if not comp_start or not comp_end:
-        st.warning("⚠️ Competition dates missing or invalid.")
-        return
-
-    is_closed = comp.get("is_closed", False)
-    status_color = "#FF5252" if is_closed else "#4CAF50"
-    status_text = "CLOSED" if is_closed else "ACTIVE"
-
-    st.markdown(f"""
-    <div class="glass" style="padding: 16px; margin-bottom: 18px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <h3 style='color:#00C0FA;'>Current Competition</h3>
-                <p>📅 {comp_start} → {comp_end}</p>
-            </div>
-            <div style="background:{status_color}; color:white; padding:6px 14px; border-radius:18px; font-weight:bold;">
-                {status_text}
+    st.markdown("<h1 style='text-align:center; color:#00C0FA;'>🏗️ Competition Hub</h1>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div style='
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            height:60vh;
+            text-align:center;
+            color:#9CA3AF;
+        '>
+            <h2 style='color:#00C0FA;'>🚧 Page Under Construction 🚧</h2>
+            <p style='max-width:500px; font-size:18px;'>
+                We're currently working on building an exciting new Competition Hub experience.  
+                Stay tuned for updates!
+            </p>
+            <div style='margin-top:30px;'>
+                <img src='https://cdn-icons-png.flaticon.com/512/3534/3534033.png' width='120'>
             </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ---------------- Load Data ----------------
-    def safe_load(table):
-        try:
-            r = sb.table(table).select("*").execute()
-            return pd.DataFrame(r.data) if r and r.data else pd.DataFrame()
-        except Exception as e:
-            st.warning(f"⚠️ Could not load {table}: {e}")
-            return pd.DataFrame()
-
-    matches = safe_load("matches")
-    stats = safe_load("player_stats")
-    att = safe_load("training_attendance")
-    players = safe_load("players")[["name", "position"]].rename(columns={"name": "player_name"})
-
-    # ---------------- Filter by Competition Period ----------------
-    def filter_by_date(df, col):
-        if df.empty or col not in df: return df
-        df[col] = pd.to_datetime(df[col], errors="coerce").dt.date
-        return df[(df[col] >= comp_start) & (df[col] <= comp_end)]
-
-    matches = filter_by_date(matches, "date")
-    att = filter_by_date(att, "date")
-    match_ids = set(matches["match_id"].astype(str)) if not matches.empty else set()
-    stats = stats[stats["match_id"].astype(str).isin(match_ids)] if not stats.empty else pd.DataFrame()
-
-    if stats.empty and att.empty and matches.empty:
-        st.info("📭 No competition data found in this period.")
-        return
-
-    # ---------------- Merge Player Info ----------------
-    if not players.empty and not stats.empty:
-        stats = stats.merge(players, on="player_name", how="left")
-
-    # ---------------- Attendance Bonus ----------------
-    if not att.empty and "player_name" in att:
-        att_score = att.groupby("player_name").size().reset_index(name="attendance")
-        stats = stats.merge(att_score, on="player_name", how="left") if not stats.empty else att_score
-    stats["attendance"] = stats.get("attendance")
-    if stats["attendance"] is None:
-        stats["attendance"] = 0
-    else:
-        stats["attendance"] = stats["attendance"].fillna(0)
-
-    # ---------------- Deduplicate ----------------
-    agg_cols = ["goals","assists","shots","passes","dribbles","tackles",
-                "possession_won","possession_lost","minutes_played","rating",
-                "pass_accuracy","tackle_success","dribble_success",
-                "distance_covered","distance_sprinted","yellow_cards","red_cards"]
-    if not stats.empty:
-        merge = {c:"max" for c in agg_cols if c in stats}
-        group = [c for c in ["match_id","player_id","player_name","position"] if c in stats]
-        stats = stats.groupby(group, as_index=False).agg(merge)
-
-    # ---------------- Scoring ----------------
-    if not stats.empty:
-        try:
-            stats["score"] = stats.apply(lambda r: calculate_fair_score(r, matches), axis=1)
-        except Exception as e:
-            st.warning(f"⚠️ calculate_fair_score() failed: {e}")
-            stats["score"] = stats.get("goals",0)*5 + stats.get("assists",0)*3
-    else:
-        stats["score"] = 0
-
-    leaderboard = stats.groupby("player_name", as_index=False)["score"].sum()\
-                       .sort_values("score", ascending=False).reset_index(drop=True)
-
-    # ---------------- Top Player ----------------
-    st.markdown("<h2 style='color:#00C0FA;'>👑 Player of the Competition</h2>", unsafe_allow_html=True)
-    if not leaderboard.empty:
-        best = leaderboard.iloc[0]
-        st.markdown(f"""
-        <div style='background:linear-gradient(135deg,#015EEA,#00C0FA); padding:20px; border-radius:16px; text-align:center; color:white;'>
-            <h2>👑 {best['player_name']}</h2>
-            <h3>🔥 Score: {int(best['score'])}</h3>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.info("No player scores yet.")
-
-    # ---------------- Hall of Fame ----------------
-    st.markdown("<h3 style='color:#00C0FA;'>🏟️ Hall of Fame</h3>", unsafe_allow_html=True)
-    hof = safe_load("hall_of_fame")
-    if not hof.empty:
-        hof = hof.sort_values("closed_at", ascending=False).head(6)
-        rows = "".join([
-            f"<tr><td>👑 {r['player_name']}</td>"
-            f"<td style='text-align:center;'>{int(r['score'])}</td>"
-            f"<td style='text-align:right;'>📅 {r['start_date']} → {r['end_date']}</td></tr>"
-            for _, r in hof.iterrows()
-        ])
-        st.markdown(f"""
-        <div class="glass" style="padding:14px;">
-            <table style="width:100%; border-collapse:collapse;">
-                <tr><th>Champion</th><th>Score</th><th>Period</th></tr>
-                {rows}
-            </table>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.info("No champions yet. Close a competition to crown one!")
-
-    # ---------------- Player Rankings ----------------
-    st.markdown("<h2 style='color:#00C0FA;'>🏅 Player Rankings</h2>", unsafe_allow_html=True)
-    def tier(score):
-        if score >= 1000:
-            return "🏆 Platinum", 1000
-        elif score >= 750:
-            return "🥇 Gold", 1000
-        elif score >= 500:
-            return "🥈 Silver", 750
-        else:
-            return "🥉 Bronze", 500
-
-    if not leaderboard.empty:
-        ranked = leaderboard.copy()
-        ranked[["tier", "next_target"]] = ranked["score"].apply(lambda s: pd.Series(tier(s)))
-        ranked = ranked.sort_values("score", ascending=False).reset_index(drop=True)
-
-        medals = ["🥇", "🥈", "🥉"]
-        for i, row in enumerate(ranked.itertuples()):
-            medal = medals[i] if i < 3 else ""
-            next_target = getattr(row, "next_target", 500)
-            progress = min(100, int((row.score / next_target) * 100)) if next_target else 0
-            st.markdown(
-                f"""
-            <div style='background:#0C182E; padding:14px; margin:6px 0; border-radius:12px; color:#FFFFFF; box-shadow:0 4px 10px rgba(0,0,0,0.5);'>
-                <div style='display:flex; justify-content:space-between;'>
-                    <span>{medal} <b>{row.player_name}</b> – {row.tier}</span>
-                    <span>🔥 {int(row.score)} pts</span>
-                </div>
-                <div style='background:#374151; height:14px; border-radius:7px; margin-top:6px;'>
-                    <div style='background:#00C0FA; height:14px; border-radius:7px; width:{progress}%;'></div>
-                </div>
-                <div style='font-size:12px; margin-top:2px; text-align:right; color:#9CA3AF;'>
-                    Next tier at {next_target} pts
-                </div>
-            </div>
-            """,
-                unsafe_allow_html=True,
-            )
-    else:
-        st.info("No rankings available for this competition.")
-
-    st.markdown("<hr style='border:1px solid #015EEA;'>", unsafe_allow_html=True)
-
-    # ------------------ Guide & Motivation ------------------
-    html_guide ="""
-    ⚖️ All points are normalized per 90 minutes so players are compared fairly regardless of playtime.
-
-    <h4>🧤 Goalkeepers</h4>
-    <ul>
-        <li>⚽ Goals: +10</li>
-        <li>🎯 Assists: +5</li>
-        <li>📊 Passes: +0.05 each</li>
-        <li>🎯 Pass Accuracy: ×0.3</li>
-        <li>💪 Possession Won: +0.3</li>
-        <li>❌ Possession Lost: –0.3</li>
-        <li>⭐ Rating: ×2</li>
-        <li>🧱 Clean Sheet: +7</li>
-    </ul>
-
-    <h4>🛡️ Defenders</h4>
-    <ul>
-        <li>⚽ Goals: +7</li>
-        <li>🎯 Assists: +4</li>
-        <li>🎯 Shots: +0.5</li>
-        <li>🛡️ Tackles: +1.5</li>
-        <li>🛡️ Tackle Success %: ×0.7</li>
-        <li>💪 Possession Won: +1.0</li>
-        <li>❌ Possession Lost: –0.5</li>
-        <li>📊 Passes: +0.1 each</li>
-        <li>🎯 Pass Accuracy: ×0.3</li>
-        <li>🏃 Distance Covered: +0.2 per km</li>
-        <li>⭐ Rating: ×2</li>
-        <li>🧱 Clean Sheet: +5</li>
-    </ul>
-
-    <h4>🎩 Midfielders</h4>
-    <ul>
-        <li>⚽ Goals: +5</li>
-        <li>🎯 Assists: +4</li>
-        <li>🎯 Shots: +0.7</li>
-        <li>📊 Passes: +0.2 each</li>
-        <li>🎯 Pass Accuracy: ×0.4</li>
-        <li>🛡️ Tackles: +1.0</li>
-        <li>🛡️ Tackle Success %: ×0.5</li>
-        <li>💪 Possession Won: +0.7</li>
-        <li>❌ Possession Lost: –0.5</li>
-        <li>⚡ Dribbles: +0.7</li>
-        <li>⚡ Dribble Success %: ×0.4</li>
-        <li>🏃 Distance Covered: +0.3 per km</li>
-        <li>⭐ Rating: ×2</li>
-    </ul>
-
-    <h4>🌀 Wingers</h4>
-    <ul>
-        <li>⚽ Goals: +4</li>
-        <li>🎯 Assists: +3</li>
-        <li>🎯 Shots: +1.0</li>
-        <li>⚡ Dribbles: +1.5</li>
-        <li>⚡ Dribble Success %: ×0.7</li>
-        <li>🛡️ Tackles: +0.5</li>
-        <li>🛡️ Tackle Success %: ×0.3</li>
-        <li>💪 Possession Won: +0.5</li>
-        <li>❌ Possession Lost: –0.3</li>
-        <li>📊 Passes: +0.1 each</li>
-        <li>🎯 Pass Accuracy: ×0.2</li>
-        <li>🏃 Distance Covered: +0.2 per km</li>
-        <li>⭐ Rating: ×2</li>
-    </ul>
-
-    <h4>⚽ Strikers</h4>
-    <ul>
-        <li>⚽ Goals: +4</li>
-        <li>🎯 Assists: +2</li>
-        <li>🎯 Shots: +2.0</li>
-        <li>⚡ Dribbles: +1.0</li>
-        <li>⚡ Dribble Success %: ×0.5</li>
-        <li>🛡️ Tackles: +0.3</li>
-        <li>🛡️ Tackle Success %: ×0.2</li>
-        <li>💪 Possession Won: +0.3</li>
-        <li>❌ Possession Lost: –0.2</li>
-        <li>📊 Passes: +0.05 each</li>
-        <li>🎯 Pass Accuracy: ×0.1</li>
-        <li>🏃 Distance Covered: +0.1 per km</li>
-        <li>⭐ Rating: ×2</li>
-    </ul>
-    """
-
-    st.markdown(html_guide, unsafe_allow_html=True)
-
-    # ------------------ Motivation ------------------
-    st.markdown("<h2 style='color:#00C0FA;'>💬 Motivation of the Day</h2>", unsafe_allow_html=True)
-    quotes = [
-        "Talent wins games, but teamwork wins championships. – Michael Jordan",
-        "Hard work beats talent when talent doesn’t work hard.",
-        "Success is no accident. It’s hard work, perseverance, learning, and love for the game.",
-        "The more difficult the victory, the greater the happiness in winning. – Pelé",
-        "A champion is afraid of losing. Everyone else is afraid of winning.",
-    ]
-    st.markdown(f"<i style='color:#FFFFFF;'>{random.choice(quotes)}</i>", unsafe_allow_html=True)
-
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 
@@ -3670,121 +3417,34 @@ def admin_reports_page():
 
 
 def admin_competition_moderation_page():
-    from datetime import datetime, date
+    import streamlit as st
 
-    st.markdown("<h2 class='main-heading'>🏆 Competition Moderation</h2>", unsafe_allow_html=True)
-    sb = _supabase_client()
+    st.markdown("<h2 style='text-align:center; color:#00C0FA;'>🏗️ Competition Moderation</h2>", unsafe_allow_html=True)
 
-    # --------------------- Start a New Competition ---------------------
-    st.subheader("🟢 Start a New Competition")
-    c1, c2 = st.columns(2)
-    with c1:
-        start_date = st.date_input("Start Date", value=date.today())
-    with c2:
-        end_date = st.date_input("End Date", value=date.today())
+    st.markdown(
+        """
+        <div style='
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            height:60vh;
+            text-align:center;
+            color:#9CA3AF;
+        '>
+            <h3 style='color:#00C0FA;'>🚧 Page Under Construction 🚧</h3>
+            <p style='max-width:500px; font-size:18px;'>
+                The competition management tools (start, end, and moderation controls) are currently being built.
+                Soon you’ll be able to start new competitions, track progress, and archive winners directly here.
+            </p>
+            <div style='margin-top:30px;'>
+                <img src='https://cdn-icons-png.flaticon.com/512/6213/6213731.png' width='120'>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    if st.button("🚀 Start Competition"):
-        if end_date < start_date:
-            st.warning("⚠️ End date must be after start date.")
-        else:
-            try:
-                # ✅ Close any active competitions before starting a new one
-                sb.table("competition_history").update({
-                    "is_closed": True,
-                    "updated_at": datetime.utcnow().isoformat()
-                }).eq("is_closed", False).execute()
-
-                # ✅ Create new competition row
-                sb.table("competition_history").insert({
-                    "player_name": "N/A",
-                    "score": 0,
-                    "is_closed": False,
-                    "start_date": start_date.isoformat(),
-                    "end_date": end_date.isoformat(),
-                    "updated_at": datetime.utcnow().isoformat()
-                }).execute()
-
-                st.success(f"✅ New competition started: {start_date} → {end_date}")
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Could not start competition: {e}")
-
-    st.divider()
-
-    # --------------------- Load Active or Latest Competition ---------------------
-    try:
-        resp = sb.table("competition_history").select("*").eq("is_closed", False).order("start_date", desc=True).limit(1).execute()
-        comp = resp.data[0] if resp and resp.data else None
-        if not comp:
-            resp = sb.table("competition_history").select("*").order("start_date", desc=True).limit(1).execute()
-            comp = resp.data[0] if resp and resp.data else None
-    except Exception as e:
-        st.error(f"❌ Could not load competition info: {e}")
-        return
-
-    if not comp:
-        st.info("📭 No competitions found.")
-        return
-
-    comp_start = comp.get("start_date")
-    comp_end = comp.get("end_date")
-    is_closed = comp.get("is_closed", False)
-
-    st.subheader("📊 Current Competition")
-    st.markdown(f"📅 **{comp_start} → {comp_end}** {'(Closed ✅)' if is_closed else '(Active 🟢)'}")
-
-    # --------------------- End Competition Button ---------------------
-    st.subheader("🔴 End & Archive Competition")
-    st.info("⚠️ This will end the competition immediately, calculate winner, archive to Hall of Fame, and reset all scores.")
-
-    if st.button("🏁 End Competition Now"):
-        try:
-            # ---------- Step 1: Load all stats within competition period ----------
-            matches_resp = sb.table("matches").select("*").execute()
-            stats_resp = sb.table("player_stats").select("*").execute()
-            matches_df = pd.DataFrame(matches_resp.data) if matches_resp.data else pd.DataFrame()
-            stats_df = pd.DataFrame(stats_resp.data) if stats_resp.data else pd.DataFrame()
-
-            # Filter matches and stats by competition dates
-            if not matches_df.empty:
-                matches_df["date"] = pd.to_datetime(matches_df["date"], errors="coerce").dt.date
-                matches_df = matches_df[(matches_df["date"] >= pd.to_datetime(comp_start).date()) & (matches_df["date"] <= pd.to_datetime(comp_end).date())]
-
-            if not stats_df.empty and not matches_df.empty:
-                stats_df = stats_df[stats_df["match_id"].isin(matches_df["match_id"])]
-
-            # ---------- Step 2: Recalculate scores fairly ----------
-            if not stats_df.empty:
-                stats_df["score"] = stats_df.apply(lambda r: calculate_fair_score(r, matches_df), axis=1)
-                leaderboard = stats_df.groupby("player_name", as_index=False)["score"].sum().sort_values("score", ascending=False)
-            else:
-                leaderboard = pd.DataFrame()
-
-            # ---------- Step 3: Archive winner ----------
-            if not leaderboard.empty:
-                best = leaderboard.iloc[0]
-                sb.table("hall_of_fame").insert({
-                    "player_name": best["player_name"],
-                    "score": float(best["score"]),
-                    "start_date": comp_start,
-                    "end_date": comp_end,
-                    "closed_at": datetime.utcnow().isoformat()
-                }).execute()
-
-            # ---------- Step 4: Mark competition as closed ----------
-            sb.table("competition_history").update({
-                "is_closed": True,
-                "updated_at": datetime.utcnow().isoformat()
-            }).eq("start_date", comp_start).eq("end_date", comp_end).execute()
-
-            # ---------- Step 5: Reset all scores ----------
-            sb.table("player_stats").update({"score": 0}).execute()
-
-            st.success("✅ Competition ended successfully! Winner archived and scores reset.")
-            st.rerun()
-
-        except Exception as e:
-            st.error(f"❌ Could not end competition: {e}")
 
 
 
