@@ -2583,9 +2583,11 @@ def extract_stats_from_image(image_bytes: bytes):
         img = {"mime_type": "image/png", "data": image_bytes}
 
         prompt = """
-You are a strict data extraction system. 
-Extract the player's statistics from the provided image and return them in EXACT JSON format.
-Do not add explanations, comments, or markdown.
+You are a precise OCR and data extraction system analyzing a football performance stats screen.
+
+Goal:
+Extract ONLY the statistics for the player that is SELECTED or HIGHLIGHTED in the list (the row that is visually highlighted or focused). 
+Ignore all other players completely.
 
 Output Schema (all keys required):
 {
@@ -2615,11 +2617,14 @@ Output Schema (all keys required):
 }
 
 Rules:
-- Always include all fields, even if value is 0.
-- Use numbers only (no symbols like %, km, or strings like "None").
-- If data is missing, return 0 (for numeric) or "" (for string).
-- Output MUST be valid JSON.
+- Extract data ONLY for the highlighted player (example: if the row “modric” is highlighted, extract his stats).
+- The player's name and position should come from the left-side list.
+- Match ID is not shown, so return "".
+- Numbers must be raw (no %, km, or symbols).
+- Missing data → use 0 (for numbers) or "" (for strings).
+- Output MUST be valid JSON — no text or comments outside the JSON.
 """
+
 
         resp = model.generate_content([prompt, img])
         raw_text = _clean_gemini_text(resp.text or "")
