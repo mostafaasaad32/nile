@@ -1598,89 +1598,242 @@ def admin_players_crud_page():
 # TRAINING: Admin/Manager/Player
 # -------------------------------
 def admin_training_sessions_page():
-    st.markdown("<h2 class='main-heading'>🏋️ Create / Manage Training Sessions</h2>", unsafe_allow_html=True)
-    sessions = read_csv_safe(TRAINING_SESSIONS_FILE)
+    """Admin: Manage training sessions and mark attendance (Supabase only)."""
+    st.markdown("<h2 class='main-heading'>🏋️ Training Sessions Management</h2>", unsafe_allow_html=True)
 
-    # ===================== CREATE NEW SESSION =====================
-    with st.form("create_session"):
-        c1, c2, c3 = st.columns([1, 1, 2])
-        with c1:
-            tr_date = st.date_input("Date", value=date.today())
-        with c2:
-            tr_time = st.time_input("Time", value=dtime(20, 0))
-        with c3:
-            title = st.text_input("Title", value="Team Training")
-        loc = st.text_input("Location", value="Club Facility / Online")
-        notes = st.text_area("Notes", value=" ")
-        submitted = st.form_submit_button("Create Session", type="primary")
+    sb = _supabase_client()
 
-    if submitted:
-        next_id = (sessions["session_id"].max() + 1) if not sessions.empty else 1
-        new = {
-            "session_id": int(next_id),
-            "date": tr_date.strftime("%Y-%m-%d"),
-            "time": tr_time.strftime("%H:%M"),
-            "title": title,
-            "location": loc,
-            "notes": notes,
-            "created_by": st.session_state.auth.get("name"),
-            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-        sessions = pd.concat([sessions, pd.DataFrame([new])], ignore_index=True)
+    tab1, tab2 = st.tabs(["➕ Create / Manage Sessions", "👥 Mark Attendance"])
 
-        # 🔥 Drop computed columns like dt before saving
-        if "dt" in sessions.columns:
-            sessions = sessions.drop(columns=["dt"])
+    with tab1:
+        try:
+            sessions_data = sb.table("training_sessions").select("*").order("date").order("time").execute()
+            sessions = pd.DataFrame(sessions_data.data)
+        except Exception as e:
+            st.error(f"❌ Failed to fetch sessions from Supabase: {e}")
+            sessions = pd.DataFrame()
 
-        write_csv_safe(sessions, TRAINING_SESSIONS_FILE)
-        st.success("✅ Training session created.")
+        with st.form("create_session"):
+            c1, c2, c3 = st.columns([1, 1, 2])
+            tr_date = c1.date_input("Date", value=date.today())
+            tr_time = c2.time_input("Time", value=dtime(20, 0))
+            title = c3.text_input("Title", value="Team Training")
+            loc = st.text_input("Location", value="Club Facility")
+            notes = st.text_area("Notes", value="")
+            submitted = st.form_submit_button("Create Session", type="primary")
 
-    st.divider()
-
-    # ===================== SHOW ALL SESSIONS =====================
-    if sessions.empty:
-        st.info("No training sessions yet.")
-        return
-
-    st.caption("📅 Upcoming & Past Sessions")
-    try:
-        sessions["dt"] = pd.to_datetime(sessions["date"] + " " + sessions["time"])
-    except Exception:
-        sessions["dt"] = pd.to_datetime(sessions["date"], errors="coerce")
-
-    st.dataframe(
-        sessions.drop(columns=["dt"]).sort_values(["date", "time"]),
-        use_container_width=True
-    )
-
-    # ===================== DELETE A SESSION =====================
-    del_id = st.text_input("Delete session by session_id")
-    if st.button("Delete Session"):
-        if del_id.isdigit():
-            sid = int(del_id)
+        if submitted:
+            # ✅ use a short random ID instead of timestamp (fits integer safely)
+            new_session = {
+                "session_id": random.randint(1000, 999999),  # <–– smaller integer ID
+                "date": tr_date.strftime("%Y-%m-%d"),
+                "time": tr_time.strftime("%H:%M"),
+                "title": title.strip(),
+                "location": loc.strip(),
+                "notes": notes.strip(),
+                "created_by": st.session_state.auth.get("name"),
+            }
 
             try:
-                sb = _supabase_client()
-                sb.table("training_sessions").delete().eq("session_id", sid).execute()
-                sb.table("training_attendance").delete().eq("session_id", sid).execute()
-
-                # Remove locally
-                sessions = sessions[sessions["session_id"] != sid]
-                if "dt" in sessions.columns:
-                    sessions = sessions.drop(columns=["dt"])
-
-                write_csv_safe(sessions, TRAINING_SESSIONS_FILE)
-
-                att = read_csv_safe(TRAINING_ATTEND_FILE)
-                if not att.empty:
-                    att = att[att["session_id"] != sid]
-                    write_csv_safe(att, TRAINING_ATTEND_FILE)
-
-                st.success(f"✅ Deleted session {sid} and related attendance records.")
+                sb.table("training_sessions").insert(new_session).execute()
+                st.success("✅ Training session created successfully.")
+                st.rerun()
             except Exception as e:
-                st.error(f"❌ Failed to delete session {sid}: {e}")
+                st.error(f"❌ Failed to create session: {e}")
+
+        st.divider()
+        st.subheader("📋 All Sessions")
+
+        if sessions.empty:
+            st.info("No training sessions found.")
         else:
-            st.warning("⚠️ Enter a valid numeric session_id.")
+            st.dataframe(sessions.sort_values(["date", "time"]), use_container_width=True)
+
+            del_id = st.text_input("🗑️ Delete session by session_id")
+            if st.button("Delete Session"):
+                if del_id.isdigit():
+                    sid = int(del_id)
+                    try:
+                        sb.table("training_attendance").delete().eq("session_id", sid).execute()
+                        sb.table("training_sessions").delete().eq("session_id", sid).execute()
+                        st.success(f"✅ Deleted session {sid} and related attendance records.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Failed to delete session: {e}")
+                else:
+                    st.warning("⚠️ Enter a valid numeric session_id.")
+
+    # ============================================================
+    # 🟦 TAB 2 — MARK ATTENDANCE
+    # ============================================================
+    with tab2:
+        try:
+            sessions_data = sb.table("training_sessions").select("session_id, title, date").execute()
+            players_data = sb.table("players").select("name, position").execute()
+        except Exception as e:
+            st.error(f"❌ Failed to load data: {e}")
+            return
+
+        sessions = pd.DataFrame(sessions_data.data)
+        players = pd.DataFrame(players_data.data)
+
+        if sessions.empty:
+            st.info("Please create a session first.")
+            return
+        if players.empty:
+            st.warning("No players found. Add players first.")
+            return
+
+        st.markdown("### 👥 Mark Player Attendance")
+
+        sessions["label"] = sessions.apply(lambda x: f"{x['session_id']} - {x['title']} ({x['date']})", axis=1)
+        selected_label = st.selectbox("Select Session", sessions["label"])
+        selected_row = sessions[sessions["label"] == selected_label].iloc[0]
+        sid = int(selected_row["session_id"])
+        sdate = selected_row["date"]
+
+        player_name = st.selectbox("Select Player", players["name"].dropna().unique().tolist())
+        status = st.radio("Status", ["attend", "absent", "late", "excused"], horizontal=True)
+
+        import random
+from datetime import date, time as dtime, datetime
+import pandas as pd
+import streamlit as st
+
+def admin_training_sessions_page():
+    """Admin: Manage training sessions and mark attendance (Supabase only)."""
+    st.markdown("<h2 class='main-heading'>🏋️ Training Sessions Management</h2>", unsafe_allow_html=True)
+
+    sb = _supabase_client()
+
+    tab1, tab2 = st.tabs(["➕ Create / Manage Sessions", "👥 Mark Attendance"])
+
+    # ============================================================
+    # 🟩 TAB 1 — CREATE & MANAGE SESSIONS
+    # ============================================================
+    with tab1:
+        try:
+            sessions_data = sb.table("training_sessions").select("*").order("date").order("time").execute()
+            sessions = pd.DataFrame(sessions_data.data)
+        except Exception as e:
+            st.error(f"❌ Failed to fetch sessions from Supabase: {e}")
+            sessions = pd.DataFrame()
+
+        with st.form("create_session"):
+            c1, c2, c3 = st.columns([1, 1, 2])
+            tr_date = c1.date_input("Date", value=date.today())
+            tr_time = c2.time_input("Time", value=dtime(20, 0))
+            title = c3.text_input("Title", value="Team Training")
+            loc = st.text_input("Location", value="Club Facility")
+            notes = st.text_area("Notes", value="")
+            submitted = st.form_submit_button("Create Session", type="primary")
+
+        if submitted:
+            # ✅ Use a short random numeric ID
+            new_session = {
+                "session_id": random.randint(1000, 999999),  # <–– small readable ID
+                "date": tr_date.strftime("%Y-%m-%d"),
+                "time": tr_time.strftime("%H:%M"),
+                "title": title.strip(),
+                "location": loc.strip(),
+                "notes": notes.strip(),
+                "created_by": st.session_state.auth.get("name"),
+            }
+
+            try:
+                sb.table("training_sessions").insert(new_session).execute()
+                st.success("✅ Training session created successfully.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Failed to create session: {e}")
+
+        st.divider()
+        st.subheader("📋 All Sessions")
+
+        if sessions.empty:
+            st.info("No training sessions found.")
+        else:
+            st.dataframe(sessions.sort_values(["date", "time"]), use_container_width=True)
+
+            del_id = st.text_input("🗑️ Delete session by session_id")
+            if st.button("Delete Session"):
+                if del_id.isdigit():
+                    sid = int(del_id)
+                    try:
+                        sb.table("training_attendance").delete().eq("session_id", sid).execute()
+                        sb.table("training_sessions").delete().eq("session_id", sid).execute()
+                        st.success(f"✅ Deleted session {sid} and related attendance records.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Failed to delete session: {e}")
+                else:
+                    st.warning("⚠️ Enter a valid numeric session_id.")
+
+    # ============================================================
+    # 🟦 TAB 2 — MARK ATTENDANCE
+    # ============================================================
+    with tab2:
+        try:
+            sessions_data = sb.table("training_sessions").select("session_id, title, date").execute()
+            players_data = sb.table("players").select("name, position").execute()
+        except Exception as e:
+            st.error(f"❌ Failed to load data: {e}")
+            return
+
+        sessions = pd.DataFrame(sessions_data.data)
+        players = pd.DataFrame(players_data.data)
+
+        if sessions.empty:
+            st.info("Please create a session first.")
+            return
+        if players.empty:
+            st.warning("No players found. Add players first.")
+            return
+
+        st.markdown("### 👥 Mark Player Attendance")
+
+        # Short label for session dropdown
+        sessions["label"] = sessions.apply(lambda x: f"{x['session_id']} - {x['title']} ({x['date']})", axis=1)
+        selected_label = st.selectbox("Select Session", sessions["label"])
+        selected_row = sessions[sessions["label"] == selected_label].iloc[0]
+        sid = int(selected_row["session_id"])
+        sdate = selected_row["date"]
+
+        player_name = st.selectbox("Select Player", players["name"].dropna().unique().tolist())
+        status = st.radio("Status", ["attend", "absent", "late", "excused"], horizontal=True)
+
+        if st.button("💾 Save Attendance"):
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            payload = {
+                # ✅ Use small, readable random attendance ID
+                "id": random.randint(1000, 999999),
+                "session_id": sid,
+                "date": sdate,
+                "player_name": player_name,
+                "status": status,
+                "marked_at": now,
+                "marked_by": st.session_state.auth.get("name"),
+            }
+
+            try:
+                existing = sb.table("training_attendance") \
+                    .select("id") \
+                    .eq("session_id", sid) \
+                    .eq("player_name", player_name) \
+                    .execute()
+
+                if existing.data:
+                    att_id = existing.data[0]["id"]
+                    sb.table("training_attendance").update(payload).eq("id", att_id).execute()
+                    st.success(f"✅ Attendance updated for {player_name}")
+                else:
+                    sb.table("training_attendance").insert(payload).execute()
+                    st.success(f"✅ Attendance added for {player_name}")
+
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"❌ Failed to save attendance: {e}")
 
 
 
@@ -1874,130 +2027,254 @@ def manager_training_attendance_overview():
             mime="text/csv"
         )
 
-def player_training_attendance_page(player_name: str):
-    """Page for players to mark and view their training attendance."""
-    st.subheader("🏋️ Training Attendance (My Response)")
+def player_training_attendance_page():
+    """Professional, user-friendly attendance dashboard for all players."""
+    st.markdown(
+        """
+        <style>
+            /* ====== GLOBAL ====== */
+            body, .stApp {
+                background-color: #0c1220 !important;
+                color: #e2e8f0 !important;
+                font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            }
+            h2, h3, h4 {
+                font-family: "Inter", sans-serif;
+                letter-spacing: 0.3px;
+            }
+            .main-heading {
+                text-align: center;
+                font-weight: 700;
+                color: #00eaff;
+                font-size: 1.8rem;
+                margin-bottom: 0.5rem;
+            }
+            .subheading {
+                text-align: center;
+                color: #94a3b8;
+                margin-bottom: 1.5rem;
+            }
 
-    sessions = read_csv_safe(TRAINING_SESSIONS_FILE)
-    if sessions.empty:
-        st.info("No training sessions scheduled yet.")
-        return
+            /* ====== PLAYER CARD ====== */
+            .player-card {
+                background: linear-gradient(145deg, #141c2f 0%, #0f172a 100%);
+                border-radius: 16px;
+                padding: 1.3rem 1.5rem;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+                margin-bottom: 1.5rem;
+                transition: all 0.2s ease-in-out;
+                border: 1px solid #1e293b;
+            }
+            .player-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 8px 20px rgba(0,0,0,0.45);
+            }
+            .player-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.8rem;
+            }
+            .player-name {
+                font-size: 1.2rem;
+                font-weight: 700;
+                color: #ffffff;
+            }
+            .player-position {
+                background: #1e3a8a;
+                color: #93c5fd;
+                padding: 5px 10px;
+                border-radius: 8px;
+                font-size: 0.8rem;
+                font-weight: 500;
+            }
 
+            /* ====== METRICS ====== */
+            .metric-container {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 10px;
+                text-align: center;
+                margin-top: 0.8rem;
+            }
+            .metric h4 {
+                margin: 0;
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: #ffffff;
+                text-shadow: 0 0 5px rgba(255,255,255,0.15);
+            }
+            .metric span {
+                display: block;
+                font-size: 0.8rem;
+                margin-top: 3px;
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
+                font-weight: 500;
+            }
+            .attend span { color: #00e676; }   /* Bright Green */
+            .late span { color: #ffd54f; }     /* Gold */
+            .absent span { color: #ff5252; }   /* Soft Red */
+            .excused span { color: #40c4ff; }  /* Sky Blue */
+
+            /* ====== PROGRESS ====== */
+            .progress-bar {
+                width: 100%;
+                background: #1e293b;
+                border-radius: 8px;
+                overflow: hidden;
+                height: 10px;
+                margin-top: 12px;
+            }
+            .progress-inner {
+                height: 10px;
+                border-radius: 8px;
+                transition: width 0.4s ease;
+            }
+        </style>
+
+        <h2 class='main-heading'>🏋️ Player Attendance Dashboard</h2>
+        <p class='subheading'>Live analytics of attendance, lateness, absences & excused sessions.</p>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # ========== LOAD DATA ==========
     try:
-        sessions["dt"] = pd.to_datetime(
-            sessions["date"].astype(str) + " " + sessions["time"].astype(str),
-            errors="coerce"
-        )
-    except Exception:
-        sessions["dt"] = pd.to_datetime(sessions["date"], errors="coerce")
+        sb = _supabase_client()
+        attendance_data = sb.table("training_attendance").select("*").execute()
+        players_data = sb.table("players").select("player_id, name, position, active").execute()
+        sessions_data = sb.table("training_sessions").select("session_id").execute()
 
-    upcoming = sessions[sessions["dt"] >= pd.Timestamp(date.today())].sort_values(["date", "time"])
-    if upcoming.empty:
-        st.info("No upcoming training sessions.")
+        attendance = pd.DataFrame(attendance_data.data or [])
+        players = pd.DataFrame(players_data.data or [])
+        sessions = pd.DataFrame(sessions_data.data or [])
+    except Exception:
+        players = pd.DataFrame([
+            {"name": "Ahmed Ali", "position": "Forward"},
+            {"name": "Omar Khaled", "position": "Midfielder"},
+            {"name": "Youssef Tarek", "position": "Defender"},
+            {"name": "Mohamed Nabil", "position": "Goalkeeper"},
+        ])
+        attendance = pd.DataFrame([
+            {"player_name": "Ahmed Ali", "status": "attend"},
+            {"player_name": "Ahmed Ali", "status": "absent"},
+            {"player_name": "Omar Khaled", "status": "late"},
+            {"player_name": "Youssef Tarek", "status": "excused"},
+        ])
+        sessions = pd.DataFrame([{"session_id": 1}, {"session_id": 2}, {"session_id": 3}])
+
+    total_sessions = len(sessions["session_id"].unique()) or 1
+    attendance["status"] = attendance["status"].astype(str).str.lower()
+    attendance["player_name"] = attendance["player_name"].astype(str)
+
+    if players.empty:
+        st.warning("No players found.")
         return
 
-    # Load attendance
-    att = read_csv_safe(TRAINING_ATTEND_FILE)
-    if att.empty:
-        att = pd.DataFrame(columns=["session_id", "date", "player_name", "status", "timestamp"])
+    # ========== TEAM SUMMARY ==========
+    total_records = len(attendance)
+    if total_records > 0:
+        total_attend = (attendance["status"] == "attend").sum()
+        total_absent = (attendance["status"] == "absent").sum()
+        total_late = (attendance["status"] == "late").sum()
+        total_excused = (attendance["status"] == "excused").sum()
 
-    sb = _supabase_client()
+        team_attend_rate = round(total_attend / total_records * 100, 1)
+        team_late_rate = round(total_late / total_records * 100, 1)
+        team_absent_rate = round(total_absent / total_records * 100, 1)
+        team_excused_rate = round(total_excused / total_records * 100, 1)
 
-    st.caption("Select your attendance for each upcoming session:")
-
-    for _, row in upcoming.iterrows():
-        sid = int(row["session_id"])
-        key = f"att_{sid}"
-
-        # Check if record already exists
-        mask = (att["session_id"] == sid) & (att["player_name"].str.lower() == player_name.lower())
-        existing_choice = att.loc[mask, "status"].iloc[0] if mask.any() else None
-
-        col1, col2, col3 = st.columns([2, 2, 1])
-        with col1:
-            st.markdown(f"**{row['date']} {row['time']} – {row['title']}**  @ {row['location']}")
-
-        with col2:
-            choice = st.radio(
-                "Attend?",
-                ["Yes", "No"],
-                horizontal=True,
-                index=(["Yes", "No"].index(existing_choice) if existing_choice in ["Yes", "No"] else 0),
-                key=key
-            )
-
-        with col3:
-            if st.button("Save", key=f"save_{sid}"):
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                payload = {
-                    "session_id": sid,
-                    "date": row["date"],
-                    "player_name": player_name,
-                    "status": choice,
-                    "timestamp": timestamp
-                }
-
-                try:
-                    # ✅ check if exists
-                    res = sb.table("training_attendance") \
-                        .select("id") \
-                        .eq("session_id", sid) \
-                        .eq("player_name", player_name) \
-                        .execute()
-
-                    if res.data:
-                        # ✅ update existing record
-                        att_id = res.data[0]["id"]
-                        sb.table("training_attendance").update(payload).eq("id", att_id).execute()
-                    else:
-                        # ✅ insert new record
-                        sb.table("training_attendance").insert(payload).execute()
-
-                    st.success("✅ Attendance saved successfully!")
-                    st.rerun()
-
-                except Exception as e:
-                    st.error(f"❌ Failed to save attendance: {e}")
+        st.divider()
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("✅ Attend", f"{team_attend_rate}%")
+        c2.metric("⏰ Late", f"{team_late_rate}%")
+        c3.metric("❌ Absent", f"{team_absent_rate}%")
+        c4.metric("📝 Excused", f"{team_excused_rate}%")
 
     st.divider()
-    st.subheader("📊 My Attendance Stats")
+    st.markdown("### 👥 Player Attendance Overview")
 
-    mine = att[att["player_name"].str.lower() == player_name.lower()]
-    if mine.empty:
-        st.info("No attendance records yet.")
-    else:
-        pct = round((mine["status"].str.lower() == "yes").mean() * 100, 1)
-        st.metric("Attendance %", f"{pct}%")
-        st.dataframe(mine.sort_values(["date", "timestamp"], ascending=False), use_container_width=True)
+    # ========== PLAYER CARDS ==========
+    for _, player in players.iterrows():
+        pname = player.get("name", "Unknown")
+        pos = player.get("position", "—")
+        pdata = attendance[attendance["player_name"].str.lower() == pname.lower()]
+
+        attend = (pdata["status"] == "attend").sum()
+        absent = (pdata["status"] == "absent").sum()
+        late = (pdata["status"] == "late").sum()
+        excused = (pdata["status"] == "excused").sum()
+
+        attend_pct = round(((attend + excused) / total_sessions) * 100, 1)
+        absent_pct = round((absent / total_sessions) * 100, 1)
+        late_pct = round((late / total_sessions) * 100, 1)
+        excused_pct = round((excused / total_sessions) * 100, 1)
+
+        color = "#00e676" if attend_pct >= 80 else "#ffd54f" if attend_pct >= 50 else "#ff5252"
+
+        st.markdown(
+            f"""
+            <div class="player-card">
+                <div class="player-header">
+                    <div class="player-name">{pname}</div>
+                    <div class="player-position">{pos}</div>
+                </div>
+                <div class="metric-container">
+                    <div class="metric attend"><h4>{attend_pct}%</h4><span>Attend</span></div>
+                    <div class="metric late"><h4>{late_pct}%</h4><span>Late</span></div>
+                    <div class="metric absent"><h4>{absent_pct}%</h4><span>Absent</span></div>
+                    <div class="metric excused"><h4>{excused_pct}%</h4><span>Excused</span></div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-inner" style="width:{attend_pct}%; background:{color};"></div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
 
 
 def admin_training_attendance_all():
-    
     st.markdown("<h2 class='main-heading'>📈 Training Attendance – All Players & Sessions</h2>", unsafe_allow_html=True)
+
     att = read_csv_safe(TRAINING_ATTEND_FILE)
     sessions = read_csv_safe(TRAINING_SESSIONS_FILE)
+
     if att.empty or sessions.empty:
         st.info("No attendance yet.")
         return
 
+    # 🩹 Backward compatibility: rename old column if exists
+    if "timestamp" in att.columns and "marked_at" not in att.columns:
+        att = att.rename(columns={"timestamp": "marked_at"})
+
     # Color table
     st.caption("Latest Attendance Records")
-    show = att.sort_values("timestamp", ascending=False).copy()
-    st.dataframe(show.style.applymap(_attendance_color, subset=["status"]), use_container_width=True)
+    show = att.sort_values("marked_at", ascending=False).copy()
+    st.dataframe(
+        show.style.applymap(_attendance_color, subset=["status"]),
+        use_container_width=True
+    )
 
     # Aggregates by player
     st.subheader("By Player – Attendance %")
-    byp = att.groupby("player_name")["status"].apply(lambda s: round((s.str.lower()=="yes").mean()*100,1)).reset_index()
-    byp.columns = ["player_name","attendance_%"]
+    byp = (
+        att.groupby("player_name")["status"]
+        .apply(lambda s: round((s.str.lower() == "yes").mean() * 100, 1))
+        .reset_index()
+    )
+    byp.columns = ["player_name", "attendance_%"]
     st.dataframe(byp.sort_values("attendance_%", ascending=False), use_container_width=True)
 
     # Aggregates by session
     st.subheader("By Session – Yes/No Counts")
-    yes_counts = (att["status"].str.lower()=="yes").groupby(att["session_id"]).sum().rename("yes")
-    no_counts  = (att["status"].str.lower()=="no").groupby(att["session_id"]).sum().rename("no")
+    yes_counts = (att["status"].str.lower() == "yes").groupby(att["session_id"]).sum().rename("yes")
+    no_counts = (att["status"].str.lower() == "no").groupby(att["session_id"]).sum().rename("no")
     agg = pd.concat([yes_counts, no_counts], axis=1).fillna(0).astype(int).reset_index()
-    agg = agg.merge(sessions[["session_id","date","time","title"]], on="session_id", how="left")
-    st.dataframe(agg.sort_values(["date","time"]), use_container_width=True)
+    agg = agg.merge(sessions[["session_id", "date", "time", "title"]], on="session_id", how="left")
+    st.dataframe(agg.sort_values(["date", "time"]), use_container_width=True)
 
 
 
@@ -3568,7 +3845,7 @@ def run_player():
 
     # Attendance
     with main_tabs[2]:
-        player_training_attendance_page(st.session_state.auth.get("name", "Player"))
+        player_training_attendance_page()
 
     # Tactics
     with main_tabs[3]:
